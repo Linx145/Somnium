@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Core" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.Maths" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.16.0" />
+  </ItemGroup>
+
+</Project>
