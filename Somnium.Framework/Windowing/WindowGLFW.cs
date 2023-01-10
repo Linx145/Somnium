@@ -1,5 +1,8 @@
 ﻿using Silk.NET.Core.Contexts;
+using Silk.NET.Core.Native;
 using Silk.NET.GLFW;
+using Silk.NET.Vulkan;
+using Somnium.Framework.Vulkan;
 using System.Diagnostics;
 
 namespace Somnium.Framework.Windowing
@@ -169,6 +172,33 @@ namespace Somnium.Framework.Windowing
             Glfw.PollEvents();
         }
         public override IGLContext GetGLContext() => GLContext;
+        public override SurfaceKHR CreateWindowSurfaceVulkan()
+        {
+            VkNonDispatchableHandle surfaceHandle;
+            Result result = (Result)Glfw.CreateWindowSurface(VulkanEngine.vkInstance.ToHandle(), handle, null, &surfaceHandle);
+            if (result != Result.Success)
+            {
+                throw new InitializationException("Failed to create Vulkan surface for window!");
+            }
+            return surfaceHandle.ToSurface();
+        }
+        public override Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities)
+        {
+            if (capabilities.CurrentExtent.Width != int.MaxValue)
+            {
+                return capabilities.CurrentExtent;
+            }
+            else
+            {
+                SomniumGLFW.API.GetFramebufferSize(handle, out int width, out int height);
+                Extent2D extents = new Extent2D((uint)width, (uint)height);
+
+                extents.Width = Math.Clamp(extents.Width, capabilities.MinImageExtent.Width, capabilities.MaxImageExtent.Width);
+                extents.Height = Math.Clamp(extents.Height, capabilities.MinImageExtent.Height, capabilities.MaxImageExtent.Height);
+
+                return extents;
+            }
+        }
         public override void Dispose()
         {
             if (handle != null)

@@ -1,6 +1,6 @@
 ﻿using Silk.NET.Core.Contexts;
-using Silk.NET.GLFW;
-using System;
+using Silk.NET.Vulkan;
+
 namespace Somnium.Framework.Windowing
 {
     public abstract unsafe class Window : IDisposable
@@ -12,6 +12,7 @@ namespace Somnium.Framework.Windowing
 
         public abstract void Dispose();
         public abstract void Update();
+        public abstract SurfaceKHR CreateWindowSurfaceVulkan();
 
         public abstract bool VSync { get; set; }
 
@@ -22,6 +23,7 @@ namespace Somnium.Framework.Windowing
 
         #region Vulkan
         public abstract byte** GetRequiredExtensions(out uint Count);
+        public abstract Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities);
         #endregion
     }
 }

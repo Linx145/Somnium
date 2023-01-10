@@ -69,6 +69,7 @@ namespace Somnium.Framework.Vulkan
         internal static void DestroyDebugMessenger()
         {
             debugUtils?.DestroyDebugUtilsMessenger(VulkanEngine.vkInstance, messenger, null);
+            debugUtils?.Dispose();
             Console.WriteLine("Debug messenger destroyed");
         }
     }

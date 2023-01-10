@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
+using Silk.NET.Vulkan.Extensions.KHR;
 using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
@@ -25,8 +27,17 @@ namespace Somnium.Framework.Vulkan
                 return internalVkDevice;
             }
         }
+        public static SurfaceKHR WindowSurface
+        {
+            get
+            {
+                return internalWindowSurface;
+            }
+        }
+        private static VulkanGPUInfo CurrentGPU;
         private static Device internalVkDevice;
-        
+        internal static KhrSurface KhrSurfaceAPI;
+        private static SurfaceKHR internalWindowSurface;
         public static bool initialized { get; private set; }
         public static unsafe void Initialize(Window window, string AppName, bool enableValidationLayers = true)
         {
@@ -42,10 +53,18 @@ namespace Somnium.Framework.Vulkan
                 {
                     VulkanDebug.InitializeDebugMessenger();
                 }
+                CreateSurface(window);
                 CreateLogicalDevice();
+                CreateSwapChain(window);
             }
         }
         #region instance creation
+        /// <summary>
+        /// Creates the Vulkan instance to run things with
+        /// </summary>
+        /// <param name="window">The window that should be used</param>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InitializationException"></exception>
         private static void CreateInstance(Window window)
         {
             ApplicationInfo vkApplicationInfo = new ApplicationInfo();
@@ -63,10 +82,11 @@ namespace Somnium.Framework.Vulkan
 
             //get the required window extensions needed to hook the app in, plus additional stuff to get
             //optional modules like Validation Layer Debug Messengers up and running
-            requiredExtensions = GetRequiredExtensions(window);
+            requiredInstanceExtensions = GetRequiredInstanceExtensions(window);
             
-            vkInstanceCreateInfo.EnabledExtensionCount = (uint)requiredExtensions.Length;
-            vkInstanceCreateInfo.PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(requiredExtensions);
+            vkInstanceCreateInfo.EnabledExtensionCount = (uint)requiredInstanceExtensions.Length;
+            requiredInstanceExtensionsPtr = (byte**)SilkMarshal.StringArrayToPtr(requiredInstanceExtensions);
+            vkInstanceCreateInfo.PpEnabledExtensionNames = requiredInstanceExtensionsPtr;
 
             if (ValidationLayersActive)
             {
@@ -98,6 +118,18 @@ namespace Somnium.Framework.Vulkan
                 }
                 else throw new InitializationException("Vulkan failed to create instance! Check device for compatibility");
             }            
+        }
+        #endregion
+
+        #region surface creation
+        private static void CreateSurface(Window window)
+        {
+            //windowSurface = window.CreateWindowSurfaceVulkan();
+            if (!vk.TryGetInstanceExtension(vkInstance, out KhrSurfaceAPI))
+            {
+                throw new InitializationException("KHR_surface extension missing!");
+            }
+            internalWindowSurface = window.CreateWindowSurfaceVulkan();
         }
         #endregion
 
@@ -174,8 +206,9 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region extensions
-        private static string[] requiredExtensions;
-        private static string[] GetRequiredExtensions(Window window)
+        public static string[] requiredInstanceExtensions;
+        private static byte** requiredInstanceExtensionsPtr;
+        private static string[] GetRequiredInstanceExtensions(Window window)
         {
             var glfwExtensions = window.GetRequiredExtensions(out var glfwExtensionCount);
             var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount);
@@ -189,7 +222,7 @@ namespace Somnium.Framework.Vulkan
             return extensions;
         }
 
-        public static VkExtensionProperties[] SupportedExtensions()
+        public static VkExtensionProperties[] SupportedInstanceExtensions()
         {
             if (!initialized)
             {
@@ -212,28 +245,90 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region Logical Device
+        public static string[] requiredDeviceExtensions = new string[] { KhrSwapchain.ExtensionName };
+        private static byte** requiredDeviceExtensionsPtr;
+
+        /// <summary>
+        /// Locates a suitable GPU based on code in the module VulkanGPUs and creates a logical device to interface with it
+        /// </summary>
+        /// <exception cref="InitializationException"></exception>
         private static void CreateLogicalDevice()
         {
             VulkanGPUInfo GPU = VulkanGPUs.SelectGPU();
 
-            DeviceQueueCreateInfo queueCreateInfo = new DeviceQueueCreateInfo();
-            queueCreateInfo.SType = StructureType.DeviceQueueCreateInfo;
-            queueCreateInfo.QueueFamilyIndex = GPU.queueInfo.graphicsBitIndex!.Value;
-            queueCreateInfo.QueueCount = 1;
-            float queuePriority = 1f;
-            queueCreateInfo.PQueuePriorities = &queuePriority;
+            var queueCreateInfos = GPU.GetQueuesToCreate();
 
             DeviceCreateInfo deviceCreateInfo = new DeviceCreateInfo();
             deviceCreateInfo.SType = StructureType.DeviceCreateInfo;
             deviceCreateInfo.QueueCreateInfoCount = 1;
-            deviceCreateInfo.PQueueCreateInfos = &queueCreateInfo;
+            fixed (DeviceQueueCreateInfo* ptr = queueCreateInfos)
+            {
+                deviceCreateInfo.PQueueCreateInfos = ptr;
+            }
+            deviceCreateInfo.EnabledExtensionCount = (uint)requiredDeviceExtensions.Length;
+            requiredDeviceExtensionsPtr = (byte**)SilkMarshal.StringArrayToPtr(requiredDeviceExtensions);
+            deviceCreateInfo.PpEnabledExtensionNames = requiredDeviceExtensionsPtr;
 
             Result result = vk.CreateDevice(GPU.Device, in deviceCreateInfo, null, out internalVkDevice);
+            GPU.GetCreatedQueueIndices(internalVkDevice);
 
             if (result != Result.Success)
             {
                 throw new InitializationException("Failed to create Vulkan logical device!");
             }
+            CurrentGPU = GPU;
+        }
+        #endregion
+
+        #region swap chain creation
+        /// <summary>
+        /// The min amount of images in the swap chain
+        /// </summary>
+        public static uint SwapChainImages
+        {
+            get
+            {
+                return internalSwapChainImages;
+            }
+            set
+            {
+                internalSwapChainImages = value;
+            }
+        }
+        private static uint internalSwapChainImages = 0;
+        public static void CreateSwapChain(Window window)
+        {
+            SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
+            SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.SpaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
+            Extent2D extents = window.GetSwapChainExtents(in swapChainSupport.Capabilities);
+            if (internalSwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
+            {
+                internalSwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
+            }
+            SwapchainCreateInfoKHR createInfo = new SwapchainCreateInfoKHR();
+            createInfo.SType = StructureType.SwapchainCreateInfoKhr;
+            createInfo.Surface = WindowSurface;
+            createInfo.MinImageCount = internalSwapChainImages;
+            createInfo.ImageFormat = surfaceFormat.Format;
+            createInfo.ImageColorSpace = surfaceFormat.ColorSpace;
+            createInfo.ImageExtent = extents;
+            createInfo.ImageArrayLayers = 1;
+            createInfo.ImageUsage = ImageUsageFlags.ColorAttachmentBit;
+
+            //if the present queue is not the same as the graphics queue, set the
+            //swapchain mode to concurrent
+            if (CurrentGPU.DedicatedTransferQueue.Handle != 0)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                createInfo.ImageSharingMode = SharingMode.Exclusive;
+                createInfo.QueueFamilyIndexCount = 0;
+                createInfo.PQueueFamilyIndices = null;
+            }
+
+            createInfo.PreTransform = swapChainSupport.Capabilities.CurrentTransform;
         }
         #endregion
 
@@ -241,20 +336,28 @@ namespace Somnium.Framework.Vulkan
         {
             if (initialized)
             {
+                CurrentGPU = default;
+                vk.DestroyDevice(vkDevice, null);
+                KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
                 if (ValidationLayersActive)
                 {
                     VulkanDebug.DestroyDebugMessenger();
                 }
-                vk.DestroyDevice(vkDevice, null);
                 vk.DestroyInstance(vkInstance, null);
+                KhrSurfaceAPI.Dispose();
                 vk.Dispose();
-                
+
                 if (validationLayersPtr != IntPtr.Zero)
                 {
                     SilkMarshal.Free((nint)validationLayersPtr);
                 }
+                if (requiredInstanceExtensionsPtr != null)
+                {
+                    SilkMarshal.Free((nint)requiredInstanceExtensionsPtr);
+                }
                 Marshal.FreeHGlobal(appNamePtr);
                 Marshal.FreeHGlobal(engineNamePtr);
+                SilkMarshal.Free((nint)requiredDeviceExtensionsPtr);
 
                 initialized = false;
             }

@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿using Silk.NET.Core;
+using Silk.NET.Vulkan;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -8,41 +9,72 @@ namespace Somnium.Framework.Vulkan
     public struct QueueProperties
     {
         public QueueFamilyProperties[] properties;
-        /// <summary>
-        /// The index of the queue with a graphics bit
-        /// </summary>
-        public uint? graphicsBitIndex;
-        /// <summary>
-        /// The index of the queue with a compute bit
-        /// </summary>
-        public uint? computeBitIndex;
-        /// <summary>
-        /// The index of the queue with a transfer bit
-        /// </summary>
-        public uint? transferBitIndex;
+
+        private uint? generalPurposeQueueIndex;
+        private uint? dedicatedGraphicsQueueIndex;
+        private uint? dedicatedComputeQueueIndex;
+        private uint? dedicatedTransferQueueIndex;
 
         public QueueProperties(QueueFamilyProperties[] properties)
         {
             this.properties = properties;
-            graphicsBitIndex = null;
-            computeBitIndex = null;
-            transferBitIndex = null;
+            generalPurposeQueueIndex = null;
+            dedicatedGraphicsQueueIndex = null;
+            dedicatedComputeQueueIndex = null;
+            dedicatedTransferQueueIndex = null;
+        }
+
+        /// <summary>
+        /// Gets the index of a general all-purpose queue.
+        /// </summary>
+        /// <param name="requiredFlags">If set to anything other than QueueFlags.None, specifies that the function can only return a queue that has all required flags. Otherwise, returns the best queue</param>
+        /// <returns></returns>
+        public unsafe uint? GetGeneralPurposeQueue(in PhysicalDevice device, QueueFlags requiredFlags = QueueFlags.GraphicsBit, bool mustPresent = true)
+        {
+            if (generalPurposeQueueIndex != null) return generalPurposeQueueIndex;
+
+            int maxScore = int.MinValue;
             for (uint i = 0; i < properties.Length; i++)
             {
+
                 ref readonly var property = ref properties[i];
-                if ((property.QueueFlags & QueueFlags.GraphicsBit) != 0)
+                if (requiredFlags == QueueFlags.None || (property.QueueFlags & requiredFlags) != 0)
                 {
-                    graphicsBitIndex = i;
-                }
-                if ((property.QueueFlags & QueueFlags.ComputeBit) != 0)
-                {
-                    computeBitIndex = i;
-                }
-                if ((property.QueueFlags & QueueFlags.TransferBit) != 0)
-                {
-                    transferBitIndex = i;
+                    if (mustPresent)
+                    {
+                        Bool32 isSupported = new Bool32(false);
+                        VulkanEngine.KhrSurfaceAPI.GetPhysicalDeviceSurfaceSupport(device, i, VulkanEngine.WindowSurface, &isSupported);
+                        if (!isSupported)
+                        {
+                            continue;
+                        }
+                    }
+                    int score = 0;
+                    if ((property.QueueFlags & QueueFlags.GraphicsBit) != 0)
+                    {
+                        score++;
+                    }
+                    if ((property.QueueFlags & QueueFlags.ComputeBit) != 0)
+                    {
+                        score++;
+                    }
+                    if ((property.QueueFlags & QueueFlags.TransferBit) != 0)
+                    {
+                        score++;
+                    }
+                    if ((property.QueueFlags & QueueFlags.SparseBindingBit) != 0)
+                    {
+                        score++;
+                    }
+
+                    if (score > maxScore)
+                    {
+                        maxScore = score;
+                        generalPurposeQueueIndex = i;
+                    }
                 }
             }
+            return generalPurposeQueueIndex;
         }
     }
 }
