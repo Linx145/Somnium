@@ -16,28 +16,28 @@ namespace Somnium.Framework.Vulkan
         {
             get
             {
-                return VulkanEngine.vk;
+                return VkEngine.vk;
             }
         }
         public static Device device
         {
             get
             {
-                return VulkanEngine.vkDevice;
+                return VkEngine.vkDevice;
             }
         }
         private static KhrSurface surfaceAPI
         {
             get
             {
-                return VulkanEngine.KhrSurfaceAPI;
+                return VkEngine.KhrSurfaceAPI;
             }
         }
         private static KhrSwapchain swapchainAPI
         {
             get
             {
-                return VulkanEngine.KhrSwapchainAPI;
+                return VkEngine.KhrSwapchainAPI;
             }
         }
         public SwapchainKHR handle;
@@ -126,7 +126,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.ImageArrayLayers = 1;
             createInfo.ImageUsage = ImageUsageFlags.ColorAttachmentBit;
 
-            if (VulkanEngine.CurrentGPU.DedicatedTransferQueue.Handle != 0)
+            if (VkEngine.CurrentGPU.DedicatedTransferQueue.Handle != 0)
             {
                 throw new NotImplementedException();
             }
@@ -204,24 +204,24 @@ namespace Somnium.Framework.Vulkan
         {
             SwapChainSupportDetails details = new SwapChainSupportDetails();
 
-            surfaceAPI.GetPhysicalDeviceSurfaceCapabilities(device, VulkanEngine.WindowSurface, &details.Capabilities);
+            surfaceAPI.GetPhysicalDeviceSurfaceCapabilities(device, VkEngine.WindowSurface, &details.Capabilities);
 
             uint supportedSurfaceFormats;
-            surfaceAPI.GetPhysicalDeviceSurfaceFormats(device, VulkanEngine.WindowSurface, &supportedSurfaceFormats, null);
+            surfaceAPI.GetPhysicalDeviceSurfaceFormats(device, VkEngine.WindowSurface, &supportedSurfaceFormats, null);
 
             details.supportedSurfaceFormats = new SurfaceFormatKHR[supportedSurfaceFormats];
             fixed (SurfaceFormatKHR* ptr = details.supportedSurfaceFormats)
             {
-                surfaceAPI.GetPhysicalDeviceSurfaceFormats(device, VulkanEngine.WindowSurface, &supportedSurfaceFormats, ptr);
+                surfaceAPI.GetPhysicalDeviceSurfaceFormats(device, VkEngine.WindowSurface, &supportedSurfaceFormats, ptr);
             }
 
             uint supportedPresentModes;
-            surfaceAPI.GetPhysicalDeviceSurfacePresentModes(device, VulkanEngine.WindowSurface, &supportedPresentModes, null);
+            surfaceAPI.GetPhysicalDeviceSurfacePresentModes(device, VkEngine.WindowSurface, &supportedPresentModes, null);
 
             details.supportedPresentModes = new PresentModeKHR[supportedPresentModes];
             fixed (PresentModeKHR* ptr = details.supportedPresentModes)
             {
-                surfaceAPI.GetPhysicalDeviceSurfacePresentModes(device, VulkanEngine.WindowSurface, &supportedPresentModes, ptr);
+                surfaceAPI.GetPhysicalDeviceSurfacePresentModes(device, VkEngine.WindowSurface, &supportedPresentModes, ptr);
             }
             return details;
         }

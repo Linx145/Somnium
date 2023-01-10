@@ -2,7 +2,7 @@
 
 namespace Somnium.Framework.Vulkan
 {
-    public struct VulkanGPUInfo
+    public struct VkGPUInfo
     {
         public PhysicalDevice Device;
         public Device LogicalDevice;
@@ -14,7 +14,7 @@ namespace Somnium.Framework.Vulkan
         public Queue DedicatedComputeQueue;
         public Queue DedicatedTransferQueue;
 
-        public VulkanGPUInfo(PhysicalDevice device, string name, QueueProperties queueInfo)
+        public VkGPUInfo(PhysicalDevice device, string name, QueueProperties queueInfo)
         {
             Device = device;
             this.Name = name;
@@ -51,7 +51,7 @@ namespace Somnium.Framework.Vulkan
         public void GetCreatedQueueIndices(Device createdDevice)
         {
             LogicalDevice = createdDevice;
-            VulkanEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out AllPurposeQueue);
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out AllPurposeQueue);
         }
     }
 }

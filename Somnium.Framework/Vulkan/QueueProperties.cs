@@ -43,7 +43,7 @@ namespace Somnium.Framework.Vulkan
                     if (mustPresent)
                     {
                         Bool32 isSupported = new Bool32(false);
-                        VulkanEngine.KhrSurfaceAPI.GetPhysicalDeviceSurfaceSupport(device, i, VulkanEngine.WindowSurface, &isSupported);
+                        VkEngine.KhrSurfaceAPI.GetPhysicalDeviceSurfaceSupport(device, i, VkEngine.WindowSurface, &isSupported);
                         if (!isSupported)
                         {
                             continue;

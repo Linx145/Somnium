@@ -3,12 +3,12 @@ using Silk.NET.Vulkan.Extensions.KHR;
 
 namespace Somnium.Framework.Vulkan
 {
-    public static unsafe class VulkanGPUs
+    public static unsafe class VkGPU
     {
-        public static VulkanGPUInfo SelectGPU()
+        public static VkGPUInfo SelectGPU()
         {
             uint deviceCount = 0;
-            VulkanEngine.vk.EnumeratePhysicalDevices(VulkanEngine.vkInstance, ref deviceCount, null);
+            VkEngine.vk.EnumeratePhysicalDevices(VkEngine.vkInstance, ref deviceCount, null);
 
             if (deviceCount == 0)
             {
@@ -18,7 +18,7 @@ namespace Somnium.Framework.Vulkan
             PhysicalDevice[] devices = new PhysicalDevice[deviceCount];
             fixed (PhysicalDevice* devicesPtr = devices)
             {
-                VulkanEngine.vk.EnumeratePhysicalDevices(VulkanEngine.vkInstance, ref deviceCount, devicesPtr);
+                VkEngine.vk.EnumeratePhysicalDevices(VkEngine.vkInstance, ref deviceCount, devicesPtr);
             }
             int highestScore = 0;
             int selectedIndex = -1;
@@ -44,7 +44,7 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InitializationException("No GPU was selected!");
             }
-            return new VulkanGPUInfo(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
+            return new VkGPUInfo(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
         }
         public static bool IsDeviceSuitable(in PhysicalDevice device, ref int score, out QueueProperties queueProperties)
         {
@@ -75,16 +75,16 @@ namespace Somnium.Framework.Vulkan
         }
         public static VkExtensionProperties[] SupportedDeviceExtensions(in PhysicalDevice device)
         {
-            if (!VulkanEngine.initialized)
+            if (!VkEngine.initialized)
             {
                 throw new InvalidOperationException("Cannot call VulkanGPUs.SupportedExtensions() before initializing Vulkan!");
             }
             uint supportedExtensionsCount = 0;
-            VulkanEngine.vk.EnumerateDeviceExtensionProperties(device, (byte*)null, &supportedExtensionsCount, null);
+            VkEngine.vk.EnumerateDeviceExtensionProperties(device, (byte*)null, &supportedExtensionsCount, null);
 
             ExtensionProperties[] extensionProperties = new ExtensionProperties[supportedExtensionsCount];
 
-            VulkanEngine.vk.EnumerateDeviceExtensionProperties(device, (byte*)null, &supportedExtensionsCount, extensionProperties.AsSpan());
+            VkEngine.vk.EnumerateDeviceExtensionProperties(device, (byte*)null, &supportedExtensionsCount, extensionProperties.AsSpan());
 
             VkExtensionProperties[] result = new VkExtensionProperties[supportedExtensionsCount];
             for (int i = 0; i < result.Length; i++)
@@ -99,26 +99,26 @@ namespace Somnium.Framework.Vulkan
             int totalSupported = 0;
             for (int i = 0; i < extensions.Length; i++)
             {
-                for (int j = 0; j < VulkanEngine.requiredDeviceExtensions.Length; j++)
+                for (int j = 0; j < VkEngine.requiredDeviceExtensions.Length; j++)
                 {
-                    if (VulkanEngine.requiredDeviceExtensions[j] == extensions[i].ExtensionName)
+                    if (VkEngine.requiredDeviceExtensions[j] == extensions[i].ExtensionName)
                     {
                         totalSupported++;
                         break;
                     }
                 }
             }
-            return totalSupported == VulkanEngine.requiredDeviceExtensions.Length;
+            return totalSupported == VkEngine.requiredDeviceExtensions.Length;
         }
         public static QueueProperties GetQueueInfo(in PhysicalDevice device)
         {
             uint flagsCount = 0;
-            VulkanEngine.vk.GetPhysicalDeviceQueueFamilyProperties(device, ref flagsCount, null);
+            VkEngine.vk.GetPhysicalDeviceQueueFamilyProperties(device, ref flagsCount, null);
 
             QueueFamilyProperties[] properties = new QueueFamilyProperties[flagsCount];
             fixed (QueueFamilyProperties* ptr = properties)
             {
-                VulkanEngine.vk.GetPhysicalDeviceQueueFamilyProperties(device, ref flagsCount, ptr);
+                VkEngine.vk.GetPhysicalDeviceQueueFamilyProperties(device, ref flagsCount, ptr);
             }
 
             return new QueueProperties(properties);

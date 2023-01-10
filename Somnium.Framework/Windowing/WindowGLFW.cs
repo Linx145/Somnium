@@ -175,7 +175,7 @@ namespace Somnium.Framework.Windowing
         public override SurfaceKHR CreateWindowSurfaceVulkan()
         {
             VkNonDispatchableHandle surfaceHandle;
-            Result result = (Result)Glfw.CreateWindowSurface(VulkanEngine.vkInstance.ToHandle(), handle, null, &surfaceHandle);
+            Result result = (Result)Glfw.CreateWindowSurface(VkEngine.vkInstance.ToHandle(), handle, null, &surfaceHandle);
             if (result != Result.Success)
             {
                 throw new InitializationException("Failed to create Vulkan surface for window!");

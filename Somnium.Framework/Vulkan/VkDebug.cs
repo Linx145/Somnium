@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Somnium.Framework.Vulkan
 {
-    public static unsafe class VulkanDebug
+    public static unsafe class VkDebug
     {
         public enum Mode
         {
@@ -55,12 +55,12 @@ namespace Somnium.Framework.Vulkan
         }
         internal static void InitializeDebugMessenger()
         {
-            if (!VulkanEngine.vk.TryGetInstanceExtension(VulkanEngine.vkInstance, out debugUtils)) throw new InitializationException("Failed to initialize ExtDebugUtils!");
+            if (!VkEngine.vk.TryGetInstanceExtension(VkEngine.vkInstance, out debugUtils)) throw new InitializationException("Failed to initialize ExtDebugUtils!");
 
             DebugUtilsMessengerCreateInfoEXT createInfo = new();
             PopulateDebugMessengerCreateInfo(ref createInfo);
 
-            if (debugUtils!.CreateDebugUtilsMessenger(VulkanEngine.vkInstance, in createInfo, null, out messenger) != Result.Success)
+            if (debugUtils!.CreateDebugUtilsMessenger(VkEngine.vkInstance, in createInfo, null, out messenger) != Result.Success)
             {
                 throw new Exception("failed to set up debug messenger!");
             }
@@ -68,7 +68,7 @@ namespace Somnium.Framework.Vulkan
         }
         internal static void DestroyDebugMessenger()
         {
-            debugUtils?.DestroyDebugUtilsMessenger(VulkanEngine.vkInstance, messenger, null);
+            debugUtils?.DestroyDebugUtilsMessenger(VkEngine.vkInstance, messenger, null);
             debugUtils?.Dispose();
             Console.WriteLine("Debug messenger destroyed");
         }

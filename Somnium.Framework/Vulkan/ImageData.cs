@@ -9,14 +9,14 @@ namespace Somnium.Framework.Vulkan
         {
             get
             {
-                return VulkanEngine.vk;
+                return VkEngine.vk;
             }
         }
         private static Device device
         {
             get
             {
-                return VulkanEngine.vkDevice;
+                return VkEngine.vkDevice;
             }
         }
 

@@ -49,7 +49,7 @@ namespace Somnium.Framework
             switch (runningBackend)
             {
                 case Backends.Vulkan:
-                    VulkanEngine.Initialize(Window, AppName);
+                    VkEngine.Initialize(Window, AppName);
                     break;
             }
 
@@ -92,7 +92,7 @@ namespace Somnium.Framework
             switch (runningBackend)
             {
                 case Backends.Vulkan:
-                    VulkanEngine.Shutdown();
+                    VkEngine.Shutdown();
                     break;
             }
         }

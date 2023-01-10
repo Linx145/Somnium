@@ -6,11 +6,12 @@ using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
+using Somnium.Framework.Vertices;
 using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {
-    public static unsafe class VulkanEngine
+    public static unsafe class VkEngine
     {
         public const string EngineName = "Somnium";
         private static string appName;
@@ -34,11 +35,15 @@ namespace Somnium.Framework.Vulkan
                 return internalWindowSurface;
             }
         }
-        public static VulkanGPUInfo CurrentGPU { get; private set; }
+        public static VkGPUInfo CurrentGPU { get; private set; }
+        public static Pipeline TrianglePipeline { get; private set; }
         private static Device internalVkDevice;
         internal static KhrSurface KhrSurfaceAPI;
         internal static KhrSwapchain KhrSwapchainAPI;
         private static SurfaceKHR internalWindowSurface;
+
+        private static VkShader testShader;
+
         public static bool initialized { get; private set; }
         public static unsafe void Initialize(Window window, string AppName, bool enableValidationLayers = true)
         {
@@ -52,11 +57,12 @@ namespace Somnium.Framework.Vulkan
                 CreateInstance(window);
                 if (ValidationLayersActive)
                 {
-                    VulkanDebug.InitializeDebugMessenger();
+                    VkDebug.InitializeDebugMessenger();
                 }
                 CreateSurface(window);
                 CreateLogicalDevice();
                 CreateSwapChain(window);
+                CreatePipelines();
             }
         }
         #region instance creation
@@ -101,7 +107,7 @@ namespace Somnium.Framework.Vulkan
 
                 //enable debugging
                 DebugUtilsMessengerCreateInfoEXT debugCreateInfo = new DebugUtilsMessengerCreateInfoEXT();
-                VulkanDebug.PopulateDebugMessengerCreateInfo(ref debugCreateInfo);
+                VkDebug.PopulateDebugMessengerCreateInfo(ref debugCreateInfo);
                 vkInstanceCreateInfo.PNext = &debugCreateInfo;
             }
             else
@@ -255,7 +261,7 @@ namespace Somnium.Framework.Vulkan
         /// <exception cref="InitializationException"></exception>
         private static void CreateLogicalDevice()
         {
-            VulkanGPUInfo GPU = VulkanGPUs.SelectGPU();
+            VkGPUInfo GPU = VkGPU.SelectGPU();
 
             var queueCreateInfos = GPU.GetQueuesToCreate();
 
@@ -335,48 +341,23 @@ namespace Somnium.Framework.Vulkan
                 WindowSurface);
 
             swapChain.Recreate(swapChainSupport);
+        }
+        #endregion
 
-            /*SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
-            SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.SpaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
-            Extent2D extents = window.GetSwapChainExtents(in swapChainSupport.Capabilities);
-            if (internalSwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
+        #region pipelines
+        private static void CreatePipelines(Window window)
+        {
+            testShader = testShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
+            VkGraphicsPipeline.shaderStages = new PipelineShaderStageCreateInfo[]
             {
-                internalSwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
-            }
-            SwapchainCreateInfoKHR createInfo = new SwapchainCreateInfoKHR();
-            createInfo.SType = StructureType.SwapchainCreateInfoKhr;
-            createInfo.Surface = WindowSurface;
-            createInfo.MinImageCount = internalSwapChainImages;
-            createInfo.ImageFormat = surfaceFormat.Format;
-            createInfo.ImageColorSpace = surfaceFormat.ColorSpace;
-            createInfo.ImageExtent = extents;
-            createInfo.ImageArrayLayers = 1;
-            createInfo.ImageUsage = ImageUsageFlags.ColorAttachmentBit;
+                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
+                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
+            };
 
-            //if the present queue is not the same as the graphics queue, set the
-            //swapchain mode to concurrent
-            if (CurrentGPU.DedicatedTransferQueue.Handle != 0)
-            {
-                throw new NotImplementedException();
-            }
-            else
-            {
-                createInfo.ImageSharingMode = SharingMode.Exclusive;
-                createInfo.QueueFamilyIndexCount = 0;
-                createInfo.PQueueFamilyIndices = null;
-            }
+            VkGraphicsPipeline.viewport = new Viewport(0, 0, window.Size.X, window.Size.Y, 0f, 1f);
+            VkGraphicsPipeline.scissor = new Rect2D(default(Offset2D), window.extent)
 
-            //no need to rotate the swapchain
-            createInfo.PreTransform = swapChainSupport.Capabilities.CurrentTransform;
-            //no need transparent window backgrounds
-            createInfo.CompositeAlpha = CompositeAlphaFlagsKHR.OpaqueBitKhr;
-
-            createInfo.PresentMode = internalPreferredPresentMode;
-            //Enable clipping so we don't care what pixels are being obscured if there is another window in front of us
-            createInfo.Clipped = new Bool32(true);
-
-            //TODO
-            createInfo.OldSwapchain = default;*/
+            var pipelineInfo = VkGraphicsPipeline.CreateInfo();
         }
         #endregion
 
@@ -390,7 +371,7 @@ namespace Somnium.Framework.Vulkan
                 KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
                 if (ValidationLayersActive)
                 {
-                    VulkanDebug.DestroyDebugMessenger();
+                    VkDebug.DestroyDebugMessenger();
                 }
                 vk.DestroyInstance(vkInstance, null);
                 KhrSwapchainAPI.Dispose();
@@ -408,6 +389,7 @@ namespace Somnium.Framework.Vulkan
                 Marshal.FreeHGlobal(appNamePtr);
                 Marshal.FreeHGlobal(engineNamePtr);
                 SilkMarshal.Free((nint)requiredDeviceExtensionsPtr);
+                VkShader.FreeMainStringPointer();
 
                 initialized = false;
             }
