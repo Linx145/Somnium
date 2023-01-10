@@ -34,9 +34,10 @@ namespace Somnium.Framework.Vulkan
                 return internalWindowSurface;
             }
         }
-        private static VulkanGPUInfo CurrentGPU;
+        public static VulkanGPUInfo CurrentGPU { get; private set; }
         private static Device internalVkDevice;
         internal static KhrSurface KhrSurfaceAPI;
+        internal static KhrSwapchain KhrSwapchainAPI;
         private static SurfaceKHR internalWindowSurface;
         public static bool initialized { get; private set; }
         public static unsafe void Initialize(Window window, string AppName, bool enableValidationLayers = true)
@@ -296,9 +297,46 @@ namespace Somnium.Framework.Vulkan
             }
         }
         private static uint internalSwapChainImages = 0;
+        public static PresentModeKHR PreferredPresentMode
+        {
+            get
+            {
+                return internalPreferredPresentMode;
+            }
+            set
+            {
+                if (initialized)
+                {
+                    throw new InitializationException("Cannot change Vulkan present mode while app has been initialized!");
+                }
+                internalPreferredPresentMode = value;
+            }
+        }
+        private static SwapChain swapChain;
+        private static PresentModeKHR internalPreferredPresentMode = PresentModeKHR.MailboxKhr;
         public static void CreateSwapChain(Window window)
         {
+            vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
             SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
+
+            SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
+            
+            if (internalSwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
+            {
+                internalSwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
+            }
+
+            swapChain = new SwapChain(
+                internalSwapChainImages,
+                surfaceFormat.Format,
+                surfaceFormat.ColorSpace,
+                window.GetSwapChainExtents(swapChainSupport.Capabilities),
+                internalPreferredPresentMode,
+                WindowSurface);
+
+            swapChain.Recreate(swapChainSupport);
+
+            /*SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
             SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.SpaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
             Extent2D extents = window.GetSwapChainExtents(in swapChainSupport.Capabilities);
             if (internalSwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
@@ -328,7 +366,17 @@ namespace Somnium.Framework.Vulkan
                 createInfo.PQueueFamilyIndices = null;
             }
 
+            //no need to rotate the swapchain
             createInfo.PreTransform = swapChainSupport.Capabilities.CurrentTransform;
+            //no need transparent window backgrounds
+            createInfo.CompositeAlpha = CompositeAlphaFlagsKHR.OpaqueBitKhr;
+
+            createInfo.PresentMode = internalPreferredPresentMode;
+            //Enable clipping so we don't care what pixels are being obscured if there is another window in front of us
+            createInfo.Clipped = new Bool32(true);
+
+            //TODO
+            createInfo.OldSwapchain = default;*/
         }
         #endregion
 
@@ -336,6 +384,7 @@ namespace Somnium.Framework.Vulkan
         {
             if (initialized)
             {
+                swapChain.Dispose();
                 CurrentGPU = default;
                 vk.DestroyDevice(vkDevice, null);
                 KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
@@ -344,6 +393,7 @@ namespace Somnium.Framework.Vulkan
                     VulkanDebug.DestroyDebugMessenger();
                 }
                 vk.DestroyInstance(vkInstance, null);
+                KhrSwapchainAPI.Dispose();
                 KhrSurfaceAPI.Dispose();
                 vk.Dispose();
 
