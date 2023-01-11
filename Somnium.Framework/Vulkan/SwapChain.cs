@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Core;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
+using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -50,6 +51,8 @@ namespace Somnium.Framework.Vulkan
         public ImageUsageFlags imageUsage;
         public SurfaceKHR windowSurface;
         public PresentModeKHR presentMode;
+        public SwapChainSupportDetails supportDetails;
+        public Window window;
 
         public uint currentImageIndex;
         public Image[] images;
@@ -73,21 +76,9 @@ namespace Somnium.Framework.Vulkan
             }
         }
 
-        //todo: implement
-        /*public static SwapChain Create(
-            uint minImageCount,
-            Format imageFormat,
-            ColorSpaceKHR imageColorSpace,
-            Extent2D imageExtents,
-            PresentModeKHR presentMode,
-            SurfaceKHR windowSurface,
-            uint imageArrayLayers = 1,
-            ImageUsageFlags imageUsage = ImageUsageFlags.ColorAttachmentBit)
-        {
-            SwapChain swapChain = new SwapChain(minImageCount, imageFormat, imageColorSpace, imageExtents, presentMode, windowSurface, imageArrayLayers, imageUsage);
-        }*/
-
-        public SwapChain(
+        private SwapChain(
+            Window window,
+            SwapChainSupportDetails supportDetails,
             uint minImageCount, 
             Format imageFormat,
             ColorSpaceKHR imageColorSpace, 
@@ -97,6 +88,8 @@ namespace Somnium.Framework.Vulkan
             uint imageArrayLayers = 1,
             ImageUsageFlags imageUsage = ImageUsageFlags.ColorAttachmentBit)
         {
+            this.window = window;
+            this.supportDetails = supportDetails;
             this.minImageCount = minImageCount;
             this.imageFormat = imageFormat;
             this.imageColorSpace = imageColorSpace;
@@ -107,12 +100,28 @@ namespace Somnium.Framework.Vulkan
             this.imageUsage = imageUsage;
         }
 
-        public void SwapBuffers(Silk.NET.Vulkan.Semaphore semaphore, Fence fence)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="semaphore"></param>
+        /// <param name="fence"></param>
+        /// <returns>The updated swapchain where applicable</returns>
+        /// <exception cref="ExecutionException"></exception>
+        public SwapChain SwapBuffers(Silk.NET.Vulkan.Semaphore semaphore, Fence fence)
         {
-            if (swapchainAPI.AcquireNextImage(device, handle, 1000000000, semaphore, fence, ref currentImageIndex) != Result.Success)
+            Result result = swapchainAPI.AcquireNextImage(device, handle, 1000000000, semaphore, fence, ref currentImageIndex);
+
+            if (result != Result.Success)
             {
-                throw new ExecutionException("Failed to acquire new Vulkan Swapchain Image!");
+                if (result == Result.ErrorOutOfDateKhr)
+                {
+                    Dispose();
+                    return Create(window);
+                    //Recreate(SwapChain.QuerySwapChainSupport(VkEngine.CurrentGPU.Device));
+                }
+                else throw new ExecutionException("Failed to acquire new Vulkan Swapchain Image!");
             }
+            return null;
         }
 
         /// <summary>
@@ -158,12 +167,35 @@ namespace Somnium.Framework.Vulkan
             return createInfo;
         }
 
-        public void Recreate(SwapChainSupportDetails supportDetails)
+        public static SwapChain Create(Window window)
         {
-            if (handle.Handle != 0)
+            SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(VkEngine.CurrentGPU.Device);
+
+            if (VkEngine.SwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
             {
-                swapchainAPI.DestroySwapchain(device, handle, null);
+                VkEngine.SwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
             }
+
+            SurfaceFormatKHR surfaceFormat = FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
+
+            SwapChain swapChain = new SwapChain(
+                window,
+                swapChainSupport,
+                VkEngine.SwapChainImages,
+                surfaceFormat.Format,
+                surfaceFormat.ColorSpace,
+                window.GetSwapChainExtents(swapChainSupport.Capabilities),
+                VkEngine.PreferredPresentMode,
+                VkEngine.WindowSurface);
+
+            swapChain.Recreate();
+
+            return swapChain;
+        }
+        public void Recreate()
+        {
+            //wait until it's safe to recreate swapchain (IE: When it's not in use)
+            vk.DeviceWaitIdle(device);
 
             var info = GetCreateInfo(supportDetails);
             swapchainAPI.CreateSwapchain(device, in info, null, out handle);
@@ -180,6 +212,11 @@ namespace Somnium.Framework.Vulkan
             for (int i = 0; i < imageDatas.Length; i++)
             {
                 imageDatas[i] = ImageData.Create(images[i], imageFormat);
+            }
+
+            if (VkEngine.renderPass != null)
+            {
+                RecreateFramebuffers(VkEngine.renderPass);
             }
         }
         public unsafe void RecreateFramebuffers(RenderPass renderPass)
@@ -201,10 +238,7 @@ namespace Somnium.Framework.Vulkan
 
         public void Dispose()
         {
-            if (handle.Handle != 0)
-            {
-                swapchainAPI.DestroySwapchain(device, handle, null);
-            }
+            vk.DeviceWaitIdle(device);
             for (int i = 0; i < imageFrameBuffers.Length; i++)
             {
                 imageFrameBuffers[i].Dispose();
@@ -212,6 +246,10 @@ namespace Somnium.Framework.Vulkan
             for (int i = 0; i < imageDatas.Length; i++)
             {
                 imageDatas[i].Dispose();
+            }
+            if (handle.Handle != 0)
+            {
+                swapchainAPI.DestroySwapchain(device, handle, null);
             }
         }
 

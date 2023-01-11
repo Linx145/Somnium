@@ -90,7 +90,7 @@ namespace Somnium.Framework
                 {
                     if (runningBackend == Backends.Vulkan)
                     {
-                        VkEngine.Draw();
+                        VkEngine.Draw(Window);
                     }
                 }
                 Window.Update();

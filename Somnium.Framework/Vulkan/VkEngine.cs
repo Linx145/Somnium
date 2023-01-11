@@ -69,13 +69,17 @@ namespace Somnium.Framework.Vulkan
                 CreateSynchronizers();
             }
         }
-        public static void Draw()
+        public static void Draw(Window window)
         {
             vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
             vk.ResetFences(vkDevice, 1, in fence);
 
-            swapChain.SwapBuffers(presentSemaphore, default);
-            
+            SwapChain potentialNewSwapchain = swapChain.SwapBuffers(presentSemaphore, default);
+            if (potentialNewSwapchain != null)
+            {
+                swapChain = potentialNewSwapchain;
+            }
+
             commandBuffer.Reset();
             commandBuffer.Begin();
             renderPass.Begin(commandBuffer, swapChain, Color.CornflowerBlue);
@@ -89,9 +93,9 @@ namespace Somnium.Framework.Vulkan
             renderPass.End(commandBuffer);
             commandBuffer.End();
 
-            SubmitToGPU();
+            SubmitToGPU(window);
         }
-        public static void SubmitToGPU()
+        public static void SubmitToGPU(Window window)
         {
             //submit what we rendered to the GPU
             SubmitInfo submitInfo = new SubmitInfo();
@@ -139,9 +143,16 @@ namespace Somnium.Framework.Vulkan
             uint imageIndex = swapChain.currentImageIndex;
             presentInfo.PImageIndices = &imageIndex;
 
-            if (KhrSwapchainAPI.QueuePresent(CurrentGPU.AllPurposeQueue, &presentInfo) != Result.Success)
+            Result presentResult = KhrSwapchainAPI.QueuePresent(CurrentGPU.AllPurposeQueue, &presentInfo);
+            if (presentResult != Result.Success)
             {
-                throw new ExecutionException("Error presenting Vulkan queue!");
+                if (presentResult == Result.ErrorOutOfDateKhr)
+                {
+                    swapChain.Dispose();
+                    swapChain = SwapChain.Create(window);
+                    //swapChain.Recreate(SwapChain.QuerySwapChainSupport(CurrentGPU.Device));
+                }
+                else throw new ExecutionException("Error presenting Vulkan queue!");
             }
         }
         #region instance creation
@@ -402,7 +413,8 @@ namespace Somnium.Framework.Vulkan
         public static void CreateSwapChain(Window window)
         {
             vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
-            SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
+            swapChain = SwapChain.Create(window);
+            /*SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
 
             SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
             
@@ -412,14 +424,16 @@ namespace Somnium.Framework.Vulkan
             }
 
             swapChain = new SwapChain(
+                swapChainSupport,
                 internalSwapChainImages,
                 surfaceFormat.Format,
                 surfaceFormat.ColorSpace,
                 window.GetSwapChainExtents(swapChainSupport.Capabilities),
                 internalPreferredPresentMode,
                 WindowSurface);
+            
+            swapChain.Recreate(swapChainSupport);*/
 
-            swapChain.Recreate(swapChainSupport);
         }
         #endregion
 
