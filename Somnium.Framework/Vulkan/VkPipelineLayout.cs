@@ -29,7 +29,7 @@ namespace Somnium.Framework.Vulkan
             PipelineLayout layout;
 
             Result result = vk.CreatePipelineLayout(VkEngine.vkDevice, in createInfo, null, &layout);
-            if (result == Result.Success)
+            if (result != Result.Success)
             {
                 throw new InitializationException("Failed to initialize Vulkan pipeline layout!");
             }

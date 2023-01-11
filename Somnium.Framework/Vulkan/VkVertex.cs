@@ -1,5 +1,5 @@
 ﻿using Silk.NET.Vulkan;
-using Somnium.Framework.Vertices;
+using Somnium.Framework;
 using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan

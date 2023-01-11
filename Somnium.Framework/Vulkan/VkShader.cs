@@ -41,11 +41,11 @@ namespace Somnium.Framework.Vulkan
                 mainPtr = (byte*)0;
             }
         }
-        public VkShader Create(string vertexShaderPath, string fragmentShaderPath)
+        public static VkShader Create(string vertexShaderPath, string fragmentShaderPath)
         {
             return Create(File.ReadAllBytes(vertexShaderPath), File.ReadAllBytes(fragmentShaderPath));
         }
-        public VkShader Create(byte[] vertexShader, byte[] fragmentShader)
+        public static VkShader Create(byte[] vertexShader, byte[] fragmentShader)
         {
             VkShader result = new VkShader();
 

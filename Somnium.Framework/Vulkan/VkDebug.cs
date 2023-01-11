@@ -48,7 +48,8 @@ namespace Somnium.Framework.Vulkan
             }
             else
             {
-                Console.WriteLine("Validation Layer: " + str);
+                Console.WriteLine(str);
+                Console.WriteLine();
             }
 
             return Vk.False;

@@ -1,12 +1,9 @@
 ﻿using Silk.NET.Vulkan;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Silk.NET.Core;
 
 namespace Somnium.Framework.Vulkan
 {
+    //todo: make instance for multiple pipelines
     public static class VkGraphicsPipeline
     {
         public static PipelineShaderStageCreateInfo[] shaderStages;
@@ -18,6 +15,14 @@ namespace Somnium.Framework.Vulkan
 
         static FrontFace frontFaceMode = FrontFace.CounterClockwise;
         static CullModeFlags cullMode = CullModeFlags.None;
+
+        private static PipelineColorBlendAttachmentState colorBlendAttachment;
+        private static PipelineVertexInputStateCreateInfo vertexInput;
+        private static PipelineInputAssemblyStateCreateInfo inputAssembly;
+        private static PipelineRasterizationStateCreateInfo rasterizer;
+        private static PipelineMultisampleStateCreateInfo multisampler;
+        private static PipelineColorBlendStateCreateInfo colorBlendingInfo;
+        private static PipelineViewportStateCreateInfo viewportInfo;
 
         public static readonly BlendFactor[] BlendStateToFactor = new BlendFactor[]
         {
@@ -95,24 +100,24 @@ namespace Somnium.Framework.Vulkan
         }
         public static PipelineColorBlendAttachmentState CreateColorBlend(BlendState blendState)
         {
-            var createInfo = new PipelineColorBlendAttachmentState();
-            createInfo.ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit;
+            var info = new PipelineColorBlendAttachmentState();
+            info.ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit;
             if (blendState != null)
             {
-                createInfo.SrcColorBlendFactor = BlendStateToFactor[(int)blendState.SourceColorBlend];
-                createInfo.SrcAlphaBlendFactor = BlendStateToFactor[(int)blendState.SourceAlphaBlend];
-                createInfo.DstColorBlendFactor = BlendStateToFactor[(int)blendState.DestinationColorBlend];
-                createInfo.DstAlphaBlendFactor = BlendStateToFactor[(int)blendState.DestinationAlphaBlend];
-                createInfo.BlendEnable = true;
+                info.SrcColorBlendFactor = BlendStateToFactor[(int)blendState.SourceColorBlend];
+                info.SrcAlphaBlendFactor = BlendStateToFactor[(int)blendState.SourceAlphaBlend];
+                info.DstColorBlendFactor = BlendStateToFactor[(int)blendState.DestinationColorBlend];
+                info.DstAlphaBlendFactor = BlendStateToFactor[(int)blendState.DestinationAlphaBlend];
+                info.BlendEnable = new Bool32(true);
             }
-            else createInfo.BlendEnable = false;
+            else info.BlendEnable = new Bool32(false);
 
-            return createInfo;
+            return info;
         }
         public static unsafe GraphicsPipelineCreateInfo CreateInfo(BlendState blendState, PrimitiveTopology topology, PolygonMode polygonMode, RenderPass pass, PipelineLayout layout)
         {
             #region create viewport info
-            var viewportInfo = new PipelineViewportStateCreateInfo();
+            viewportInfo = new PipelineViewportStateCreateInfo();
             viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
 
             viewportInfo.ViewportCount = 1;
@@ -128,13 +133,17 @@ namespace Somnium.Framework.Vulkan
             #endregion
 
             #region create color blending info
-            var colorBlendingInfo = new PipelineColorBlendStateCreateInfo();
+            colorBlendingInfo = new PipelineColorBlendStateCreateInfo();
             colorBlendingInfo.SType = StructureType.PipelineColorBlendStateCreateInfo;
             colorBlendingInfo.LogicOpEnable = false;
             colorBlendingInfo.LogicOp = LogicOp.Copy;
             colorBlendingInfo.AttachmentCount = 1;
-            PipelineColorBlendAttachmentState colorBlendAttachment = CreateColorBlend(blendState);
-            colorBlendingInfo.PAttachments = &colorBlendAttachment;
+
+            colorBlendAttachment = CreateColorBlend(blendState);
+            fixed (PipelineColorBlendAttachmentState* ptr = &colorBlendAttachment)
+            {
+                colorBlendingInfo.PAttachments = ptr;
+            }
             #endregion
 
             GraphicsPipelineCreateInfo pipelineInfo = new GraphicsPipelineCreateInfo();
@@ -147,21 +156,39 @@ namespace Somnium.Framework.Vulkan
                 pipelineInfo.PStages = ptr;
             }
 
-            var vertexInput = CreateVertexInputState();
-            pipelineInfo.PVertexInputState = &vertexInput;
+            vertexInput = CreateVertexInputState();
+            fixed (PipelineVertexInputStateCreateInfo* ptr = &vertexInput)
+            {
+                pipelineInfo.PVertexInputState = ptr;
+            }
 
-            var inputAssembly = CreateInputAssembly(topology);
-            pipelineInfo.PInputAssemblyState = &inputAssembly;
+            inputAssembly = CreateInputAssembly(topology);
+            fixed (PipelineInputAssemblyStateCreateInfo* ptr = &inputAssembly)
+            {
+                pipelineInfo.PInputAssemblyState = ptr;
+            }
 
-            pipelineInfo.PViewportState = &viewportInfo;
+            fixed (PipelineViewportStateCreateInfo* ptr = &viewportInfo)
+            {
+                pipelineInfo.PViewportState = ptr;
+            }
 
-            var rasterizer = CreateRasterizationState(polygonMode);
-            pipelineInfo.PRasterizationState = &rasterizer;
+            rasterizer = CreateRasterizationState(polygonMode);
+            fixed (PipelineRasterizationStateCreateInfo* ptr = &rasterizer)
+            {
+                pipelineInfo.PRasterizationState = ptr;
+            }
 
-            var multisampler = CreateMultisampler();
-            pipelineInfo.PMultisampleState = &multisampler;
+            multisampler = CreateMultisampler();
+            fixed (PipelineMultisampleStateCreateInfo* ptr = &multisampler)
+            {
+                pipelineInfo.PMultisampleState = ptr;
+            }
 
-            pipelineInfo.PColorBlendState = &colorBlendingInfo;
+            fixed (PipelineColorBlendStateCreateInfo* ptr = &colorBlendingInfo)
+            {
+                pipelineInfo.PColorBlendState = ptr;
+            }
 
             pipelineInfo.Layout = layout;
 

@@ -1,6 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 
-namespace Somnium.Framework.Vertices
+namespace Somnium.Framework
 {
     public enum VertexElementFormat
     {
@@ -80,6 +80,20 @@ namespace Somnium.Framework.Vertices
             else throw new NotImplementedException();
         }
 
+        public static void RegisterDefaultVertexDeclarations(Backends backend)
+        {
+            switch (backend)
+            {
+                case Backends.Vulkan:
+                    var declaration = NewVertexDeclaration<VertexPositionColor>(backend);
+                    declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
+                    declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
+                    VertexPositionColor.internalVertexDeclaration = declaration;
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
         public static void RegisterAllBuffers(Backends backend)
         {
             if (backend == Backends.Vulkan)

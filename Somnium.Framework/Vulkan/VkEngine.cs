@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
-using Somnium.Framework.Vertices;
 using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
@@ -36,7 +34,15 @@ namespace Somnium.Framework.Vulkan
             }
         }
         public static VkGPUInfo CurrentGPU { get; private set; }
-        public static Pipeline TrianglePipeline { get; private set; }
+        public static Pipeline TrianglePipeline
+        {
+            get
+            {
+                return internalTrianglePipeline;
+            }
+        }
+        private static Pipeline internalTrianglePipeline;
+        private static PipelineLayout TrianglePipelineLayout;
         private static Device internalVkDevice;
         internal static KhrSurface KhrSurfaceAPI;
         internal static KhrSwapchain KhrSwapchainAPI;
@@ -61,8 +67,9 @@ namespace Somnium.Framework.Vulkan
                 }
                 CreateSurface(window);
                 CreateLogicalDevice();
-                CreateSwapChain(window);
-                CreatePipelines();
+                CreateSwapChain(window); //also creates image views
+                CreateRenderPass();
+                CreatePipelines(window);
             }
         }
         #region instance creation
@@ -344,20 +351,82 @@ namespace Somnium.Framework.Vulkan
         }
         #endregion
 
+        #region render pass
+        public static RenderPass renderPass;
+        public static void CreateRenderPass()
+        {
+            AttachmentReference colorAttachmentReference = new AttachmentReference();
+            colorAttachmentReference.Attachment = 0;
+            colorAttachmentReference.Layout = ImageLayout.ColorAttachmentOptimal;
+
+            AttachmentDescription colorAttachment = new AttachmentDescription();
+            colorAttachment.Format = swapChain.imageFormat;
+            colorAttachment.Samples = SampleCountFlags.Count1Bit;
+            colorAttachment.LoadOp = AttachmentLoadOp.Clear;
+            colorAttachment.StoreOp = AttachmentStoreOp.Store;
+            colorAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
+            colorAttachment.StencilStoreOp = AttachmentStoreOp.Store;
+            colorAttachment.InitialLayout = ImageLayout.Undefined;
+            colorAttachment.FinalLayout = ImageLayout.ColorAttachmentOptimal;
+
+            SubpassDependency dependency = new SubpassDependency();
+            dependency.SrcSubpass = Vk.SubpassExternal;
+            dependency.DstSubpass = 0;
+
+            dependency.SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+            dependency.SrcAccessMask = 0;
+
+            dependency.DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+            dependency.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
+
+            SubpassDescription description= new SubpassDescription();
+            description.PipelineBindPoint = PipelineBindPoint.Graphics;
+            description.ColorAttachmentCount = 1;
+            description.PColorAttachments = &colorAttachmentReference;
+
+            RenderPassCreateInfo createInfo = new RenderPassCreateInfo();
+            createInfo.SType = StructureType.RenderPassCreateInfo;
+            createInfo.DependencyCount = 1;
+            createInfo.PDependencies = &dependency;
+            createInfo.AttachmentCount = 1;
+            createInfo.PAttachments = &colorAttachment;
+            createInfo.SubpassCount = 1;
+            createInfo.PSubpasses = &description;
+
+            fixed (RenderPass* ptr = &renderPass)
+            {
+                if (vk.CreateRenderPass(vkDevice, in createInfo, null, ptr) != Result.Success)
+                {
+                    throw new InitializationException("Failed to create Vulkan Render Pass!");
+                }
+            }
+        }
+        #endregion
+
         #region pipelines
         private static void CreatePipelines(Window window)
         {
-            testShader = testShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
+            testShader = VkShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
             VkGraphicsPipeline.shaderStages = new PipelineShaderStageCreateInfo[]
             {
                 VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
                 VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
             };
 
-            VkGraphicsPipeline.viewport = new Viewport(0, 0, window.Size.X, window.Size.Y, 0f, 1f);
-            VkGraphicsPipeline.scissor = new Rect2D(default(Offset2D), window.extent)
+            VkGraphicsPipeline.viewport = new Viewport(0, 0, swapChain.imageExtents.Width, swapChain.imageExtents.Height, 0f, 1f);
+            VkGraphicsPipeline.scissor = new Rect2D(default(Offset2D), swapChain.imageExtents);
 
-            var pipelineInfo = VkGraphicsPipeline.CreateInfo();
+            TrianglePipelineLayout = VkPipelineLayout.Create();
+
+            var pipelineInfo = VkGraphicsPipeline.CreateInfo(BlendState.AlphaBlend, PrimitiveTopology.TriangleList, PolygonMode.Fill, renderPass, TrianglePipelineLayout);
+
+            fixed (Pipeline* ptr = &internalTrianglePipeline)
+            {
+                if (vk.CreateGraphicsPipelines(vkDevice, default, 1, pipelineInfo, null, ptr) != Result.Success)
+                {
+                    throw new InitializationException("Error creating Vulkan Graphics Pipeline!");
+                }
+            }
         }
         #endregion
 
@@ -365,8 +434,12 @@ namespace Somnium.Framework.Vulkan
         {
             if (initialized)
             {
-                swapChain.Dispose();
                 CurrentGPU = default;
+                vk.DestroyPipeline(vkDevice, TrianglePipeline, null);
+                vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
+                vk.DestroyRenderPass(vkDevice, renderPass, null);
+                swapChain.Dispose();
+                testShader.Dispose();
                 vk.DestroyDevice(vkDevice, null);
                 KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
                 if (ValidationLayersActive)

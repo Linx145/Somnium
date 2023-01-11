@@ -1,7 +1,5 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 
 namespace Somnium.Framework
 {
@@ -12,7 +10,14 @@ namespace Somnium.Framework
 
         public Color Color;
 
-        public static readonly VertexDeclaration VertexDeclaration;
+        public static VertexDeclaration VertexDeclaration
+        {
+            get
+            {
+                return internalVertexDeclaration;
+            }
+        }
+        internal static VertexDeclaration internalVertexDeclaration;
 
         public VertexPositionColor(Vector3 position, Color color)
         {
@@ -54,13 +59,6 @@ namespace Somnium.Framework
                 return false;
             }
             return (this == ((VertexPositionColor)obj));
-        }
-
-        static VertexPositionColor()
-        {
-            //VertexElement[] elements = new VertexElement[] { new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 0), new VertexElement(12, VertexElementFormat.Color, VertexElementUsage.Color, 0) };
-            //VertexDeclaration declaration = new VertexDeclaration(elements);
-            VertexDeclaration = declaration;
         }
     }
 }
