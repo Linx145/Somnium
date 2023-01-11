@@ -86,9 +86,12 @@ namespace Somnium.Framework
                     Draw?.Invoke((float)delta);
                 }
 
-                if (runningBackend == Backends.Vulkan)
+                if (!Window.IsMinimized)
                 {
-                    VkEngine.Draw();
+                    if (runningBackend == Backends.Vulkan)
+                    {
+                        VkEngine.Draw();
+                    }
                 }
                 Window.Update();
             }

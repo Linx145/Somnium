@@ -4,25 +4,59 @@ using Silk.NET.Core;
 namespace Somnium.Framework.Vulkan
 {
     //todo: make instance for multiple pipelines
-    public static class VkGraphicsPipeline
+    public class VkGraphicsPipeline : IDisposable
     {
-        public static PipelineShaderStageCreateInfo[] shaderStages;
+        private static Vk vk
+        {
+            get
+            {
+                return VkEngine.vk;
+            }
+        }
 
-        public static Viewport viewport;
-        public static Rect2D scissor;
+        public Pipeline handle;
 
-        static PipelineLayout pipelineLayout;
+        public PipelineShaderStageCreateInfo[] shaderStages;
+        public Viewport viewport;
+        public Rect2D scissor;
+        public BlendState blendState;
+        public PrimitiveTopology topology;
+        public PolygonMode polygonMode;
+        public VkRenderPass renderPass;
+        public PipelineLayout pipelineLayout;
 
-        static FrontFace frontFaceMode = FrontFace.CounterClockwise;
-        static CullModeFlags cullMode = CullModeFlags.None;
+        FrontFace frontFaceMode = FrontFace.CounterClockwise;
+        CullModeFlags cullMode = CullModeFlags.None;
 
-        private static PipelineColorBlendAttachmentState colorBlendAttachment;
-        private static PipelineVertexInputStateCreateInfo vertexInput;
-        private static PipelineInputAssemblyStateCreateInfo inputAssembly;
-        private static PipelineRasterizationStateCreateInfo rasterizer;
-        private static PipelineMultisampleStateCreateInfo multisampler;
-        private static PipelineColorBlendStateCreateInfo colorBlendingInfo;
-        private static PipelineViewportStateCreateInfo viewportInfo;
+        public PipelineColorBlendAttachmentState colorBlendAttachment;
+        public PipelineVertexInputStateCreateInfo vertexInput;
+        public PipelineInputAssemblyStateCreateInfo inputAssembly;
+        public PipelineRasterizationStateCreateInfo rasterizer;
+        public PipelineMultisampleStateCreateInfo multisampler;
+        public PipelineColorBlendStateCreateInfo colorBlendingInfo;
+        public PipelineViewportStateCreateInfo viewportInfo;
+
+        public VkGraphicsPipeline(
+            Viewport viewport,
+            Rect2D scissor,
+            FrontFace frontFace,
+            CullModeFlags cullMode,
+            BlendState blendState,
+            PrimitiveTopology topology,
+            PolygonMode polygonMode,
+            VkRenderPass renderPass)
+        {
+            this.viewport = viewport;
+            this.scissor = scissor;
+            this.frontFaceMode = frontFace;
+            this.cullMode = cullMode;
+            shaderStages = null;
+
+            this.blendState = blendState;
+            this.topology = topology;
+            this.polygonMode = polygonMode;
+            this.renderPass = renderPass;
+        }
 
         public static readonly BlendFactor[] BlendStateToFactor = new BlendFactor[]
         {
@@ -50,7 +84,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.PName = VkShader.Main();
             return createInfo;
         }
-        public static PipelineVertexInputStateCreateInfo CreateVertexInputState()
+        internal PipelineVertexInputStateCreateInfo CreateVertexInputState()
         {
             //TODO
             var createInfo = new PipelineVertexInputStateCreateInfo();
@@ -60,7 +94,7 @@ namespace Somnium.Framework.Vulkan
 
             return createInfo;
         }
-        public static PipelineInputAssemblyStateCreateInfo CreateInputAssembly(PrimitiveTopology topology)
+        internal PipelineInputAssemblyStateCreateInfo CreateInputAssembly(PrimitiveTopology topology)
         {
             var createInfo = new PipelineInputAssemblyStateCreateInfo();
             createInfo.SType = StructureType.PipelineInputAssemblyStateCreateInfo;
@@ -68,7 +102,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.PrimitiveRestartEnable = false;
             return createInfo;
         }
-        public static PipelineRasterizationStateCreateInfo CreateRasterizationState(PolygonMode polygonMode)
+        internal PipelineRasterizationStateCreateInfo CreateRasterizationState(PolygonMode polygonMode)
         {
             var createInfo = new PipelineRasterizationStateCreateInfo();
             createInfo.SType = StructureType.PipelineRasterizationStateCreateInfo;
@@ -88,7 +122,7 @@ namespace Somnium.Framework.Vulkan
 
             return createInfo;
         }
-        public static PipelineMultisampleStateCreateInfo CreateMultisampler()
+        internal PipelineMultisampleStateCreateInfo CreateMultisampler()
         {
             var createInfo = new PipelineMultisampleStateCreateInfo();
             createInfo.SType = StructureType.PipelineMultisampleStateCreateInfo;
@@ -98,7 +132,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.MinSampleShading = 1f;
             return createInfo;
         }
-        public static PipelineColorBlendAttachmentState CreateColorBlend(BlendState blendState)
+        internal PipelineColorBlendAttachmentState CreateColorBlend(BlendState blendState)
         {
             var info = new PipelineColorBlendAttachmentState();
             info.ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit;
@@ -114,7 +148,7 @@ namespace Somnium.Framework.Vulkan
 
             return info;
         }
-        public static unsafe GraphicsPipelineCreateInfo CreateInfo(BlendState blendState, PrimitiveTopology topology, PolygonMode polygonMode, RenderPass pass, PipelineLayout layout)
+        internal unsafe GraphicsPipelineCreateInfo CreateInfo()
         {
             #region create viewport info
             viewportInfo = new PipelineViewportStateCreateInfo();
@@ -145,6 +179,8 @@ namespace Somnium.Framework.Vulkan
                 colorBlendingInfo.PAttachments = ptr;
             }
             #endregion
+
+            pipelineLayout = VkPipelineLayout.Create();
 
             GraphicsPipelineCreateInfo pipelineInfo = new GraphicsPipelineCreateInfo();
             pipelineInfo.SType = StructureType.GraphicsPipelineCreateInfo;
@@ -190,12 +226,70 @@ namespace Somnium.Framework.Vulkan
                 pipelineInfo.PColorBlendState = ptr;
             }
 
-            pipelineInfo.Layout = layout;
+            pipelineInfo.Layout = pipelineLayout;
 
-            pipelineInfo.RenderPass = pass;
+            pipelineInfo.RenderPass = renderPass;
             pipelineInfo.Subpass = 0;
 
             return pipelineInfo;
+        }
+
+        public unsafe void Dispose()
+        {
+            vk.DestroyPipelineLayout(VkEngine.vkDevice, pipelineLayout, null);
+            vk.DestroyPipeline(VkEngine.vkDevice, handle, null);
+        }
+
+        public static implicit operator Pipeline(VkGraphicsPipeline pipeline)
+        {
+            return pipeline.handle;
+        }
+        /// <summary>
+        /// Builds the pipeline with the inputted variables AND shaders
+        /// </summary>
+        /// <exception cref="InitializationException"></exception>
+        public void BuildPipeline()
+        {
+            if (shaderStages == null)
+            {
+                throw new InvalidOperationException("Cannot create Vulkan Graphics Pipeline Creation Info without shaders!");
+            }
+
+            var pipelineInfo = CreateInfo();
+
+            unsafe
+            {
+                fixed (Pipeline* ptr = &handle)
+                {
+                    if (vk.CreateGraphicsPipelines(VkEngine.vkDevice, default, 1, pipelineInfo, null, ptr) != Result.Success)
+                    {
+                        throw new InitializationException("Error creating Vulkan Graphics Pipeline!");
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// builds multiple pipelines at the same time
+        /// </summary>
+        /// <param name="pipelines">all pipelines to build</param>
+        /// <exception cref="InitializationException"></exception>
+        public static unsafe void BuildPipelines(Span<VkGraphicsPipeline> pipelines)
+        {
+            GraphicsPipelineCreateInfo* pipelineInfos = stackalloc GraphicsPipelineCreateInfo[pipelines.Length];
+            for (int i = 0; i < pipelines.Length; i++)
+            {
+                *(pipelineInfos + i) = pipelines[i].CreateInfo();
+            }
+
+            Span<Pipeline> handles = stackalloc Pipeline[pipelines.Length];
+            if (vk.CreateGraphicsPipelines(VkEngine.vkDevice, default, pipelineInfos, null, handles) != Result.Success)
+            {
+                throw new InitializationException("Error creating Vulkan Graphics Pipelines!");
+            }
+            for (int i = 0; i < pipelines.Length; i++)
+            {
+                pipelines[i].handle = handles[i];
+            }
         }
     }
 }

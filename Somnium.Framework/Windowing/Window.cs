@@ -9,6 +9,7 @@ namespace Somnium.Framework.Windowing
         public abstract Point Size { get; set; }
         public abstract Point Position { get; set; }
         public abstract bool ShouldClose { get; set; }
+        public abstract bool IsMinimized { get; set; }
 
         public abstract void Dispose();
         public abstract void Update();

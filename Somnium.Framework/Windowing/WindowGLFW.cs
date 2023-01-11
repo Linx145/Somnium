@@ -69,6 +69,29 @@ namespace Somnium.Framework.Windowing
                 Glfw.SetWindowShouldClose(handle, value);
             }
         }
+        public override bool IsMinimized
+        {
+            get
+            {
+                return internalIsMinimized;// Glfw.GetWindowAttrib(handle, WindowAttributeGetter.Iconified);
+            }
+            set
+            {
+                if (internalIsMinimized != value)
+                {
+                    if (value)
+                    {
+                        Glfw.IconifyWindow(handle);
+                    }
+                    else
+                    {
+                        Glfw.MaximizeWindow(handle);
+                    }
+                    internalIsMinimized = value;
+                }
+            }
+        }
+        private bool internalIsMinimized = false;
         public override bool VSync
         {
             get

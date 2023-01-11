@@ -33,15 +33,9 @@ namespace Somnium.Framework.Vulkan
             }
         }
         public static VkGPUInfo CurrentGPU { get; private set; }
-        public static Pipeline TrianglePipeline
-        {
-            get
-            {
-                return internalTrianglePipeline;
-            }
-        }
-        private static Pipeline internalTrianglePipeline;
-        private static PipelineLayout TrianglePipelineLayout;
+        public static VkGraphicsPipeline TrianglePipeline;
+
+
         private static Device internalVkDevice;
         internal static KhrSurface KhrSurfaceAPI;
         internal static KhrSwapchain KhrSwapchainAPI;
@@ -436,90 +430,35 @@ namespace Somnium.Framework.Vulkan
         {
             renderPass = VkRenderPass.Create(swapChain, ImageLayout.ColorAttachmentOptimal);
         }
-        /*public static RenderPass renderPass;
-        public static void CreateRenderPass()
-        {
-            AttachmentReference colorAttachmentReference = new AttachmentReference();
-            colorAttachmentReference.Attachment = 0;
-            colorAttachmentReference.Layout = ImageLayout.ColorAttachmentOptimal;
-
-            AttachmentDescription colorAttachment = new AttachmentDescription();
-            colorAttachment.Format = swapChain.imageFormat;
-            colorAttachment.Samples = SampleCountFlags.Count1Bit;
-            colorAttachment.LoadOp = AttachmentLoadOp.Clear;
-            colorAttachment.StoreOp = AttachmentStoreOp.Store;
-            colorAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
-            colorAttachment.StencilStoreOp = AttachmentStoreOp.Store;
-            colorAttachment.InitialLayout = ImageLayout.Undefined;
-            colorAttachment.FinalLayout = ImageLayout.PresentSrcKhr;
-
-            SubpassDependency dependency = new SubpassDependency();
-            dependency.SrcSubpass = Vk.SubpassExternal;
-            dependency.DstSubpass = 0;
-
-            dependency.SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            dependency.SrcAccessMask = 0;
-
-            dependency.DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            dependency.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
-
-            SubpassDescription description= new SubpassDescription();
-            description.PipelineBindPoint = PipelineBindPoint.Graphics;
-            description.ColorAttachmentCount = 1;
-            description.PColorAttachments = &colorAttachmentReference;
-
-            RenderPassCreateInfo createInfo = new RenderPassCreateInfo();
-            createInfo.SType = StructureType.RenderPassCreateInfo;
-            createInfo.DependencyCount = 1;
-            createInfo.PDependencies = &dependency;
-            createInfo.AttachmentCount = 1;
-            createInfo.PAttachments = &colorAttachment;
-            createInfo.SubpassCount = 1;
-            createInfo.PSubpasses = &description;
-
-            fixed (RenderPass* ptr = &renderPass)
-            {
-                if (vk.CreateRenderPass(vkDevice, in createInfo, null, ptr) != Result.Success)
-                {
-                    throw new InitializationException("Failed to create Vulkan Render Pass!");
-                }
-            }
-        }
-        public static void BeginRenderPass()
-        {
-            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
-            beginInfo.SType = StructureType.RenderPassBeginInfo;
-            beginInfo.RenderPass = renderPass;
-            beginInfo.Framebuffer = swapChain.CurrentFramebuffer;
-            beginInfo.RenderArea = new Rect2D(default, swapChain.imageExtents);
-            beginInfo.ClearValueCount = 1;
-
-            ClearValue clearColor = new ClearValue(new ClearColorValue(0f, 0f, 0f, 1f));
-
-            beginInfo.PClearValues = &clearColor;
-
-            //use inline for primary command buffers
-            vk.CmdBeginRenderPass(commandBuffer.handle, in beginInfo, SubpassContents.Inline);
-            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, TrianglePipeline);
-        }
-        public static void EndRenderPass()
-        {
-            vk.CmdEndRenderPass(commandBuffer.handle);
-        }*/
         #endregion
 
         #region pipelines
         private static void CreatePipelines(Window window)
         {
             testShader = VkShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
-            VkGraphicsPipeline.shaderStages = new PipelineShaderStageCreateInfo[]
+            TrianglePipeline = new VkGraphicsPipeline(
+                new Viewport(0, 0, swapChain.imageExtents.Width, swapChain.imageExtents.Height, 0f, 1f),
+                new Rect2D(default(Offset2D), swapChain.imageExtents),
+                FrontFace.CounterClockwise, 
+                CullModeFlags.None,
+                BlendState.AlphaBlend,
+                PrimitiveTopology.TriangleList,
+                PolygonMode.Fill,
+                renderPass);
+
+            TrianglePipeline.shaderStages = new PipelineShaderStageCreateInfo[]
             {
                 VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
                 VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
             };
 
-            VkGraphicsPipeline.viewport = new Viewport(0, 0, swapChain.imageExtents.Width, swapChain.imageExtents.Height, 0f, 1f);
-            VkGraphicsPipeline.scissor = new Rect2D(default(Offset2D), swapChain.imageExtents);
+            TrianglePipeline.BuildPipeline();
+
+            /*pipeline.shaderStages = new PipelineShaderStageCreateInfo[]
+            {
+                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
+                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
+            };
 
             TrianglePipelineLayout = VkPipelineLayout.Create();
 
@@ -531,7 +470,7 @@ namespace Somnium.Framework.Vulkan
                 {
                     throw new InitializationException("Error creating Vulkan Graphics Pipeline!");
                 }
-            }
+            }*/
         }
         #endregion
 
@@ -618,8 +557,8 @@ namespace Somnium.Framework.Vulkan
                 vk.DestroySemaphore(vkDevice, renderSemaphore, null);
                 vk.DestroyFence(vkDevice, fence, null);
                 vk.DestroyCommandPool(vkDevice, commandPool, null);
-                vk.DestroyPipeline(vkDevice, TrianglePipeline, null);
-                vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
+                //vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
+                TrianglePipeline.Dispose();
                 swapChain.Dispose();
                 testShader.Dispose();
                 vk.DestroyDevice(vkDevice, null);
