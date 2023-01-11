@@ -1,5 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
@@ -70,6 +69,85 @@ namespace Somnium.Framework.Vulkan
                 CreateSwapChain(window); //also creates image views
                 CreateRenderPass();
                 CreatePipelines(window);
+                swapChain.RecreateFramebuffers(renderPass);
+                CreateCommandPool();
+                CreateCommandBuffer();
+                CreateSynchronizers();
+            }
+        }
+        public static void Draw()
+        {
+            vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
+            vk.ResetFences(vkDevice, 1, in fence);
+
+            swapChain.SwapBuffers(presentSemaphore, default);
+            
+            commandBuffer.Reset();
+            commandBuffer.Begin();
+            renderPass.Begin(commandBuffer, swapChain, Color.CornflowerBlue);
+            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, TrianglePipeline);
+            //BeginRenderPass(); //also clears the screen
+
+            vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, TrianglePipeline);
+            vk.CmdDraw(commandBuffer, 3, 1, 0, 0);
+
+            //EndRenderPass();
+            renderPass.End(commandBuffer);
+            commandBuffer.End();
+
+            SubmitToGPU();
+        }
+        public static void SubmitToGPU()
+        {
+            //submit what we rendered to the GPU
+            SubmitInfo submitInfo = new SubmitInfo();
+            submitInfo.SType = StructureType.SubmitInfo;
+
+            PipelineStageFlags waitFlag = PipelineStageFlags.ColorAttachmentOutputBit;
+            submitInfo.PWaitDstStageMask = &waitFlag;
+
+            submitInfo.WaitSemaphoreCount = 1;
+            fixed (Silk.NET.Vulkan.Semaphore* ptr = &presentSemaphore)
+            {
+                submitInfo.PWaitSemaphores = ptr;
+            }
+
+            submitInfo.SignalSemaphoreCount = 1;
+            fixed (Silk.NET.Vulkan.Semaphore* ptr = &renderSemaphore)
+            {
+                submitInfo.PSignalSemaphores = ptr;
+            }
+
+            submitInfo.CommandBufferCount = 1;
+            fixed (CommandBuffer* ptr = &commandBuffer.handle)
+            {
+                submitInfo.PCommandBuffers = ptr;
+            }
+
+            if (vk.QueueSubmit(CurrentGPU.AllPurposeQueue, 1, in submitInfo, fence) != Result.Success)
+            {
+                throw new ExecutionException("Error submitting Vulkan Queue!");
+            }
+
+            //and present it to the window
+            PresentInfoKHR presentInfo = new PresentInfoKHR();
+            presentInfo.SType = StructureType.PresentInfoKhr;
+            presentInfo.SwapchainCount = 1;
+            fixed (SwapchainKHR* ptr = &swapChain.handle)
+            {
+                presentInfo.PSwapchains = ptr;
+            }
+            presentInfo.WaitSemaphoreCount = 1;
+            fixed (Silk.NET.Vulkan.Semaphore* ptr = &renderSemaphore)
+            {
+                presentInfo.PWaitSemaphores = ptr;
+            }
+            uint imageIndex = swapChain.currentImageIndex;
+            presentInfo.PImageIndices = &imageIndex;
+
+            if (KhrSwapchainAPI.QueuePresent(CurrentGPU.AllPurposeQueue, &presentInfo) != Result.Success)
+            {
+                throw new ExecutionException("Error presenting Vulkan queue!");
             }
         }
         #region instance creation
@@ -352,7 +430,13 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region render pass
-        public static RenderPass renderPass;
+        public static VkRenderPass renderPass;
+
+        public static void CreateRenderPass()
+        {
+            renderPass = VkRenderPass.Create(swapChain, ImageLayout.ColorAttachmentOptimal);
+        }
+        /*public static RenderPass renderPass;
         public static void CreateRenderPass()
         {
             AttachmentReference colorAttachmentReference = new AttachmentReference();
@@ -367,7 +451,7 @@ namespace Somnium.Framework.Vulkan
             colorAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
             colorAttachment.StencilStoreOp = AttachmentStoreOp.Store;
             colorAttachment.InitialLayout = ImageLayout.Undefined;
-            colorAttachment.FinalLayout = ImageLayout.ColorAttachmentOptimal;
+            colorAttachment.FinalLayout = ImageLayout.PresentSrcKhr;
 
             SubpassDependency dependency = new SubpassDependency();
             dependency.SrcSubpass = Vk.SubpassExternal;
@@ -401,6 +485,27 @@ namespace Somnium.Framework.Vulkan
                 }
             }
         }
+        public static void BeginRenderPass()
+        {
+            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
+            beginInfo.SType = StructureType.RenderPassBeginInfo;
+            beginInfo.RenderPass = renderPass;
+            beginInfo.Framebuffer = swapChain.CurrentFramebuffer;
+            beginInfo.RenderArea = new Rect2D(default, swapChain.imageExtents);
+            beginInfo.ClearValueCount = 1;
+
+            ClearValue clearColor = new ClearValue(new ClearColorValue(0f, 0f, 0f, 1f));
+
+            beginInfo.PClearValues = &clearColor;
+
+            //use inline for primary command buffers
+            vk.CmdBeginRenderPass(commandBuffer.handle, in beginInfo, SubpassContents.Inline);
+            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, TrianglePipeline);
+        }
+        public static void EndRenderPass()
+        {
+            vk.CmdEndRenderPass(commandBuffer.handle);
+        }*/
         #endregion
 
         #region pipelines
@@ -430,14 +535,91 @@ namespace Somnium.Framework.Vulkan
         }
         #endregion
 
+        #region command pools(memory) and buffers
+        static CommandPoolCreateInfo poolCreateInfo;
+        static CommandPool commandPool;
+        static VkCommandBuffer commandBuffer;
+        public static void CreateCommandPool()
+        {
+            poolCreateInfo = new CommandPoolCreateInfo();
+            poolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
+            //we reset our command buffers every frame individually, so use this
+            poolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit;
+            //TODO: update to specific queues
+            poolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetGeneralPurposeQueue(CurrentGPU.Device)!.Value;
+
+            fixed (CommandPool* ptr = &commandPool)
+            {
+                if (vk.CreateCommandPool(vkDevice, in poolCreateInfo, null, ptr) != Result.Success)
+                {
+                    throw new InitializationException("Failed to create Vulkan Command Pool(Memory)!");
+                }
+            }
+        }
+        public static void CreateCommandBuffer()
+        {
+            commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
+        }
+        #endregion
+
+        #region synchronization
+        public static Silk.NET.Vulkan.Semaphore presentSemaphore;
+        public static Silk.NET.Vulkan.Semaphore renderSemaphore;
+        public static Fence fence;
+
+        private static SemaphoreCreateInfo semaphoreCreateInfo;
+        private static FenceCreateInfo fenceCreateInfo;
+
+        public static void CreateSynchronizers()
+        {
+            semaphoreCreateInfo = new SemaphoreCreateInfo();
+            semaphoreCreateInfo.SType = StructureType.SemaphoreCreateInfo;
+            fenceCreateInfo = new FenceCreateInfo();
+            fenceCreateInfo.Flags = FenceCreateFlags.SignaledBit;
+            fenceCreateInfo.SType = StructureType.FenceCreateInfo;
+
+            presentSemaphore = CreateSemaphore();
+            renderSemaphore = CreateSemaphore();
+
+            fence = CreateFence();
+        }
+        public static Silk.NET.Vulkan.Semaphore CreateSemaphore()
+        {
+            Silk.NET.Vulkan.Semaphore result;
+            if (vk.CreateSemaphore(vkDevice, in semaphoreCreateInfo, null, &result) != Result.Success)
+            {
+                throw new InitializationException("Failed to create Vulkan Semaphore!");
+            }
+            return result;
+        }
+        public static Fence CreateFence()
+        {
+            Fence result;
+            if (vk.CreateFence(vkDevice, in fenceCreateInfo, null, &result) != Result.Success)
+            {
+                throw new InitializationException("Failed to create Vulkan Fence!");
+            }
+            return result;
+        }
+        #endregion
+
         public static void Shutdown()
         {
             if (initialized)
             {
                 CurrentGPU = default;
+
+                //we need this so vulkan doesnt attempt to destroy the engine while
+                //something is still presenting
+                vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
+
+                renderPass.Dispose();
+                vk.DestroySemaphore(vkDevice, presentSemaphore, null);
+                vk.DestroySemaphore(vkDevice, renderSemaphore, null);
+                vk.DestroyFence(vkDevice, fence, null);
+                vk.DestroyCommandPool(vkDevice, commandPool, null);
                 vk.DestroyPipeline(vkDevice, TrianglePipeline, null);
                 vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
-                vk.DestroyRenderPass(vkDevice, renderPass, null);
                 swapChain.Dispose();
                 testShader.Dispose();
                 vk.DestroyDevice(vkDevice, null);

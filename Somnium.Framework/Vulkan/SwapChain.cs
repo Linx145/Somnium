@@ -54,17 +54,24 @@ namespace Somnium.Framework.Vulkan
         public uint currentImageIndex;
         public Image[] images;
         public ImageData[] imageDatas;
+        public VkFramebuffer[] imageFrameBuffers;
 
-        //synchronization
-
-        /// <summary>
-        /// A synchronization primitive used by the CPU to wait and synchronize with the SwapChain
-        /// </summary>
-        public Fence imageAvailableFence;
-        /// <summary>
-        /// A synchronization primitive used by the GPU workloads (such as drawcalls) to wait and synchronize
-        /// </summary>
-        public Silk.NET.Vulkan.Semaphore imageAvailableSemaphore;
+        public uint ImageCount
+        {
+            get
+            {
+                uint imageCount = 0;
+                swapchainAPI.GetSwapchainImages(device, handle, ref imageCount, null);
+                return imageCount;
+            }
+        }
+        public VkFramebuffer CurrentFramebuffer
+        {
+            get
+            {
+                return imageFrameBuffers[currentImageIndex];
+            }
+        }
 
         //todo: implement
         /*public static SwapChain Create(
@@ -100,13 +107,12 @@ namespace Somnium.Framework.Vulkan
             this.imageUsage = imageUsage;
         }
 
-        public void SwapBuffers()
+        public void SwapBuffers(Silk.NET.Vulkan.Semaphore semaphore, Fence fence)
         {
-            if (imageAvailableFence.Handle != 0 && imageAvailableSemaphore.Handle != 0)
+            if (swapchainAPI.AcquireNextImage(device, handle, 1000000000, semaphore, fence, ref currentImageIndex) != Result.Success)
             {
-                swapchainAPI.AcquireNextImage(device, handle, ulong.MaxValue, imageAvailableSemaphore, imageAvailableFence, ref currentImageIndex);
+                throw new ExecutionException("Failed to acquire new Vulkan Swapchain Image!");
             }
-            else throw new InvalidOperationException("Vulkan synchronization primitive(s) missing!");
         }
 
         /// <summary>
@@ -176,16 +182,36 @@ namespace Somnium.Framework.Vulkan
                 imageDatas[i] = ImageData.Create(images[i], imageFormat);
             }
         }
+        public unsafe void RecreateFramebuffers(RenderPass renderPass)
+        {
+            if (imageFrameBuffers != null)
+            {
+                for (int i = 0; i < imageFrameBuffers.Length; i++)
+                {
+                    imageFrameBuffers[i].Dispose();
+                }
+            }
+
+            imageFrameBuffers = new VkFramebuffer[ImageCount];
+            for (int i = 0; i < imageFrameBuffers.Length; i++)
+            {
+                imageFrameBuffers[i] = VkFramebuffer.Create(imageDatas[i], renderPass, imageExtents.Width, imageExtents.Height);
+            }
+        }
 
         public void Dispose()
         {
-            for (int i = 0; i < imageDatas.Length; i++)
-            {
-                imageDatas[i].Dispose();
-            }
             if (handle.Handle != 0)
             {
                 swapchainAPI.DestroySwapchain(device, handle, null);
+            }
+            for (int i = 0; i < imageFrameBuffers.Length; i++)
+            {
+                imageFrameBuffers[i].Dispose();
+            }
+            for (int i = 0; i < imageDatas.Length; i++)
+            {
+                imageDatas[i].Dispose();
             }
         }
 
