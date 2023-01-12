@@ -3,13 +3,11 @@ using Silk.NET.Core.Native;
 using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
-using System.Diagnostics;
 
 namespace Somnium.Framework.Windowing
 {
     public unsafe class WindowGLFW : Window
     {
-
         public static int activeWindows { get; private set; }
         public static Glfw Glfw
         {
@@ -159,10 +157,11 @@ namespace Somnium.Framework.Windowing
                 window.GLContext = new GlfwContext(Glfw, window.handle);
             }
 
+            Glfw.SetFramebufferSizeCallback(window.handle, new GlfwCallbacks.FramebufferSizeCallback(window.OnResizedCallback));
+
             activeWindows++;
             return window;
         }
-
         public void Close()
         {
             Glfw.SetWindowShouldClose(handle, true);
@@ -204,6 +203,15 @@ namespace Somnium.Framework.Windowing
                 throw new InitializationException("Failed to create Vulkan surface for window!");
             }
             return surfaceHandle.ToSurface();
+        }
+        public override Point GetFramebufferExtents()
+        {
+            int width;
+            int height;
+            Glfw.GetFramebufferSize(handle, out  width, out height);
+            Glfw.WaitEvents();
+
+            return new Point(width, height);
         }
         public override Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities)
         {

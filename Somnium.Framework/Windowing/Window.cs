@@ -1,4 +1,5 @@
 ﻿using Silk.NET.Core.Contexts;
+using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 
 namespace Somnium.Framework.Windowing
@@ -13,7 +14,14 @@ namespace Somnium.Framework.Windowing
 
         public abstract void Dispose();
         public abstract void Update();
-        public abstract SurfaceKHR CreateWindowSurfaceVulkan();
+        /// <summary>
+        /// Called when the window is resized, with arguments being 1)the resized window, 2)the new window width, 3)the new window height
+        /// </summary>
+        public event Action<Window, int, int> OnResized;
+        public unsafe void OnResizedCallback(WindowHandle* handle, int width, int height)
+        {
+            OnResized?.Invoke(this, width, height);
+        }
 
         public abstract bool VSync { get; set; }
 
@@ -25,6 +33,8 @@ namespace Somnium.Framework.Windowing
         #region Vulkan
         public abstract byte** GetRequiredExtensions(out uint Count);
         public abstract Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities);
+        public abstract Point GetFramebufferExtents();
+        public abstract SurfaceKHR CreateWindowSurfaceVulkan();
         #endregion
     }
 }

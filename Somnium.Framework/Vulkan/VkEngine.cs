@@ -44,10 +44,14 @@ namespace Somnium.Framework.Vulkan
         private static VkShader testShader;
 
         public static bool initialized { get; private set; }
+        internal static bool recreatedSwapChainThisFrame = false;
+        private static bool onResized;
         public static unsafe void Initialize(Window window, string AppName, bool enableValidationLayers = true)
         {
             if (!initialized)
             {
+                window.OnResized += OnResized;
+
                 initialized = true;
                 appName = AppName;
 
@@ -73,11 +77,15 @@ namespace Somnium.Framework.Vulkan
         {
             vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
             vk.ResetFences(vkDevice, 1, in fence);
+            recreatedSwapChainThisFrame = false;
 
             SwapChain potentialNewSwapchain = swapChain.SwapBuffers(presentSemaphore, default);
             if (potentialNewSwapchain != null)
             {
+                onResized = false;
+                recreatedSwapChainThisFrame = true;
                 swapChain = potentialNewSwapchain;
+                return;
             }
 
             commandBuffer.Reset();
@@ -144,16 +152,35 @@ namespace Somnium.Framework.Vulkan
             presentInfo.PImageIndices = &imageIndex;
 
             Result presentResult = KhrSwapchainAPI.QueuePresent(CurrentGPU.AllPurposeQueue, &presentInfo);
-            if (presentResult != Result.Success)
+            //we cannot do this before QueuePresent if not the semaphores might not be in a consistent state,
+            //resulting in a signaled semaphore being never waited upon
+            if (presentResult == Result.ErrorOutOfDateKhr || onResized)
             {
-                if (presentResult == Result.ErrorOutOfDateKhr)
+                if (!recreatedSwapChainThisFrame)
                 {
                     swapChain.Dispose();
                     swapChain = SwapChain.Create(window);
-                    //swapChain.Recreate(SwapChain.QuerySwapChainSupport(CurrentGPU.Device));
                 }
-                else throw new ExecutionException("Error presenting Vulkan queue!");
+                if (onResized)
+                {
+                    onResized = false;
+                }
+                if (presentResult == Result.ErrorOutOfDateKhr)
+                {
+                    presentResult = Result.Success;
+                }
+                //swapChain.Recreate(SwapChain.QuerySwapChainSupport(CurrentGPU.Device));
             }
+            if (presentResult != Result.Success)
+            {
+                throw new ExecutionException("Error presenting Vulkan queue!");
+            }
+        }
+
+        //Handle this manually as well for drivers that do not support auto OutOfDateKhr callbacks
+        public static void OnResized(Window window, int width, int height)
+        {
+            onResized = true;
         }
         #region instance creation
         /// <summary>

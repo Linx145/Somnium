@@ -81,12 +81,12 @@ namespace Somnium.Framework.Vulkan
             SwapChainSupportDetails supportDetails,
             uint minImageCount, 
             Format imageFormat,
-            ColorSpaceKHR imageColorSpace, 
-            Extent2D imageExtents,
+            ColorSpaceKHR imageColorSpace,
             PresentModeKHR presentMode,
             SurfaceKHR windowSurface,
             uint imageArrayLayers = 1,
-            ImageUsageFlags imageUsage = ImageUsageFlags.ColorAttachmentBit)
+            ImageUsageFlags imageUsage = ImageUsageFlags.ColorAttachmentBit,
+            Extent2D imageExtents = default) //if we pass in default here, the swapchain will automatically take the imageExtents of the window at Create() time
         {
             this.window = window;
             this.supportDetails = supportDetails;
@@ -184,7 +184,6 @@ namespace Somnium.Framework.Vulkan
                 VkEngine.SwapChainImages,
                 surfaceFormat.Format,
                 surfaceFormat.ColorSpace,
-                window.GetSwapChainExtents(swapChainSupport.Capabilities),
                 VkEngine.PreferredPresentMode,
                 VkEngine.WindowSurface);
 
@@ -194,6 +193,19 @@ namespace Somnium.Framework.Vulkan
         }
         public void Recreate()
         {
+            int width = 0, height = 0;
+            //glfwGetFramebufferSize(window, &width, &height);
+            while (width == 0 || height == 0)
+            {
+                Point point = window.GetFramebufferExtents();
+                width = point.X;
+                height = point.Y;
+            }
+
+            while (imageExtents.Width == 0 || imageExtents.Height == 0)
+            {
+                imageExtents = window.GetSwapChainExtents(QuerySwapChainSupport(VkEngine.CurrentGPU.Device).Capabilities);//swapChainSupport.Capabilities);
+            }
             //wait until it's safe to recreate swapchain (IE: When it's not in use)
             vk.DeviceWaitIdle(device);
 
