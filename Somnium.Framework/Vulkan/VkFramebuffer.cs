@@ -1,5 +1,5 @@
 ﻿using Silk.NET.Vulkan;
-using System.Net.Mail;
+using System;
 
 namespace Somnium.Framework.Vulkan
 {

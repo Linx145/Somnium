@@ -1,5 +1,6 @@
 ﻿using Somnium.Framework;
 using System;
+using System.Numerics;
 
 namespace Test
 {
@@ -8,23 +9,44 @@ namespace Test
         private static Application application;
         private static float recordTime = 0f;
 
+        private static VertexBuffer vb;
+
         [STAThread]
         public static void Main(string[] args)
         {
             using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan))
             {
+                application.OnLoad = OnLoad;
                 application.Update = Update;
-                application.Draw = Render;
+                application.Draw = Draw;
+                application.Unload = Unload;
                 application.Start();
             }
         }
+        static VertexPositionColor[] vertices;
         private static void OnLoad()
         {
+            vertices = new VertexPositionColor[]
+            {
+                new VertexPositionColor(new Vector3(0f, -0.5f, 0.1f), Color.Red),
+                new VertexPositionColor(new Vector3(0.5f, 0.5f, 0.1f), Color.Green),
+                new VertexPositionColor(new Vector3(-0.5f, 0.5f, 0.1f), Color.Blue)
+            };
+            vb = new VertexBuffer(application, VertexPositionColor.VertexDeclaration, 3, false);
+            vb.SetData<VertexPositionColor>(vertices, 0, 3);
         }
 
-        private static void Render(float deltaTime)
+        private static void Draw(float deltaTime)
         {
+            Graphics.SetVertexBuffer(vb);
+
+            Graphics.DrawPrimitives(3, 1);
             //Here all rendering should be done.
+        }
+
+        private static void Unload()
+        {
+            vb.Dispose();
         }
 
         private static void Update(float deltaTime)

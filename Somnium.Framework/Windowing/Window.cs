@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Core.Contexts;
 using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
+using System;
 
 namespace Somnium.Framework.Windowing
 {

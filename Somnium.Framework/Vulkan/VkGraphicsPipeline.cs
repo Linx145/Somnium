@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using Silk.NET.Core;
+using System;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -24,6 +25,7 @@ namespace Somnium.Framework.Vulkan
         public PolygonMode polygonMode;
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
+        public VkVertex[] vertexDescriptors;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
         CullModeFlags cullMode = CullModeFlags.None;
@@ -36,6 +38,9 @@ namespace Somnium.Framework.Vulkan
         public PipelineColorBlendStateCreateInfo colorBlendingInfo;
         public PipelineViewportStateCreateInfo viewportInfo;
 
+        public VertexInputBindingDescription[] compiledVertexBindingDescriptions;
+        public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
+
         public VkGraphicsPipeline(
             Viewport viewport,
             Rect2D scissor,
@@ -44,8 +49,10 @@ namespace Somnium.Framework.Vulkan
             BlendState blendState,
             PrimitiveTopology topology,
             PolygonMode polygonMode,
-            VkRenderPass renderPass)
+            VkRenderPass renderPass,
+            VkVertex[] vertexDescriptors)
         {
+            this.vertexDescriptors = vertexDescriptors;
             this.viewport = viewport;
             this.scissor = scissor;
             this.frontFaceMode = frontFace;
@@ -84,13 +91,43 @@ namespace Somnium.Framework.Vulkan
             createInfo.PName = VkShader.Main();
             return createInfo;
         }
-        internal PipelineVertexInputStateCreateInfo CreateVertexInputState()
+        internal unsafe PipelineVertexInputStateCreateInfo CreateVertexInputState()
         {
             //TODO
             var createInfo = new PipelineVertexInputStateCreateInfo();
             createInfo.SType = StructureType.PipelineVertexInputStateCreateInfo;
-            createInfo.VertexAttributeDescriptionCount = 0;
-            createInfo.VertexBindingDescriptionCount = 0;
+
+            uint totalAttributes = 0;
+
+            for (int i = 0; i < vertexDescriptors.Length; i++)
+            {
+                totalAttributes += (uint)vertexDescriptors[i].attributeDescriptions.Length;
+            }
+
+            compiledVertexBindingDescriptions = new VertexInputBindingDescription[vertexDescriptors.Length];
+            compiledVertexAttributeDescriptions = new VertexInputAttributeDescription[totalAttributes];
+
+            int attributeDescriptionIndex = 0;
+            for (int i = 0; i < vertexDescriptors.Length; i++)
+            {
+                compiledVertexBindingDescriptions[i] = vertexDescriptors[i].bindingDescription;
+                for (int j = 0; j < vertexDescriptors[i].attributeDescriptions.Length; j++)
+                {
+                    compiledVertexAttributeDescriptions[attributeDescriptionIndex] = vertexDescriptors[i].attributeDescriptions[j];
+                    attributeDescriptionIndex++;
+                }
+            }
+            createInfo.VertexBindingDescriptionCount = (uint)vertexDescriptors.Length;
+            createInfo.VertexAttributeDescriptionCount = totalAttributes;
+
+            fixed (VertexInputAttributeDescription* ptr = compiledVertexAttributeDescriptions)
+            {
+                createInfo.PVertexAttributeDescriptions = ptr;
+            }
+            fixed (VertexInputBindingDescription* ptr = compiledVertexBindingDescriptions)
+            {
+                createInfo.PVertexBindingDescriptions = ptr;
+            }
 
             return createInfo;
         }

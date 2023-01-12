@@ -1,4 +1,7 @@
 ﻿using Silk.NET.Vulkan;
+using Somnium.Framework.Vulkan;
+using System.Collections.Generic;
+using System;
 
 namespace Somnium.Framework
 {
@@ -73,34 +76,31 @@ namespace Somnium.Framework
                 declaration.inputRate = VertexElementInputRate.Vertex;
                 declaration.registered = false;
 
-                allVertexDeclarations.Add(declaration);
-
                 return declaration;
             }
             else throw new NotImplementedException();
         }
 
-        public static void RegisterDefaultVertexDeclarations(Backends backend)
+        public static void AddDefaultVertexDeclarations(Backends backend)
         {
-            switch (backend)
+            if (allVertexDeclarations == null)
             {
-                case Backends.Vulkan:
-                    var declaration = NewVertexDeclaration<VertexPositionColor>(backend);
-                    declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
-                    declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
-                    VertexPositionColor.internalVertexDeclaration = declaration;
-                    break;
-                default:
-                    throw new NotImplementedException();
+                allVertexDeclarations = new List<VertexDeclaration>();
             }
+            var declaration = NewVertexDeclaration<VertexPositionColor>(backend);
+            declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
+            VertexPositionColor.internalVertexDeclaration = declaration;
+            allVertexDeclarations.Add(declaration);
         }
-        public static void RegisterAllBuffers(Backends backend)
+        public static void RegisterAllVertexDeclarations(Backends backend)
         {
             if (backend == Backends.Vulkan)
             {
                 for (int i = 0; i < allVertexDeclarations.Count; i++)
                 {
-
+                    VkVertex.registeredVertices.Add(new VkVertex(allVertexDeclarations[i]));
+                    //VkVertex.RegisterVertex(allVertexDeclarations[i]);
                 }
             }
             initialized = true;

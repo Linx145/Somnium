@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
+using System;
+using System.IO;
 
 namespace Somnium.Framework.Vulkan
 {

@@ -3,6 +3,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+using System;
 
 namespace Somnium.Framework.Windowing
 {

@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using System.Runtime.InteropServices;
+using System;
 
 namespace Somnium.Framework.Vulkan
 {

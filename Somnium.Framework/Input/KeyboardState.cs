@@ -1,4 +1,5 @@
 ﻿using Silk.NET.GLFW;
+using System.Collections.Generic;
 
 namespace Somnium.Framework
 {

@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
+using System;
 
 namespace Somnium.Framework.Vulkan
 {

@@ -4,8 +4,13 @@ using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan
 {
-    public static class VkVertex
+    public struct VkVertex
     {
+        internal static List<VkVertex> registeredVertices = new List<VkVertex>();
+
+        public VertexInputBindingDescription bindingDescription;
+        public VertexInputAttributeDescription[] attributeDescriptions;
+
         public static Format FromVertexElementFormat(VertexElementFormat format)
         {
             switch (format)
@@ -26,10 +31,10 @@ namespace Somnium.Framework.Vulkan
                     return Format.R32G32B32A32Sfloat;
             }
         }
-        public static void RegisterVertex(VertexDeclaration declaration)
+        public VkVertex(VertexDeclaration declaration)
         {
             //describes the vertex declaration
-            VertexInputBindingDescription bindingDescription = new VertexInputBindingDescription();
+            bindingDescription = new VertexInputBindingDescription();
             bindingDescription.Binding = declaration.binding;
             if (declaration.inputRate == VertexElementInputRate.Instance)
             {
@@ -39,7 +44,7 @@ namespace Somnium.Framework.Vulkan
             bindingDescription.Stride = declaration.size;
 
             //describes the elements of the vertex
-            VertexInputAttributeDescription[] attributeDescriptions = new VertexInputAttributeDescription[declaration.elements.Count];
+            attributeDescriptions = new VertexInputAttributeDescription[declaration.elements.Count];
             for (int i = 0; i < attributeDescriptions.Length; i++)
             {
                 attributeDescriptions[i].Binding = declaration.elements[i].binding;
@@ -47,10 +52,6 @@ namespace Somnium.Framework.Vulkan
                 attributeDescriptions[i].Format = FromVertexElementFormat(declaration.elements[i].format);
                 attributeDescriptions[i].Offset = declaration.elements[i].offset;
             }
-
-            
-
-            declaration.registered = true;
         }
     }
 }

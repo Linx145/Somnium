@@ -5,6 +5,8 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Somnium.Framework.Windowing;
+using System;
+using System.Linq;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -66,6 +68,7 @@ namespace Somnium.Framework.Vulkan
                 CreateLogicalDevice();
                 CreateSwapChain(window); //also creates image views
                 CreateRenderPass();
+                VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
                 CreateCommandPool();
@@ -73,7 +76,7 @@ namespace Somnium.Framework.Vulkan
                 CreateSynchronizers();
             }
         }
-        public static void Draw(Window window)
+        public static void BeginDraw(Window window)
         {
             vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
             vk.ResetFences(vkDevice, 1, in fence);
@@ -93,10 +96,9 @@ namespace Somnium.Framework.Vulkan
             renderPass.Begin(commandBuffer, swapChain, Color.CornflowerBlue);
             vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, TrianglePipeline);
             //BeginRenderPass(); //also clears the screen
-
-            vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, TrianglePipeline);
-            vk.CmdDraw(commandBuffer, 3, 1, 0, 0);
-
+        }
+        public static void EndDraw(Window window)
+        {
             //EndRenderPass();
             renderPass.End(commandBuffer);
             commandBuffer.End();
@@ -485,7 +487,8 @@ namespace Somnium.Framework.Vulkan
                 BlendState.AlphaBlend,
                 PrimitiveTopology.TriangleList,
                 PolygonMode.Fill,
-                renderPass);
+                renderPass,
+                VkVertex.registeredVertices.ToArray());
 
             TrianglePipeline.shaderStages = new PipelineShaderStageCreateInfo[]
             {
@@ -518,7 +521,7 @@ namespace Somnium.Framework.Vulkan
         #region command pools(memory) and buffers
         static CommandPoolCreateInfo poolCreateInfo;
         static CommandPool commandPool;
-        static VkCommandBuffer commandBuffer;
+        public static VkCommandBuffer commandBuffer;
         public static void CreateCommandPool()
         {
             poolCreateInfo = new CommandPoolCreateInfo();

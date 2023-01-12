@@ -1,7 +1,7 @@
 ﻿using Somnium.Framework.Vulkan;
 using Somnium.Framework.Windowing;
 using System.Diagnostics;
-using System.Reflection;
+using System;
 
 namespace Somnium.Framework
 {
@@ -42,10 +42,13 @@ namespace Somnium.Framework
 
             app.Window = WindowGLFW.New(windowSize, title, preferredBackend);
 
+            Graphics.application = app;
+
             return app;
         }
         public void Start()
         {
+            VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
             switch (runningBackend)
             {
                 case Backends.Vulkan:
@@ -72,8 +75,12 @@ namespace Somnium.Framework
                     updateStopwatch.Restart();
                     Update?.Invoke((float)delta);
                 }
+
                 if (delta >= internalRenderPeriod)
                 {
+                    delta = drawStopwatch.Elapsed.TotalSeconds;
+                    drawStopwatch.Restart();
+                    if (runningBackend == Backends.OpenGL)
                     {
                         var glContext = Window.GetGLContext();
                         if (glContext != null)
@@ -81,21 +88,29 @@ namespace Somnium.Framework
                             glContext.MakeCurrent();
                         }
                     }
-                    delta = drawStopwatch.Elapsed.TotalSeconds;
-                    drawStopwatch.Restart();
-                    Draw?.Invoke((float)delta);
-                }
+                    else if (runningBackend == Backends.Vulkan)
+                    {
+                        VkEngine.BeginDraw(Window);
+                    }
 
+                    Draw?.Invoke((float)delta);
+
+                    if (runningBackend == Backends.Vulkan)
+                    {
+                        VkEngine.EndDraw(Window);
+                    }
+                }
                 if (!Window.IsMinimized)
                 {
                     if (runningBackend == Backends.Vulkan)
                     {
-                        VkEngine.Draw(Window);
+                        VkEngine.BeginDraw(Window);
+                        VkEngine.EndDraw(Window);
                     }
                 }
                 Window.Update();
             }
-
+            Unload?.Invoke();
             switch (runningBackend)
             {
                 case Backends.Vulkan:
@@ -106,6 +121,7 @@ namespace Somnium.Framework
         public Action OnLoad;
         public Action<float> Update;
         public Action<float> Draw;
+        public Action Unload;
 
         public void Dispose()
         {
