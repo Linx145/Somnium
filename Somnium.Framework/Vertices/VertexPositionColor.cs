@@ -8,7 +8,7 @@ namespace Somnium.Framework
     {
         public Vector3 Position;
 
-        public Color Color;
+        public Vector4 Color;
 
         public static VertexDeclaration VertexDeclaration
         {
@@ -22,7 +22,7 @@ namespace Somnium.Framework
         public VertexPositionColor(Vector3 position, Color color)
         {
             this.Position = position;
-            Color = color;
+            Color = color.ToVector4();
         }
 
         public override int GetHashCode()

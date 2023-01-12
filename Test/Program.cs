@@ -28,12 +28,12 @@ namespace Test
         {
             vertices = new VertexPositionColor[]
             {
-                new VertexPositionColor(new Vector3(0f, -0.5f, 0.1f), Color.Red),
-                new VertexPositionColor(new Vector3(0.5f, 0.5f, 0.1f), Color.Green),
-                new VertexPositionColor(new Vector3(-0.5f, 0.5f, 0.1f), Color.Blue)
+                new VertexPositionColor(new Vector3(0f, -0.5f, 0f), Color.Red),
+                new VertexPositionColor(new Vector3(0.5f, 0.5f, 0f), Color.Green),
+                new VertexPositionColor(new Vector3(-0.5f, 0.5f, 0f), Color.Blue)
             };
             vb = new VertexBuffer(application, VertexPositionColor.VertexDeclaration, 3, false);
-            vb.SetData<VertexPositionColor>(vertices, 0, 3);
+            vb.SetData(vertices, 0, 3);
         }
 
         private static void Draw(float deltaTime)
@@ -41,7 +41,6 @@ namespace Test
             Graphics.SetVertexBuffer(vb);
 
             Graphics.DrawPrimitives(3, 1);
-            //Here all rendering should be done.
         }
 
         private static void Unload()
@@ -51,12 +50,12 @@ namespace Test
 
         private static void Update(float deltaTime)
         {
-            //recordTime += deltaTime;
-            //if (recordTime >= 0.2f)
-            //{
+            recordTime += deltaTime;
+            if (recordTime >= 0.2f)
+            {
                 application.Window.Title = string.Concat("Test ", MathF.Round(1f / deltaTime).ToString());
-                //recordTime -= 0.2f;
-            //}
+                recordTime -= 0.2f;
+            }
             //Here all updates to the program should be done.
         }
     }

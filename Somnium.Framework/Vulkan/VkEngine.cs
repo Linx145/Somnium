@@ -93,9 +93,10 @@ namespace Somnium.Framework.Vulkan
 
             commandBuffer.Reset();
             commandBuffer.Begin();
-            renderPass.Begin(commandBuffer, swapChain, Color.CornflowerBlue);
-            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, TrianglePipeline);
+            renderPass.Begin(commandBuffer, swapChain, Color.Black);
+            TrianglePipeline.Bind(commandBuffer);
             //BeginRenderPass(); //also clears the screen
+
         }
         public static void EndDraw(Window window)
         {
@@ -592,9 +593,7 @@ namespace Somnium.Framework.Vulkan
             {
                 CurrentGPU = default;
 
-                //we need this so vulkan doesnt attempt to destroy the engine while
-                //something is still presenting
-                vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
+                //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
 
                 renderPass.Dispose();
                 vk.DestroySemaphore(vkDevice, presentSemaphore, null);

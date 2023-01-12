@@ -2,6 +2,8 @@
 using Somnium.Framework.Windowing;
 using System.Diagnostics;
 using System;
+using Silk.NET.Core;
+using Silk.NET.Vulkan;
 
 namespace Somnium.Framework
 {
@@ -100,15 +102,15 @@ namespace Somnium.Framework
                         VkEngine.EndDraw(Window);
                     }
                 }
-                if (!Window.IsMinimized)
-                {
-                    if (runningBackend == Backends.Vulkan)
-                    {
-                        VkEngine.BeginDraw(Window);
-                        VkEngine.EndDraw(Window);
-                    }
-                }
                 Window.Update();
+            }
+            //where applicable, we need to wait for the graphics API to finish rendering before shutting down
+            //to avoid disposing things that are being used
+            switch (runningBackend)
+            {
+                case Backends.Vulkan:
+                    VkEngine.vk.WaitForFences(VkEngine.vkDevice, 1, in VkEngine.fence, new Bool32(true), uint.MaxValue);
+                    break;
             }
             Unload?.Invoke();
             switch (runningBackend)

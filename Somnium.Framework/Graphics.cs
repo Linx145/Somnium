@@ -7,6 +7,7 @@ namespace Somnium.Framework
     public static class Graphics
     {
         public static Application application;
+        static ulong[] noOffset = new ulong[1] { 0 };
         public static void SetVertexBuffer(VertexBuffer buffer)
         {
             unsafe
@@ -15,10 +16,11 @@ namespace Somnium.Framework
                 {
                     case Backends.Vulkan:
                         Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
-                        ulong* offsets = stackalloc ulong[1];
-                        *offsets = 0;
-                        VkEngine.vk.CmdBindVertexBuffers(VkEngine.commandBuffer, 0, &vkBuffer, new ReadOnlySpan<ulong>(offsets, 1));
-                        break;
+                        fixed (ulong* ptr = noOffset)
+                        {
+                            VkEngine.vk.CmdBindVertexBuffers(VkEngine.commandBuffer, 0, &vkBuffer, noOffset.AsSpan());
+                        }
+                            break;
                     default:
                         throw new NotImplementedException();
                 }

@@ -271,6 +271,11 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
+        public void Bind(VkCommandBuffer commandBuffer)
+        {
+            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, handle);
+        }
+
         public unsafe void Dispose()
         {
             vk.DestroyPipelineLayout(VkEngine.vkDevice, pipelineLayout, null);
