@@ -7,6 +7,8 @@ using Silk.NET.Vulkan.Extensions.KHR;
 using Somnium.Framework.Windowing;
 using System;
 using System.Linq;
+using Buffer = Silk.NET.Vulkan.Buffer;
+using System.Reflection.Metadata;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -387,7 +389,7 @@ namespace Somnium.Framework.Vulkan
 
             DeviceCreateInfo deviceCreateInfo = new DeviceCreateInfo();
             deviceCreateInfo.SType = StructureType.DeviceCreateInfo;
-            deviceCreateInfo.QueueCreateInfoCount = 1;
+            deviceCreateInfo.QueueCreateInfoCount = 2;
             fixed (DeviceQueueCreateInfo* ptr = queueCreateInfos)
             {
                 deviceCreateInfo.PQueueCreateInfos = ptr;
@@ -502,9 +504,16 @@ namespace Somnium.Framework.Vulkan
         }
         #endregion
 
-        #region command pools(memory) and buffers
+        #region command pools(memory) and command buffers
         static CommandPoolCreateInfo poolCreateInfo;
         static CommandPool commandPool;
+
+        static CommandPoolCreateInfo transientPoolCreateInfo;
+        /// <summary>
+        /// the transient command pool is a pool for short lived command buffers that are created on the fly, submitted then deleted.
+        /// </summary>
+        static CommandPool transientCommandPool;
+
         public static VkCommandBuffer commandBuffer;
         public static void CreateCommandPool()
         {
@@ -522,16 +531,86 @@ namespace Somnium.Framework.Vulkan
                     throw new InitializationException("Failed to create Vulkan Command Pool(Memory)!");
                 }
             }
+
+            transientPoolCreateInfo = new CommandPoolCreateInfo();
+            transientPoolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
+            transientPoolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit | CommandPoolCreateFlags.TransientBit;
+            transientPoolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetTransferQueue(CurrentGPU.Device)!.Value;
+
+            fixed (CommandPool* ptr = &transientCommandPool)
+            {
+                if (vk.CreateCommandPool(vkDevice, in transientPoolCreateInfo, null, ptr) != Result.Success)
+                {
+                    throw new InitializationException("Failed to create Vulkan Command Pool(Memory)!");
+                }
+            }
         }
         public static void CreateCommandBuffer()
         {
             commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
         }
         #endregion
+        #region Resource Buffers
+        public static unsafe Buffer CreateResourceBuffer(ulong size, BufferUsageFlags usageFlags)
+        {
+            BufferCreateInfo createInfo = new BufferCreateInfo();
+            createInfo.SType = StructureType.BufferCreateInfo;
+            createInfo.Size = size;
+            createInfo.Usage = usageFlags;
+            createInfo.SharingMode = SharingMode.Exclusive;
+
+            Buffer buffer;
+            if (vk.CreateBuffer(vkDevice, &createInfo, null, &buffer) != Result.Success)
+            {
+                throw new AssetCreationException("Error creating Vulkan Buffer!");
+            }
+            return buffer;
+        }
+        /// <summary>
+        /// Copies a resource(AKA Vertex, index etc etc) buffer by creating a command buffer, sending a command, submitting it and deleting it.
+        /// Thus, not to be called every frame.
+        /// </summary>
+        public static void StaticCopyResourceBuffer(Buffer from, Buffer to, ulong copySize)
+        {
+            CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
+            allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
+            allocateInfo.Level = CommandBufferLevel.Primary;
+            allocateInfo.CommandPool = transientCommandPool;
+            allocateInfo.CommandBufferCount = 1;
+
+            CommandBuffer transientBuffer;
+            vk.AllocateCommandBuffers(vkDevice, in allocateInfo, &transientBuffer);
+
+            CommandBufferBeginInfo beginInfo = new CommandBufferBeginInfo();
+            beginInfo.SType = StructureType.CommandBufferBeginInfo;
+            beginInfo.Flags = CommandBufferUsageFlags.OneTimeSubmitBit;
+
+            vk.BeginCommandBuffer(transientBuffer, in beginInfo);
+
+            var bufferCopyInfo = new BufferCopy(0, 0, copySize);
+            vk.CmdCopyBuffer(transientBuffer, from, to, 1, in bufferCopyInfo);
+
+            vk.EndCommandBuffer(transientBuffer);
+
+            SubmitInfo submitInfo = new SubmitInfo();
+            submitInfo.SType = StructureType.SubmitInfo;
+            submitInfo.CommandBufferCount = 1;
+            submitInfo.PCommandBuffers = &transientBuffer;
+
+            if (vk.QueueSubmit(CurrentGPU.DedicatedTransferQueue, 1, in submitInfo, new Fence(null)) != Result.Success)
+            {
+                throw new ExecutionException("Error submitting transfer queue!");
+            }
+            vk.QueueWaitIdle(CurrentGPU.DedicatedTransferQueue);
+
+            //finally, delete our transient command buffer
+            vk.FreeCommandBuffers(vkDevice, transientCommandPool, 1, in transientBuffer);
+        }
+        #endregion
 
         #region synchronization
-        public static Silk.NET.Vulkan.Semaphore presentSemaphore;
-        public static Silk.NET.Vulkan.Semaphore renderSemaphore;
+        public static Semaphore presentSemaphore;
+        public static Semaphore renderSemaphore;
         public static Fence fence;
 
         private static SemaphoreCreateInfo semaphoreCreateInfo;
@@ -583,6 +662,7 @@ namespace Somnium.Framework.Vulkan
                 vk.DestroySemaphore(vkDevice, renderSemaphore, null);
                 vk.DestroyFence(vkDevice, fence, null);
                 vk.DestroyCommandPool(vkDevice, commandPool, null);
+                vk.DestroyCommandPool(vkDevice, transientCommandPool, null);
                 //vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
                 TrianglePipeline.Dispose();
                 swapChain.Dispose();

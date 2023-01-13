@@ -142,11 +142,11 @@ namespace Somnium.Framework.Vulkan
             createInfo.ImageArrayLayers = 1;
             createInfo.ImageUsage = ImageUsageFlags.ColorAttachmentBit;
 
-            if (VkEngine.CurrentGPU.DedicatedTransferQueue.Handle != 0)
+            /*if (VkEngine.CurrentGPU.DedicatedTransferQueue.Handle != 0)
             {
                 throw new NotImplementedException();
             }
-            else
+            else*/
             {
                 createInfo.ImageSharingMode = SharingMode.Exclusive;
                 createInfo.QueueFamilyIndexCount = 0;

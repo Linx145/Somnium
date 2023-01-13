@@ -41,7 +41,7 @@ namespace Somnium.Framework.Vulkan
         {
             //TODO: Make scriptable
             
-            DeviceQueueCreateInfo[] result = new DeviceQueueCreateInfo[1];
+            DeviceQueueCreateInfo[] result = new DeviceQueueCreateInfo[2];
 
             var info = new DeviceQueueCreateInfo();
             info.SType = StructureType.DeviceQueueCreateInfo;
@@ -52,12 +52,21 @@ namespace Somnium.Framework.Vulkan
 
             result[0] = info;
 
+            var info2 = new DeviceQueueCreateInfo();
+            info2.SType = StructureType.DeviceQueueCreateInfo;
+            info2.QueueFamilyIndex = queueInfo.GetTransferQueue(in Device)!.Value;
+            info2.QueueCount = 1;
+            info2.PQueuePriorities = &queuePriority;
+
+            result[1] = info2;
+
             return result;
         }
         public void GetCreatedQueueIndices(Device createdDevice)
         {
             LogicalDevice = createdDevice;
             VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out AllPurposeQueue);
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetTransferQueue(in Device)!.Value, 0, out DedicatedTransferQueue);
         }
 
         public unsafe static VkGPU SelectGPU()

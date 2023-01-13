@@ -28,9 +28,9 @@ namespace Test
         {
             vertices = new VertexPositionColor[]
             {
-                new VertexPositionColor(new Vector3(0f, -0.5f, 0f), Color.Red),
-                new VertexPositionColor(new Vector3(0.5f, 0.5f, 0f), Color.Green),
-                new VertexPositionColor(new Vector3(-0.5f, 0.5f, 0f), Color.Blue)
+                new VertexPositionColor(new Vector3(0f, -1f, 0f), Color.Red),
+                new VertexPositionColor(new Vector3(1f, 1f, 0f), Color.Green),
+                new VertexPositionColor(new Vector3(-1f, 1f, 0f), Color.Blue)
             };
             vb = new VertexBuffer(application, VertexPositionColor.VertexDeclaration, 3, false);
             vb.SetData(vertices, 0, 3);

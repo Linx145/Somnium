@@ -39,17 +39,48 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        T* data;
-                        //VkEngine.vk.MapMemory(VkEngine.vkDevice, memoryRegion.handle, memoryRegion.start, memoryRegion.width, /*0, (ulong)(vertexCount * vertexDeclaration.size)*/ 0, (void**)&data);
-                        memoryRegion.Bind<T>((void**)&data);
-                        vertices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
-                        memoryRegion.Unbind();
+                        if (!isDynamic)
+                        {
+                            T* data;
+                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(vertexDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
+                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
-                        //VkEngine.vk.UnmapMemory(VkEngine.vkDevice, memoryRegion.handle);
+                            stagingMemoryRegion.Bind((void**)&data);
+                            vertices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
+                            stagingMemoryRegion.Unbind();
+
+                            CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
+
+                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                            stagingMemoryRegion.Free();
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
+                        /*T* data;
+                        memoryRegion.Bind((void**)&data);
+                        vertices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
+                        memoryRegion.Unbind();*/
                         break;
                     default:
                         throw new NotImplementedException();
                 }
+            }
+        }
+        public static void CopyData(Backends runningBackend, bool isDynamic, ulong fromHandle, ulong toHandle, ulong copySize)
+        {
+            switch (runningBackend)
+            {
+                case Backends.Vulkan:
+                    if (!isDynamic)
+                    {
+                        VkEngine.StaticCopyResourceBuffer(new Buffer(fromHandle), new Buffer(toHandle), copySize);
+                    }
+                    else throw new NotImplementedException();
+                    break;
+                default:
+                    throw new NotImplementedException();
             }
         }
         private void Construct()
@@ -57,51 +88,18 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    BufferCreateInfo createInfo = new BufferCreateInfo();
-                    createInfo.SType = StructureType.BufferCreateInfo;
-                    createInfo.Size = (uint)(vertexCount * vertexDeclaration.size);
-                    createInfo.Usage = BufferUsageFlags.VertexBufferBit;
-                    createInfo.SharingMode = SharingMode.Exclusive;
-                    
-                    unsafe
+                    if (!isDynamic)
                     {
-                        Buffer buffer;
-                        if (VkEngine.vk.CreateBuffer(VkEngine.vkDevice, in createInfo, null, &buffer) != Result.Success)
-                        {
-                            throw new AssetCreationException("Error creating Vulkan (Vertex) Buffer!");
-                        }
-                        handle = buffer.Handle;
-
+                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit);
                         memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
-
-                        if (VkEngine.vk.BindBufferMemory(VkEngine.vkDevice, buffer, memoryRegion.handle, memoryRegion.start) != Result.Success)
-                        {
-                            throw new AssetCreationException("Failed to bind Vulkan Vertex Buffer to allocated Memory!");
-                        }
-                            /*MemoryRequirements memoryRequirements;
-                            VkEngine.vk.GetBufferMemoryRequirements(VkEngine.vkDevice, buffer, &memoryRequirements);
-
-                            MemoryAllocateInfo allocInfo = new MemoryAllocateInfo();
-                            allocInfo.SType = StructureType.MemoryAllocateInfo;
-                            allocInfo.AllocationSize = memoryRequirements.Size;
-                            allocInfo.MemoryTypeIndex = Utils.FindMemoryType(memoryRequirements.MemoryTypeBits, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, VkEngine.CurrentGPU);
-
-                            fixed (DeviceMemory* ptr = &deviceMemory)
-                            {
-                                if (VkEngine.vk.AllocateMemory(VkEngine.vkDevice, in allocInfo, null, ptr) != Result.Success)
-                                {
-                                    throw new AssetCreationException("Failed to allocate Vulkan memory!");
-                                }
-                                //offset is 0 because it refers to the offset of the vertex buffer within the alloc'd memory.
-                                //However, since we explicitly created the memory for the vertex buffer, we set the offset to 0
-                                if (VkEngine.vk.BindBufferMemory(VkEngine.vkDevice, buffer, deviceMemory, 0) != Result.Success)
-                                {
-                                    throw new AssetCreationException("Failed to bind Vulkan Vertex Buffer to allocated Memory!");
-                                }
-                            }*/
-                            //locate a suitable memory type
-                            //Utils.FindMemoryType(memoryProperties);
-                        }
+                        handle = buffer.Handle;
+                    }
+                    else
+                    {
+                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.VertexBufferBit);
+                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        handle = buffer.Handle;
+                    }
                     break;
                 default:
                     throw new NotImplementedException();

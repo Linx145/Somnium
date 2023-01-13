@@ -3,23 +3,36 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using Silk.NET.Core.Native;
 
 namespace Somnium.Framework.Vulkan
 {
     public readonly struct AllocatedMemoryRegion
     {
+        public readonly AllocatedMemory memory;
         public readonly DeviceMemory handle;
         public readonly ulong start;
         public readonly ulong width;
 
-        public AllocatedMemoryRegion(DeviceMemory handle, ulong startPosition, ulong memorySize)
+        public AllocatedMemoryRegion(AllocatedMemory memory, DeviceMemory handle, ulong startPosition, ulong memorySize)
         {
+            this.memory = memory;
             this.handle = handle;
             start = startPosition;
             width = memorySize;
         }
 
-        public unsafe void Bind<T>(void** data) where T: unmanaged
+        public unsafe void Clear<T>(T defaultT = default(T)) where T : unmanaged
+        {
+            int amountToAlloc = (int)width / sizeof(T);
+            Span<T> temp = stackalloc T[amountToAlloc];
+
+            T* ptr;
+            Bind((void**)&ptr);
+            temp.CopyTo(new Span<T>(ptr, amountToAlloc));
+            Unbind();
+        }
+        public unsafe void Bind(void** data)
         {
             VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, start, width, 0, data);
         }
@@ -45,8 +58,13 @@ namespace Somnium.Framework.Vulkan
         {
             return HashCode.Combine(handle.Handle, start, width);
         }
+        public override string ToString()
+        {
+            return $"(Handle: {handle.Handle}, Start: {start}, Size: {width})";
+        }
+        public void Free() => memory.Free(this);
     }
-    public struct AllocatedMemory
+    public class AllocatedMemory
     {
         public static int totalDeviceMemories { get; private set; }
 
@@ -71,7 +89,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="requiredSpace"></param>
         /// <returns>The index of the area with space to fit the memory</returns>
-        public AllocatedMemoryRegion TryAllocate(ulong requiredSpace)
+        public virtual AllocatedMemoryRegion TryAllocate(ulong requiredSpace)
         {
             ulong finalPosition = 0;
             ulong totalSize = maxSize;
@@ -92,12 +110,12 @@ namespace Somnium.Framework.Vulkan
                     {
                         AllocatedMemoryRegion copy = gaps[i];
                         ulong remainder = copy.width - requiredSpace;
-                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(handle, gaps[i].start, requiredSpace);
+                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(this, handle, gaps[i].start, requiredSpace);
                         regions.Add(result);
                         if (remainder > 0)
                         {
                             //if our memory is smaller than the gap, allocate and shrink the gap
-                            gaps[i] = new AllocatedMemoryRegion(handle, copy.start + requiredSpace, remainder);
+                            gaps[i] = new AllocatedMemoryRegion(this, handle, copy.start + requiredSpace, remainder);
                         }
                         else
                         {
@@ -113,11 +131,30 @@ namespace Somnium.Framework.Vulkan
                 //in the buffer, but not enough continuous space for us.
                 if (finalPosition + requiredSpace <= maxSize)
                 {
-                    return new AllocatedMemoryRegion(handle, finalPosition, requiredSpace);
+                    AllocatedMemoryRegion region = new AllocatedMemoryRegion(this, handle, finalPosition, requiredSpace);
+                    regions.Add(region);
+                    return region;
                 }
             }
             //if either there is not enough space or not enough continuous space, we return 'null'
             return default;
+        }
+        public virtual void Free(AllocatedMemoryRegion region, bool suppressErrors = false)
+        {
+            if (region.handle.Handle != handle.Handle)
+            {
+                throw new InvalidOperationException("Attempting to remove a region of memory from this AllocatedMemory that does not belong to it!");
+            }
+            for (int i = regions.Count - 1; i >= 0; i--)
+            {
+                if (regions[i] == region)
+                {
+                    regions.RemoveAt(i);
+                    gaps.Add(region);
+                    return;
+                }
+            }
+            if (!suppressErrors) throw new System.Collections.Generic.KeyNotFoundException("Could not locate memory region of starting position " + region.start + " in the pool!");
         }
     }
     //one memory pool for each type of device memory
@@ -138,6 +175,7 @@ namespace Somnium.Framework.Vulkan
                 var result = allocatedMemories[i].TryAllocate(requiredSpace);
                 if (result != default)
                 {
+                    Console.WriteLine("Allocated memory at " + result.ToString());
                     return result;
                 }
             }
@@ -160,12 +198,14 @@ namespace Somnium.Framework.Vulkan
             }
 
             AllocatedMemory allocatedMemory = new AllocatedMemory(deviceMemory, sizeToAllocate);
+            Console.WriteLine("Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
             allocatedMemories.Add(allocatedMemory);
             AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace); //we dont allocate the sizeToAllocate: That's the size for the buffer
             if (region == default)
             {
                 throw new AssetCreationException("Failed to allocate memory in new buffer!");
             }
+            Console.WriteLine("Allocated memory at " + region.ToString());
             return region;
         }
         public void FreeMemory(AllocatedMemory allocatedMemory)
@@ -210,8 +250,9 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="buffer">The buffer you wish to create memory for</param>
         /// <param name="memoryPropertyFlags">What properties the allocated memory should possess</param>
+        ///<param name="autoBind">Whether to automatically bind the buffer to the memory region</param>
         /// <returns></returns>
-        public static unsafe AllocatedMemoryRegion malloc(Buffer buffer, MemoryPropertyFlags memoryPropertyFlags)
+        public static unsafe AllocatedMemoryRegion malloc(Buffer buffer, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
         {
             MemoryRequirements memoryRequirements;
             VkEngine.vk.GetBufferMemoryRequirements(VkEngine.vkDevice, buffer, &memoryRequirements);
@@ -220,10 +261,19 @@ namespace Somnium.Framework.Vulkan
 
             if (!memoryPools.WithinLength(memoryTypeIndex) || memoryPools[memoryTypeIndex] == null)
             {
+                Console.WriteLine("Created new Memory Pool at index " + memoryTypeIndex);
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
-            return pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size);
+            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size);
+            if (autoBind)
+            {
+                if (vk.BindBufferMemory(VkEngine.vkDevice, buffer, memoryRegion.handle, memoryRegion.start) != Result.Success)
+                {
+                    throw new AssetCreationException("Failed to bind Vulkan Vertex Buffer to allocated Memory!");
+                }
+            }
+            return memoryRegion;
         }
         public static void Dispose()
         {
