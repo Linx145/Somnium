@@ -40,9 +40,5 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void DrawIndexedPrimitives()
-        {
-            
-        }
     }
 }

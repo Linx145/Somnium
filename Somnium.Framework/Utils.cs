@@ -20,7 +20,7 @@ namespace Somnium.Framework
             ptr = intPtr;
             return (byte**)intPtr;
         }
-        public static uint FindMemoryType(uint typeFilter, MemoryPropertyFlags properties, VkGPUInfo gpu)
+        public static uint FindMemoryType(uint typeFilter, MemoryPropertyFlags properties, VkGPU gpu)
         {
             PhysicalDeviceMemoryProperties memoryProperties;
             VkEngine.vk.GetPhysicalDeviceMemoryProperties(gpu.Device, &memoryProperties);

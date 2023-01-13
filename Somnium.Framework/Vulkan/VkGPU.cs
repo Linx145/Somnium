@@ -1,12 +1,66 @@
 ﻿using Silk.NET.Vulkan;
-using Silk.NET.Vulkan.Extensions.KHR;
 using System;
 
 namespace Somnium.Framework.Vulkan
 {
-    public static unsafe class VkGPU
+    public struct VkGPU
     {
-        public static VkGPUInfo SelectGPU()
+        public PhysicalDevice Device;
+        public Device LogicalDevice;
+        public QueueProperties queueInfo;
+        public Limits limits;
+        public string Name;
+
+        public Queue AllPurposeQueue;
+        public Queue DedicatedGraphicsQueue;
+        public Queue DedicatedComputeQueue;
+        public Queue DedicatedTransferQueue;
+
+        public VkGPU(PhysicalDevice device, string name, QueueProperties queueInfo)
+        {
+            Device = device;
+            this.Name = name;
+            this.queueInfo = queueInfo;
+            LogicalDevice = default;
+
+            limits = default;
+
+            AllPurposeQueue = default;
+            DedicatedGraphicsQueue = default;
+            DedicatedComputeQueue = default;
+            DedicatedTransferQueue = default;
+
+            limits = new Limits(this);
+        }
+
+        /// <summary>
+        /// Gets a list of queues to create with this GPU (TODO: As per user specification/script)
+        /// </summary>
+        /// <returns></returns>
+        public unsafe DeviceQueueCreateInfo[] GetQueuesToCreate()
+        {
+            //TODO: Make scriptable
+            
+            DeviceQueueCreateInfo[] result = new DeviceQueueCreateInfo[1];
+
+            var info = new DeviceQueueCreateInfo();
+            info.SType = StructureType.DeviceQueueCreateInfo;
+            info.QueueFamilyIndex = queueInfo.GetGeneralPurposeQueue(in Device)!.Value;
+            info.QueueCount = 1;
+            float queuePriority = 1f;
+            info.PQueuePriorities = &queuePriority;
+
+            result[0] = info;
+
+            return result;
+        }
+        public void GetCreatedQueueIndices(Device createdDevice)
+        {
+            LogicalDevice = createdDevice;
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out AllPurposeQueue);
+        }
+
+        public unsafe static VkGPU SelectGPU()
         {
             uint deviceCount = 0;
             VkEngine.vk.EnumeratePhysicalDevices(VkEngine.vkInstance, ref deviceCount, null);
@@ -45,9 +99,9 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InitializationException("No GPU was selected!");
             }
-            return new VkGPUInfo(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
+            return new VkGPU(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
         }
-        public static bool IsDeviceSuitable(in PhysicalDevice device, ref int score, out QueueProperties queueProperties)
+        public unsafe static bool IsDeviceSuitable(in PhysicalDevice device, ref int score, out QueueProperties queueProperties)
         {
             //TODO: Accommodate for the losers with multiple GPUs
             //TODO: Make scriptable
@@ -74,7 +128,7 @@ namespace Somnium.Framework.Vulkan
             }
             return true;
         }
-        public static VkExtensionProperties[] SupportedDeviceExtensions(in PhysicalDevice device)
+        public unsafe static VkExtensionProperties[] SupportedDeviceExtensions(in PhysicalDevice device)
         {
             if (!VkEngine.initialized)
             {
@@ -94,7 +148,7 @@ namespace Somnium.Framework.Vulkan
             }
             return result;
         }
-        public static bool AllRequiredDeviceExtensionsSupported(in PhysicalDevice device)
+        public unsafe static bool AllRequiredDeviceExtensionsSupported(in PhysicalDevice device)
         {
             var extensions = SupportedDeviceExtensions(in device);
             int totalSupported = 0;
@@ -111,7 +165,7 @@ namespace Somnium.Framework.Vulkan
             }
             return totalSupported == VkEngine.requiredDeviceExtensions.Length;
         }
-        public static QueueProperties GetQueueInfo(in PhysicalDevice device)
+        public unsafe static QueueProperties GetQueueInfo(in PhysicalDevice device)
         {
             uint flagsCount = 0;
             VkEngine.vk.GetPhysicalDeviceQueueFamilyProperties(device, ref flagsCount, null);

@@ -34,7 +34,7 @@ namespace Somnium.Framework.Vulkan
                 return internalWindowSurface;
             }
         }
-        public static VkGPUInfo CurrentGPU { get; private set; }
+        public static VkGPU CurrentGPU { get; private set; }
         public static VkGraphicsPipeline TrianglePipeline;
 
 
@@ -116,13 +116,13 @@ namespace Somnium.Framework.Vulkan
             submitInfo.PWaitDstStageMask = &waitFlag;
 
             submitInfo.WaitSemaphoreCount = 1;
-            fixed (Silk.NET.Vulkan.Semaphore* ptr = &presentSemaphore)
+            fixed (Semaphore* ptr = &presentSemaphore)
             {
                 submitInfo.PWaitSemaphores = ptr;
             }
 
             submitInfo.SignalSemaphoreCount = 1;
-            fixed (Silk.NET.Vulkan.Semaphore* ptr = &renderSemaphore)
+            fixed (Semaphore* ptr = &renderSemaphore)
             {
                 submitInfo.PSignalSemaphores = ptr;
             }
@@ -381,7 +381,7 @@ namespace Somnium.Framework.Vulkan
         /// <exception cref="InitializationException"></exception>
         private static void CreateLogicalDevice()
         {
-            VkGPUInfo GPU = VkGPU.SelectGPU();
+            VkGPU GPU = VkGPU.SelectGPU();
 
             var queueCreateInfos = GPU.GetQueuesToCreate();
 
@@ -442,28 +442,11 @@ namespace Somnium.Framework.Vulkan
         private static PresentModeKHR internalPreferredPresentMode = PresentModeKHR.MailboxKhr;
         public static void CreateSwapChain(Window window)
         {
-            vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
-            swapChain = SwapChain.Create(window);
-            /*SwapChainSupportDetails swapChainSupport = SwapChain.QuerySwapChainSupport(CurrentGPU.Device);
-
-            SurfaceFormatKHR surfaceFormat = SwapChain.FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
-            
-            if (internalSwapChainImages <= swapChainSupport.Capabilities.MinImageCount)
+            if (KhrSwapchainAPI == null)
             {
-                internalSwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
+                vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
             }
-
-            swapChain = new SwapChain(
-                swapChainSupport,
-                internalSwapChainImages,
-                surfaceFormat.Format,
-                surfaceFormat.ColorSpace,
-                window.GetSwapChainExtents(swapChainSupport.Capabilities),
-                internalPreferredPresentMode,
-                WindowSurface);
-            
-            swapChain.Recreate(swapChainSupport);*/
-
+                swapChain = SwapChain.Create(window);
         }
         #endregion
 
@@ -594,7 +577,7 @@ namespace Somnium.Framework.Vulkan
                 CurrentGPU = default;
 
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
-
+                VkMemory.Dispose();
                 renderPass.Dispose();
                 vk.DestroySemaphore(vkDevice, presentSemaphore, null);
                 vk.DestroySemaphore(vkDevice, renderSemaphore, null);
