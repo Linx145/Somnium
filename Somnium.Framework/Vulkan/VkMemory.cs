@@ -14,6 +14,14 @@ namespace Somnium.Framework.Vulkan
         public readonly ulong start;
         public readonly ulong width;
 
+        public bool IsValid
+        {
+            get
+            {
+                return !memory.isDisposed;
+            }
+        }
+
         public AllocatedMemoryRegion(AllocatedMemory memory, DeviceMemory handle, ulong startPosition, ulong memorySize)
         {
             this.memory = memory;
@@ -64,7 +72,10 @@ namespace Somnium.Framework.Vulkan
         }
         public void Free() => memory.Free(this);
     }
-    public class AllocatedMemory
+    /// <summary>
+    /// A handler for a single VkDeviceMemory pointer.
+    /// </summary>
+    public class AllocatedMemory : IDisposable
     {
         public static int totalDeviceMemories { get; private set; }
 
@@ -83,6 +94,8 @@ namespace Somnium.Framework.Vulkan
 
             totalDeviceMemories++;
         }
+
+        public bool isDisposed { get; private set; }
 
         /// <summary>
         /// Checks whether the DeviceMemory has <paramref name="requiredSpace"/>.
@@ -155,6 +168,20 @@ namespace Somnium.Framework.Vulkan
                 }
             }
             if (!suppressErrors) throw new System.Collections.Generic.KeyNotFoundException("Could not locate memory region of starting position " + region.start + " in the pool!");
+        }
+        public void Dispose()
+        {
+            if (!isDisposed)
+            {
+                unsafe
+                {
+                    VkEngine.vk.FreeMemory(VkEngine.vkDevice, handle, null);
+                }
+                regions = null;
+                gaps = null;
+                isDisposed = true;
+                GC.SuppressFinalize(this);
+            }
         }
     }
     //one memory pool for each type of device memory

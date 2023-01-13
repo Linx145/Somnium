@@ -1,38 +1,63 @@
-﻿using Silk.NET.Core.Native;
-using Silk.NET.Vulkan;
+﻿using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
-    public class VertexBuffer : IDisposable
+    public enum IndexSize
+    {
+        Uint16, Uint32
+    }
+    public class IndexBuffer : IDisposable
     {
         private readonly Application application;
         private readonly bool isDynamic;
 
         public ulong handle;
-        public int vertexCount { get; private set; }
-        public VertexDeclaration vertexDeclaration { get; private set; }
+        public byte indexSize { get; private set; }
+        public int indexCount { get; private set; }
 
         #region Vulkan
         AllocatedMemoryRegion memoryRegion;
         #endregion
 
-        public VertexBuffer(Application application, VertexDeclaration vertexType, int vertexCount, bool isDynamic)
+        public IndexBuffer(Application application, IndexSize indexSize, int indexCount, bool isDynamic)
         {
             this.application = application;
-            this.vertexCount = vertexCount;
-            this.vertexDeclaration = vertexType;
             this.isDynamic = isDynamic;
+            switch (indexSize)
+            {
+                case IndexSize.Uint16:
+                    this.indexSize = 2;
+                    break;
+                case IndexSize.Uint32:
+                    this.indexSize = 4;
+                    break;
+                default:
+                    this.indexSize = 2;
+                    break;
+            }
+            this.indexCount = indexCount;
 
             Construct();
         }
-        public void SetData<T>(T[] vertices, int offset, int Length) where T : unmanaged
+
+        public void SetData<T>(T[] indices, int offset, int Length) where T : unmanaged
         {
-            if (Length > vertices.Length)
+#if DEBUG
+            unsafe
             {
-                throw new IndexOutOfRangeException("Attempting to set data outside of this vertex buffer!");
+                int sizeofT = sizeof(T);
+                if (sizeofT != indexSize)
+                {
+                    throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this index buffer(" + indexSize.ToString() + ")!");
+                }
+            }
+#endif
+            if (offset + Length > indices.Length)
+            {
+                throw new IndexOutOfRangeException("Attempting to set data outside of this index buffer!");
             }
             unsafe
             {
@@ -42,14 +67,16 @@ namespace Somnium.Framework
                         if (!isDynamic)
                         {
                             T* data;
-                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(vertexDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
+                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(indexSize * Length), BufferUsageFlags.TransferSrcBit);
                             var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
                             stagingMemoryRegion.Bind((void**)&data);
-                            vertices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
+                            indices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
                             stagingMemoryRegion.Unbind();
 
-                            CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
+                            //Since there is no distinction between vertex and index buffers in Vulkan
+                            //up until the point where we utilise them, we can share the same copy code
+                            VertexBuffer.CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
 
                             VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                             stagingMemoryRegion.Free();
@@ -64,21 +91,6 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void CopyData(Backends runningBackend, bool isDynamic, ulong fromHandle, ulong toHandle, ulong copySize)
-        {
-            switch (runningBackend)
-            {
-                case Backends.Vulkan:
-                    if (!isDynamic)
-                    {
-                        VkEngine.StaticCopyResourceBuffer(new Buffer(fromHandle), new Buffer(toHandle), copySize);
-                    }
-                    else throw new NotImplementedException();
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
         private void Construct()
         {
             switch (application.runningBackend)
@@ -86,15 +98,13 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     if (!isDynamic)
                     {
-                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit);
+                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(indexCount * indexSize), BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit);
                         memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
                     }
                     else
                     {
-                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.VertexBufferBit);
-                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
-                        handle = buffer.Handle;
+                        throw new NotImplementedException();
                     }
                     break;
                 default:
@@ -116,8 +126,8 @@ namespace Somnium.Framework
                         }
                         //VkEngine.vk.FreeMemory(VkEngine.vkDevice, deviceMemory, null);
                     }
-                    break; 
-                default: 
+                    break;
+                default:
                     throw new NotImplementedException();
             }
         }

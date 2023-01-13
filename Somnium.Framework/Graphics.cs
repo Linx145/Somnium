@@ -26,6 +26,24 @@ namespace Somnium.Framework
                 }
             }
         }
+        public static void SetIndexBuffer(IndexBuffer buffer)
+        {
+            unsafe
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
+                        fixed (ulong* ptr = noOffset)
+                        {
+                            VkEngine.vk.CmdBindIndexBuffer(VkEngine.commandBuffer, vkBuffer, 0, IndexType.Uint16);
+                        }
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
         public static void DrawPrimitives(uint vertexCount, uint instanceCount)
         {
             unsafe
@@ -34,6 +52,20 @@ namespace Somnium.Framework
                 {
                     case Backends.Vulkan:
                         VkEngine.vk.CmdDraw(VkEngine.commandBuffer, vertexCount, instanceCount, 0, 0);
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
+        public static void DrawIndexedPrimitives(uint indexCount, uint instanceCount)
+        {
+            unsafe
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        VkEngine.vk.CmdDrawIndexed(VkEngine.commandBuffer, indexCount, instanceCount, 0, 0, 0);
                         break;
                     default:
                         throw new NotImplementedException();

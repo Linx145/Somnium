@@ -468,8 +468,8 @@ namespace Somnium.Framework.Vulkan
             TrianglePipeline = new VkGraphicsPipeline(
                 new Viewport(0, 0, swapChain.imageExtents.Width, swapChain.imageExtents.Height, 0f, 1f),
                 new Rect2D(default(Offset2D), swapChain.imageExtents),
-                FrontFace.CounterClockwise, 
-                CullModeFlags.None,
+                FrontFace.Clockwise, 
+                CullModeFlags.BackBit,
                 BlendState.AlphaBlend,
                 PrimitiveTopology.TriangleList,
                 PolygonMode.Fill,
