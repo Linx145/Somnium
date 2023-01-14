@@ -1,7 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Silk.NET.Core;
 using System;
-using System.Xml.Linq;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -17,6 +17,7 @@ namespace Somnium.Framework.Vulkan
         }
         public Pipeline handle;
 
+        public Shader[] shaders;
         public PipelineShaderStageCreateInfo[] shaderStages;
         public Silk.NET.Vulkan.Viewport viewport;
         public Rect2D scissor;
@@ -25,6 +26,7 @@ namespace Somnium.Framework.Vulkan
         public PolygonMode polygonMode;
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
+        public DescriptorSet[] descriptorSets;
         public VkVertex[] vertexDescriptors;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
@@ -62,6 +64,7 @@ namespace Somnium.Framework.Vulkan
             }
             else this.polygonMode = PolygonMode.Fill;
             this.renderPass = renderPass;
+            this.shaders = new Shader[] { shader };
 
             switch (shader.type)
             {
@@ -284,6 +287,98 @@ namespace Somnium.Framework.Vulkan
 
             return info;
         }
+        internal unsafe PipelineLayout CreatePipelineLayout()
+        {
+            uint descriptorSetLayoutCount = 0;
+            for (int i = 0; i< shaders.Length; i++)
+            {
+                var shader = shaders[i];
+                if (shader.shader1Params != null && shader.shader1Params.constructed)
+                {
+                    descriptorSetLayoutCount++;
+                }
+                if (shader.shader2Params != null && shader.shader2Params.constructed)
+                {
+                    descriptorSetLayoutCount++;
+                }
+            }
+
+            PipelineLayoutCreateInfo createInfo = new PipelineLayoutCreateInfo();
+            createInfo.SType = StructureType.PipelineLayoutCreateInfo;
+            createInfo.Flags = PipelineLayoutCreateFlags.None;
+            createInfo.SetLayoutCount = descriptorSetLayoutCount;
+
+            if (descriptorSetLayoutCount > 0)
+            {
+                DescriptorSetLayout* layouts = stackalloc DescriptorSetLayout[(int)descriptorSetLayoutCount];
+                int layoutIndex = 0;
+                for (int i = 0; i < shaders.Length; i++)
+                {
+                    var shader = shaders[i];
+                    if (shader.shader1Params != null && shader.shader1Params.constructed)
+                    {
+                        *(layouts + layoutIndex) = new DescriptorSetLayout(shader.shader1Params.handle);
+                        layoutIndex++;
+                    }
+                    if (shader.shader2Params != null && shader.shader2Params.constructed)
+                    {
+                        *(layouts + layoutIndex) = new DescriptorSetLayout(shader.shader2Params.handle);
+                        layoutIndex++;
+                    }
+                }
+                createInfo.PSetLayouts = layouts;
+
+                DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool(UniformType.uniformBuffer);
+
+                DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
+                allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
+                allocInfo.DescriptorPool = relatedPool;
+                allocInfo.DescriptorSetCount = descriptorSetLayoutCount;
+                allocInfo.PSetLayouts = layouts;
+
+                //DescriptorSet* descriptorSets = stackalloc DescriptorSet[(int)descriptorSetLayoutCount];
+                descriptorSets = new DescriptorSet[descriptorSetLayoutCount];
+                fixed (DescriptorSet* ptr = descriptorSets)
+                {
+                    if (vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, ptr) != Result.Success)
+                    {
+                        throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
+                    }
+                }
+
+                layoutIndex = 0;
+                for (int i = 0; i < shaders.Length; i++)
+                {
+                    var shader = shaders[i];
+                    if (shader.shader1Params != null && shader.shader1Params.constructed)
+                    {
+                        shader.shader1Params.descriptorSet = descriptorSets[layoutIndex];
+                        layoutIndex++;
+                    }
+                    if (shader.shader2Params != null && shader.shader2Params.constructed)
+                    {
+                        shader.shader2Params.descriptorSet = descriptorSets[layoutIndex];
+                        layoutIndex++;
+                    }
+                }
+            }
+            else
+            {
+                createInfo.PSetLayouts = null;
+            }
+            createInfo.PushConstantRangeCount = 0;
+            createInfo.PPushConstantRanges = null;
+
+            PipelineLayout layout;
+
+            Result result = vk.CreatePipelineLayout(VkEngine.vkDevice, in createInfo, null, &layout);
+            if (result != Result.Success)
+            {
+                throw new InitializationException("Failed to initialize Vulkan pipeline layout!");
+            }
+
+            return layout;
+        }
         internal unsafe GraphicsPipelineCreateInfo CreateInfo()
         {
             #region create viewport info
@@ -316,7 +411,7 @@ namespace Somnium.Framework.Vulkan
             }
             #endregion
 
-            pipelineLayout = VkPipelineLayout.Create();
+            pipelineLayout = CreatePipelineLayout();//VkPipelineLayout.Create();
 
             GraphicsPipelineCreateInfo pipelineInfo = new GraphicsPipelineCreateInfo();
             pipelineInfo.SType = StructureType.GraphicsPipelineCreateInfo;
@@ -370,9 +465,13 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public void Bind(VkCommandBuffer commandBuffer, RenderStage bindType)
+        public unsafe void Bind(VkCommandBuffer commandBuffer, RenderStage bindType)
         {
             vk.CmdBindPipeline(commandBuffer.handle, RenderStageToBindPoint[(int)bindType], handle);
+            fixed (DescriptorSet* ptr = descriptorSets)
+            {
+                vk.CmdBindDescriptorSets(commandBuffer.handle, RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+            }
         }
 
         public unsafe void Dispose()

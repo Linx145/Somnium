@@ -6,10 +6,6 @@ using Silk.NET.Core.Native;
 
 namespace Somnium.Framework
 {
-    public enum ShaderType
-    {
-        VertexAndFragment, Vertex, Fragment, Tessellation, TessellationControl, TessellationEvaluation, Geometry, Compute
-    }
     public sealed class Shader : IDisposable
     {
         public const string main = "main";
@@ -23,12 +19,17 @@ namespace Somnium.Framework
         public ulong shaderHandle;
         public ulong shaderHandle2;
 
+        public ShaderParameterCollection shader1Params;
+        public ShaderParameterCollection shader2Params;
+
         public Shader(Application application, ShaderType Type, byte[] byteCode)
         {
             this.application = application;
             this.byteCode = byteCode;
             this.byteCode2 = null;
             this.type = Type;
+            shader1Params = new ShaderParameterCollection(this, Type, application);
+            shader2Params = null;
 
             Construct();
         }
@@ -38,6 +39,17 @@ namespace Somnium.Framework
             this.type = type;
             this.byteCode = shaderCode1; //vertex / tessellation control
             this.byteCode2 = shaderCode2; //fragment / tessellation evaluation
+            switch (type)
+            {
+                case ShaderType.VertexAndFragment:
+                    shader1Params = new ShaderParameterCollection(this, ShaderType.Vertex, application);
+                    shader2Params = new ShaderParameterCollection(this, ShaderType.Fragment, application);
+                    break;
+                case ShaderType.Tessellation:
+                    shader1Params = new ShaderParameterCollection(this, ShaderType.TessellationControl, application);
+                    shader2Params = new ShaderParameterCollection(this, ShaderType.TessellationEvaluation, application);
+                    break;
+            }
 
             Construct();
         }
@@ -135,6 +147,20 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="uniform"></param>
+        /// <param name="shaderNumber">Which uniform buffer should the data be set into. Should be either 1 or 2.</param>
+        public void SetUniform<T>(string uniformName, T uniform, int shaderNumber = 1) where T : unmanaged
+        {
+            if (shaderNumber == 0 || shaderNumber == 1)
+            {
+                shader1Params.Set(uniformName, uniform);
+            }
+            else shader2Params.Set(uniformName, uniform);
+        }
 
         #region static methods
         public static Shader FromFile(Application application, string filePath, ShaderType type)
@@ -163,11 +189,13 @@ namespace Somnium.Framework
                             {
                                 ShaderModule module = new ShaderModule(shaderHandle);
                                 VkEngine.vk.DestroyShaderModule(VkEngine.vkDevice, module, null);
+                                shader1Params?.Dispose();
                             }
                             if (shaderHandle2 != 0)
                             {
                                 ShaderModule module = new ShaderModule(shaderHandle2);
                                 VkEngine.vk.DestroyShaderModule(VkEngine.vkDevice, module, null);
+                                shader2Params?.Dispose();
                             }
                         }
                         break;

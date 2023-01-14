@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using Silk.NET.Core.Native;
+using System.Threading;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -42,11 +43,26 @@ namespace Somnium.Framework.Vulkan
         }
         public unsafe void Bind(void** data)
         {
-            VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, start, width, 0, data);
+            if (VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, start, width, 0, data) != Result.Success)
+            {
+                throw new ExecutionException("Error binding to Vulkan memory!");
+            }
+            else
+            {
+                Interlocked.Increment(ref memory.amountBound);
+            }
         }
         public void Unbind()
         {
-            VkEngine.vk.UnmapMemory(VkEngine.vkDevice, handle);
+            Interlocked.Decrement(ref memory.amountBound);
+            if (memory.amountBound < 0)
+            {
+                throw new ExecutionException("Amount of memory regions bound to memory somehow negative!");
+            }
+            if (memory.amountBound == 0)
+            {
+                VkEngine.vk.UnmapMemory(VkEngine.vkDevice, handle);
+            }
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj)
@@ -79,6 +95,10 @@ namespace Somnium.Framework.Vulkan
     {
         public static int totalDeviceMemories { get; private set; }
 
+        /// <summary>
+        /// Amount of memory regions that have called map to this
+        /// </summary>
+        public uint amountBound;
         public ulong maxSize;
         public DeviceMemory handle;
         public UnorderedList<AllocatedMemoryRegion> regions;
@@ -86,6 +106,7 @@ namespace Somnium.Framework.Vulkan
 
         public AllocatedMemory(DeviceMemory handle, ulong size)
         {
+            amountBound = 0;
             this.maxSize = size;
             this.handle = handle;
 

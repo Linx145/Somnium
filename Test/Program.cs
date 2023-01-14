@@ -52,11 +52,20 @@ namespace Test
             indexBuffer.SetData(indices, 0, 6);
 
             shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
+            shader.shader1Params.AddParameter<WorldViewProjection>("ubo", 0, UniformType.uniformBuffer);
+            shader.shader1Params.Construct();
+
             state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.AlphaBlend, shader);
         }
 
         private static void Draw(float deltaTime)
         {
+            shader.SetUniform("ubo", new WorldViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateTranslation(0f, -0.2f, 0f),
+                Matrix4x4.Identity
+                ), 1);
+
             state.Bind();
 
             Graphics.SetVertexBuffer(vb);

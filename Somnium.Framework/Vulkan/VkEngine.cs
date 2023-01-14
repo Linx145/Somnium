@@ -637,12 +637,46 @@ namespace Somnium.Framework.Vulkan
         }
         #endregion
 
+        #region descriptor sets
+        public static SparseArray<DescriptorPool> descriptorPools = new SparseArray<DescriptorPool>(default);
+        public static DescriptorPool GetOrCreateDescriptorPool(UniformType poolType)
+        {
+            if (descriptorPools.WithinLength((uint)poolType) && descriptorPools[(uint)poolType].Handle != 0)
+            {
+                return descriptorPools[(uint)poolType];
+            }
+            DescriptorPoolSize poolSize = new DescriptorPoolSize();
+            poolSize.Type = ShaderParameter.UniformTypeToVkDescriptorType[(int)poolType];//DescriptorType.UniformBuffer;
+            poolSize.DescriptorCount = 1;
+
+            DescriptorPoolCreateInfo createInfo = new DescriptorPoolCreateInfo();
+            createInfo.SType = StructureType.DescriptorPoolCreateInfo;
+            createInfo.PoolSizeCount = 1;
+            createInfo.PPoolSizes = &poolSize;
+            createInfo.MaxSets = 1;
+
+            DescriptorPool descriptorPool;
+            if (vk.CreateDescriptorPool(vkDevice, in createInfo, null, &descriptorPool) != Result.Success)
+            {
+                throw new InitializationException("Failed to create descriptor pool!");
+            }
+            descriptorPools.Insert((uint)poolType, descriptorPool);
+            return descriptorPool;
+        }
+        #endregion
+
         public static void Shutdown()
         {
             if (initialized)
             {
                 CurrentGPU = default;
-
+                for (int i = 0; i < descriptorPools.values.Length; i++)
+                {
+                    if (descriptorPools.values[i].Handle != 0)
+                    {
+                        vk.DestroyDescriptorPool(vkDevice, descriptorPools.values[i], null);
+                    }
+                }
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
                 VkMemory.Dispose();
                 renderPass.Dispose();
