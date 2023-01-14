@@ -8,7 +8,7 @@ using Somnium.Framework.Windowing;
 using System;
 using System.Linq;
 using Buffer = Silk.NET.Vulkan.Buffer;
-using System.Reflection.Metadata;
+using System.Collections.Concurrent;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -37,15 +37,14 @@ namespace Somnium.Framework.Vulkan
             }
         }
         public static VkGPU CurrentGPU { get; private set; }
-        public static VkGraphicsPipeline TrianglePipeline;
-
+        //public static VkGraphicsPipeline TrianglePipeline;
 
         private static Device internalVkDevice;
         internal static KhrSurface KhrSurfaceAPI;
         internal static KhrSwapchain KhrSwapchainAPI;
         private static SurfaceKHR internalWindowSurface;
 
-        private static VkShader testShader;
+        private static GenerationalArray<VkGraphicsPipeline> pipelines = new GenerationalArray<VkGraphicsPipeline>(null);
 
         public static bool initialized { get; private set; }
         internal static bool recreatedSwapChainThisFrame = false;
@@ -71,7 +70,7 @@ namespace Somnium.Framework.Vulkan
                 CreateSwapChain(window); //also creates image views
                 CreateRenderPass();
                 VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
-                CreatePipelines(window);
+                //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
                 CreateCommandPool();
                 CreateCommandBuffer();
@@ -96,7 +95,7 @@ namespace Somnium.Framework.Vulkan
             commandBuffer.Reset();
             commandBuffer.Begin();
             renderPass.Begin(commandBuffer, swapChain, Color.Black);
-            TrianglePipeline.Bind(commandBuffer);
+            //TrianglePipeline.Bind(commandBuffer);
             //BeginRenderPass(); //also clears the screen
 
         }
@@ -457,12 +456,19 @@ namespace Somnium.Framework.Vulkan
 
         public static void CreateRenderPass()
         {
-            renderPass = VkRenderPass.Create(swapChain, ImageLayout.ColorAttachmentOptimal);
+            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal);
         }
         #endregion
 
         #region pipelines
-        private static void CreatePipelines(Window window)
+        public static GenerationalIndex AddPipeline(VkGraphicsPipeline pipeline) => pipelines.Add(pipeline);
+        public static void DestroyPipeline(GenerationalIndex index)
+        {
+            pipelines[index].Dispose();
+            pipelines.Remove(index);
+        }
+        public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
+        /*private static void CreatePipelines(Window window)
         {
             testShader = VkShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
             TrianglePipeline = new VkGraphicsPipeline(
@@ -483,25 +489,7 @@ namespace Somnium.Framework.Vulkan
             };
 
             TrianglePipeline.BuildPipeline();
-
-            /*pipeline.shaderStages = new PipelineShaderStageCreateInfo[]
-            {
-                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
-                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
-            };
-
-            TrianglePipelineLayout = VkPipelineLayout.Create();
-
-            var pipelineInfo = VkGraphicsPipeline.CreateInfo(BlendState.AlphaBlend, PrimitiveTopology.TriangleList, PolygonMode.Fill, renderPass, TrianglePipelineLayout);
-
-            fixed (Pipeline* ptr = &internalTrianglePipeline)
-            {
-                if (vk.CreateGraphicsPipelines(vkDevice, default, 1, pipelineInfo, null, ptr) != Result.Success)
-                {
-                    throw new InitializationException("Error creating Vulkan Graphics Pipeline!");
-                }
-            }*/
-        }
+        }*/
         #endregion
 
         #region command pools(memory) and command buffers
@@ -664,9 +652,9 @@ namespace Somnium.Framework.Vulkan
                 vk.DestroyCommandPool(vkDevice, commandPool, null);
                 vk.DestroyCommandPool(vkDevice, transientCommandPool, null);
                 //vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
-                TrianglePipeline.Dispose();
+                //TrianglePipeline.Dispose();
                 swapChain.Dispose();
-                testShader.Dispose();
+                //testShader.Dispose();
                 vk.DestroyDevice(vkDevice, null);
                 KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
                 if (ValidationLayersActive)

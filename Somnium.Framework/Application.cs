@@ -11,6 +11,8 @@ namespace Somnium.Framework
     {
         public string AppName { get; private set; }
 
+        public Graphics Graphics;
+
         public Stopwatch updateStopwatch;
         public Stopwatch drawStopwatch;
 
@@ -44,7 +46,7 @@ namespace Somnium.Framework
 
             app.Window = WindowGLFW.New(windowSize, title, preferredBackend);
 
-            Graphics.application = app;
+            app.Graphics = new Graphics(app);
 
             return app;
         }

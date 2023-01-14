@@ -4,11 +4,17 @@ using System;
 
 namespace Somnium.Framework
 {
-    public static class Graphics
+    public class Graphics
     {
-        public static Application application;
-        static ulong[] noOffset = new ulong[1] { 0 };
-        public static void SetVertexBuffer(VertexBuffer buffer)
+        public readonly Application application;
+        ulong[] noOffset = new ulong[1] { 0 };
+
+        public Graphics(Application application)
+        {
+            this.application = application;
+        }
+
+        public void SetVertexBuffer(VertexBuffer buffer)
         {
             unsafe
             {
@@ -26,7 +32,7 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void SetIndexBuffer(IndexBuffer buffer)
+        public void SetIndexBuffer(IndexBuffer buffer)
         {
             unsafe
             {
@@ -44,7 +50,7 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void DrawPrimitives(uint vertexCount, uint instanceCount)
+        public void DrawPrimitives(uint vertexCount, uint instanceCount)
         {
             unsafe
             {
@@ -58,7 +64,7 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void DrawIndexedPrimitives(uint indexCount, uint instanceCount)
+        public void DrawIndexedPrimitives(uint indexCount, uint instanceCount)
         {
             unsafe
             {

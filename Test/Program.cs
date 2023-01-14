@@ -12,6 +12,11 @@ namespace Test
         private static VertexBuffer vb;
         private static IndexBuffer indexBuffer;
 
+        private static Graphics Graphics;
+
+        private static Shader shader;
+        private static PipelineState state;
+
         [STAThread]
         public static void Main(string[] args)
         {
@@ -21,6 +26,7 @@ namespace Test
                 application.Update = Update;
                 application.Draw = Draw;
                 application.Unload = Unload;
+                Graphics = application.Graphics;
                 application.Start();
             }
         }
@@ -44,10 +50,15 @@ namespace Test
             };
             indexBuffer = new IndexBuffer(application, IndexSize.Uint16, 6, false);
             indexBuffer.SetData(indices, 0, 6);
+
+            shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
+            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.AlphaBlend, shader);
         }
 
         private static void Draw(float deltaTime)
         {
+            state.Bind();
+
             Graphics.SetVertexBuffer(vb);
             Graphics.SetIndexBuffer(indexBuffer);
 
@@ -56,6 +67,8 @@ namespace Test
 
         private static void Unload()
         {
+            state.Dispose();
+            shader.Dispose();
             vb.Dispose();
             indexBuffer.Dispose();
         }

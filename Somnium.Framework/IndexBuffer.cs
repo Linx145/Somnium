@@ -5,10 +5,6 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
-    public enum IndexSize
-    {
-        Uint16, Uint32
-    }
     public class IndexBuffer : IDisposable
     {
         private readonly Application application;

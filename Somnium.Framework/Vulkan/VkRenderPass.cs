@@ -32,14 +32,14 @@ namespace Somnium.Framework.Vulkan
         /// <param name="imageLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
-        public static VkRenderPass Create(SwapChain swapChain, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, bool hasStencil = true)
+        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, bool hasStencil = true)
         {
             AttachmentReference colorAttachmentReference = new AttachmentReference();
             colorAttachmentReference.Attachment = 0;
             colorAttachmentReference.Layout = imageLayout;
 
             AttachmentDescription colorAttachment = new AttachmentDescription();
-            colorAttachment.Format = swapChain.imageFormat;
+            colorAttachment.Format = imageFormat;
             colorAttachment.Samples = SampleCountFlags.Count1Bit;
             colorAttachment.LoadOp = loadOperation;
             colorAttachment.StoreOp = storeOperation;

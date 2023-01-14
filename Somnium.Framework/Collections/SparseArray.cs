@@ -12,33 +12,38 @@ namespace Somnium.Framework
     {
         T defaultValue;
         public T[] values;
+        private object valuesLock;
 
         public SparseArray()
         {
-
+            valuesLock = new object();
         }
         public SparseArray(T defaultValue)
         {
             this.defaultValue = defaultValue;
             values = new T[0];
+            valuesLock = new object();
         }
         
         private void EnsureCapacity(uint index)
         {
             if (index >= values.Length)
             {
-                int oldSize = values.Length;
-                int newSize = Math.Max(1, values.Length);
-                while (newSize <= index)
+                lock (valuesLock)
                 {
-                    newSize *= 2;
-                }
-                Array.Resize(ref values, newSize);
-                //if (newSize > oldSize) this is always true
-                {
-                    for (int i = oldSize; i < newSize; i++)
+                    int oldSize = values.Length;
+                    int newSize = Math.Max(1, values.Length);
+                    while (newSize <= index)
                     {
-                        values[i] = defaultValue;
+                        newSize *= 2;
+                    }
+                    Array.Resize(ref values, newSize);
+                    //if (newSize > oldSize) this is always true
+                    {
+                        for (int i = oldSize; i < newSize; i++)
+                        {
+                            values[i] = defaultValue;
+                        }
                     }
                 }
             }

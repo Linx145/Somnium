@@ -195,7 +195,7 @@ namespace Somnium.Framework.Vulkan
             this.memoryTypeIndex = memoryTypeIndex;
             allocatedMemories = new UnorderedList<AllocatedMemory>();
         }
-        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace)
+        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize)
         {
             for (int i = 0; i < allocatedMemories.Count; i++)
             {
@@ -211,7 +211,7 @@ namespace Somnium.Framework.Vulkan
                 throw new AssetCreationException("Reached the max amount of VkDeviceMemories and cannot create another one!");
             }
             ulong minSize = GPU.limits.minMemoryAllocSize;
-            ulong sizeToAllocate = ((ulong)Mathf.Ceiling((float)requiredSpace / (float)minSize) * minSize);
+            ulong sizeToAllocate = ((ulong)Mathf.Ceiling((float)memoryCreationSize / (float)minSize) * minSize);
 
             MemoryAllocateInfo allocInfo = new MemoryAllocateInfo();
             allocInfo.SType = StructureType.MemoryAllocateInfo;
@@ -292,7 +292,7 @@ namespace Somnium.Framework.Vulkan
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
-            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size);
+            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, 65536);
             if (autoBind)
             {
                 if (vk.BindBufferMemory(VkEngine.vkDevice, buffer, memoryRegion.handle, memoryRegion.start) != Result.Success)

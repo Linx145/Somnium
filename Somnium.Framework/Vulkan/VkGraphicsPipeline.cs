@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Silk.NET.Core;
 using System;
+using System.Xml.Linq;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -14,11 +15,10 @@ namespace Somnium.Framework.Vulkan
                 return VkEngine.vk;
             }
         }
-
         public Pipeline handle;
 
         public PipelineShaderStageCreateInfo[] shaderStages;
-        public Viewport viewport;
+        public Silk.NET.Vulkan.Viewport viewport;
         public Rect2D scissor;
         public BlendState blendState;
         public PrimitiveTopology topology;
@@ -42,15 +42,64 @@ namespace Somnium.Framework.Vulkan
         public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
 
         public VkGraphicsPipeline(
-            Viewport viewport,
+            Silk.NET.Vulkan.Viewport viewport,
+            CullMode cullMode,
+            BlendState blendState,
+            PrimitiveType primitiveType,
+            VkRenderPass renderPass,
+            Shader shader)
+        {
+            this.vertexDescriptors = VkVertex.registeredVertices.ToArray();
+            this.viewport = viewport;
+            this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
+            this.cullMode = CullModeToFlags[(int)cullMode];
+            this.frontFaceMode = FrontFace.Clockwise;
+            this.blendState = blendState;
+            this.topology = PrimitiveTypeToTopology[(int)primitiveType];
+            if (this.topology == PrimitiveTopology.LineList || this.topology == PrimitiveTopology.LineStrip || this.topology == PrimitiveTopology.LineListWithAdjacency)
+            {
+                this.polygonMode = PolygonMode.Line;
+            }
+            else this.polygonMode = PolygonMode.Fill;
+            this.renderPass = renderPass;
+
+            switch (shader.type)
+            {
+                case ShaderType.VertexAndFragment:
+                    this.shaderStages = new PipelineShaderStageCreateInfo[]
+                    {
+                        CreateShaderStage(ShaderStageFlags.VertexBit, new ShaderModule(shader.shaderHandle)),
+                        CreateShaderStage(ShaderStageFlags.FragmentBit, new ShaderModule(shader.shaderHandle2))
+                    };
+                    break;
+                case ShaderType.Tessellation:
+                    this.shaderStages = new PipelineShaderStageCreateInfo[]
+                    {
+                        CreateShaderStage(ShaderStageFlags.TessellationControlBit, new ShaderModule(shader.shaderHandle)),
+                        CreateShaderStage(ShaderStageFlags.TessellationEvaluationBit, new ShaderModule(shader.shaderHandle2))
+                    };
+                    break;
+                default:
+                    this.shaderStages = new PipelineShaderStageCreateInfo[]
+                    {
+                        CreateShaderStage(ShaderTypeToFlags[(int)shader.type], new ShaderModule(shader.shaderHandle))
+                    };
+                    break;
+            }
+            BuildPipeline();
+        }
+        public VkGraphicsPipeline(
+            Silk.NET.Vulkan.Viewport viewport,
             Rect2D scissor,
             FrontFace frontFace,
             CullModeFlags cullMode,
             BlendState blendState,
-            PrimitiveTopology topology,
+            PrimitiveType primitiveType,
             PolygonMode polygonMode,
             VkRenderPass renderPass,
-            VkVertex[] vertexDescriptors)
+            VkVertex[] vertexDescriptors,
+            PipelineShaderStageCreateInfo vertexShader,
+            PipelineShaderStageCreateInfo fragmentShader)
         {
             this.vertexDescriptors = vertexDescriptors;
             this.viewport = viewport;
@@ -60,11 +109,21 @@ namespace Somnium.Framework.Vulkan
             shaderStages = null;
 
             this.blendState = blendState;
-            this.topology = topology;
+            this.topology = PrimitiveTypeToTopology[(int)primitiveType];//topology;
             this.polygonMode = polygonMode;
             this.renderPass = renderPass;
+
+            this.shaderStages = new PipelineShaderStageCreateInfo[]
+            {
+                vertexShader, fragmentShader
+            };
+
+            BuildPipeline();
         }
 
+        /// <summary>
+        /// Converts the Somnium.Framework generic BlendState to the Vulkan specific BlendFactor
+        /// </summary>
         public static readonly BlendFactor[] BlendStateToFactor = new BlendFactor[]
         {
             BlendFactor.One,
@@ -77,6 +136,46 @@ namespace Somnium.Framework.Vulkan
             BlendFactor.OneMinusDstColor,
             BlendFactor.DstAlpha,
             BlendFactor.OneMinusDstAlpha
+        };
+        /// <summary>
+        /// Converts the Somnium.Framework generic PrimitiveType to the Vulkan specific PrimitiveTopology
+        /// </summary>
+        public static readonly PrimitiveTopology[] PrimitiveTypeToTopology = new PrimitiveTopology[]
+        {
+            PrimitiveTopology.TriangleList,
+            PrimitiveTopology.TriangleStrip,
+            PrimitiveTopology.LineList,
+            PrimitiveTopology.LineStrip,
+            PrimitiveTopology.PointList,
+            PrimitiveTopology.TriangleFan,
+            PrimitiveTopology.TriangleListWithAdjacency,
+            PrimitiveTopology.LineStripWithAdjacency,
+        };
+
+        public static readonly ShaderStageFlags[] ShaderTypeToFlags = new ShaderStageFlags[]
+        {
+            ShaderStageFlags.None,
+            ShaderStageFlags.VertexBit,
+            ShaderStageFlags.FragmentBit,
+            ShaderStageFlags.None,
+            ShaderStageFlags.TessellationControlBit,
+            ShaderStageFlags.TessellationEvaluationBit,
+            ShaderStageFlags.GeometryBit,
+            ShaderStageFlags.ComputeBit
+        };
+
+        public static readonly CullModeFlags[] CullModeToFlags = new CullModeFlags[]
+        {
+            CullModeFlags.BackBit,
+            CullModeFlags.FrontBit,
+            CullModeFlags.None
+        };
+
+        public static readonly PipelineBindPoint[] RenderStageToBindPoint = new PipelineBindPoint[]
+        {
+            PipelineBindPoint.Graphics,
+            PipelineBindPoint.Compute,
+            PipelineBindPoint.RayTracingKhr
         };
 
         public static unsafe PipelineShaderStageCreateInfo CreateShaderStage(ShaderStageFlags stage, ShaderModule shaderModule)
@@ -192,7 +291,7 @@ namespace Somnium.Framework.Vulkan
             viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
 
             viewportInfo.ViewportCount = 1;
-            fixed (Viewport* ptr = &viewport)
+            fixed (Silk.NET.Vulkan.Viewport* ptr = &viewport)
             {
                 viewportInfo.PViewports = ptr;
             }
@@ -271,9 +370,9 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public void Bind(VkCommandBuffer commandBuffer)
+        public void Bind(VkCommandBuffer commandBuffer, RenderStage bindType)
         {
-            vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, handle);
+            vk.CmdBindPipeline(commandBuffer.handle, RenderStageToBindPoint[(int)bindType], handle);
         }
 
         public unsafe void Dispose()
@@ -290,7 +389,7 @@ namespace Somnium.Framework.Vulkan
         /// Builds the pipeline with the inputted variables AND shaders
         /// </summary>
         /// <exception cref="InitializationException"></exception>
-        public void BuildPipeline()
+        private void BuildPipeline()
         {
             if (shaderStages == null)
             {
