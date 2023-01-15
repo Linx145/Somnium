@@ -16,6 +16,7 @@ namespace Test
 
         private static Shader shader;
         private static PipelineState state;
+        private static Texture2D texture;
 
         [STAThread]
         public static void Main(string[] args)
@@ -30,18 +31,18 @@ namespace Test
                 application.Start();
             }
         }
-        static VertexPositionColor[] vertices;
+        static VertexPositionColorTexture[] vertices;
         static ushort[] indices;
         private static void OnLoad()
         {
-            vertices = new VertexPositionColor[]
+            vertices = new VertexPositionColorTexture[]
             {
-                new VertexPositionColor(new Vector3(-0.5f, -0.5f, 0f), Color.Red),
-                new VertexPositionColor(new Vector3(0.5f, -0.5f, 0f), Color.Green),
-                new VertexPositionColor(new Vector3(0.5f, 0.5f, 0f), Color.Blue),
-                new VertexPositionColor(new Vector3(-0.5f, 0.5f, 0f), Color.Blue)
+                new VertexPositionColorTexture(new Vector3(-0.5f, -0.5f, 0f), Color.Red, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(0.5f, -0.5f, 0f), Color.Green, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(0.5f, 0.5f, 0f), Color.Blue, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(-0.5f, 0.5f, 0f), Color.Blue, new Vector2(0, 1))
             };
-            vb = new VertexBuffer(application, VertexPositionColor.VertexDeclaration, 4, false);
+            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, 4, false);
             vb.SetData(vertices, 0, 4);
 
             indices = new ushort[]
@@ -53,19 +54,30 @@ namespace Test
 
             shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
             shader.shader1Params.AddParameter<WorldViewProjection>("ubo", 0, UniformType.uniformBuffer);
-            shader.shader1Params.Construct();
+            shader.shader2Params.AddTexture2DParameter("texSampler", 1, 1);
+            //shader.shader1Params.Construct();
+            //shader.shader2Params.Construct();
+            shader.ConstructParams();
 
-            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.AlphaBlend, shader);
+            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.AlphaBlend, shader, VertexPositionColorTexture.VertexDeclaration);
+
+            float width = 2f;
+            float height = 2f * (9f / 16f);
+            shader.SetUniform("ubo", new WorldViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-width, width, -height, height, -1f, 1f)
+                ), 1);
+
+            using (FileStream stream = File.OpenRead("Content/tbh.jpg"))
+            {
+                texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
+            }
+            shader.SetUniform("texSampler", texture, 2);
         }
 
         private static void Draw(float deltaTime)
         {
-            shader.SetUniform("ubo", new WorldViewProjection(
-                Matrix4x4.Identity,
-                Matrix4x4.CreateTranslation(0f, -0.2f, 0f),
-                Matrix4x4.Identity
-                ), 1);
-
             state.Bind();
 
             Graphics.SetVertexBuffer(vb);
@@ -76,6 +88,7 @@ namespace Test
 
         private static void Unload()
         {
+            texture.Dispose();
             state.Dispose();
             shader.Dispose();
             vb.Dispose();

@@ -66,7 +66,7 @@ namespace Somnium.Framework
                             var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(indexSize * Length), BufferUsageFlags.TransferSrcBit);
                             var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
-                            stagingMemoryRegion.Bind((void**)&data);
+                            data = stagingMemoryRegion.Bind<T>();
                             indices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
                             stagingMemoryRegion.Unbind();
 

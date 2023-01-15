@@ -69,7 +69,7 @@ namespace Somnium.Framework.Vulkan
                 CreateLogicalDevice();
                 CreateSwapChain(window); //also creates image views
                 CreateRenderPass();
-                VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
+                //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
                 CreateCommandPool();
@@ -537,7 +537,56 @@ namespace Somnium.Framework.Vulkan
         {
             commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
         }
+        public static CommandBuffer CreateTransientCommandBuffer(bool alsoBeginBuffer)
+        {
+            CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
+            allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
+            allocateInfo.Level = CommandBufferLevel.Primary;
+            allocateInfo.CommandPool = transientCommandPool;
+            allocateInfo.CommandBufferCount = 1;
+
+            CommandBuffer transientBuffer;
+            vk.AllocateCommandBuffers(vkDevice, in allocateInfo, &transientBuffer);
+
+            if (alsoBeginBuffer)
+            {
+                BeginTransientCommandBuffer(transientBuffer);
+            }
+            return transientBuffer;
+        }
+        public static void BeginTransientCommandBuffer(CommandBuffer commandBuffer)
+        {
+            CommandBufferBeginInfo beginInfo = new CommandBufferBeginInfo();
+            beginInfo.SType = StructureType.CommandBufferBeginInfo;
+            beginInfo.Flags = CommandBufferUsageFlags.OneTimeSubmitBit;
+
+            vk.BeginCommandBuffer(commandBuffer, in beginInfo);
+        }
+        /// <summary>
+        /// Submits and destroys the command buffer
+        /// </summary>
+        /// <param name="commandBuffer"></param>
+        /// <exception cref="ExecutionException"></exception>
+        public static void EndTransientCommandBuffer(Queue queueToSubmitTo, CommandBuffer commandBuffer)
+        {
+            vk.EndCommandBuffer(commandBuffer);
+
+            SubmitInfo submitInfo = new SubmitInfo();
+            submitInfo.SType = StructureType.SubmitInfo;
+            submitInfo.CommandBufferCount = 1;
+            submitInfo.PCommandBuffers = &commandBuffer;
+
+            if (vk.QueueSubmit(queueToSubmitTo, 1, in submitInfo, new Fence(null)) != Result.Success)
+            {
+                throw new ExecutionException("Error submitting transfer queue!");
+            }
+            vk.QueueWaitIdle(queueToSubmitTo);
+
+            //finally, delete our transient command buffer
+            vk.FreeCommandBuffers(vkDevice, transientCommandPool, 1, in commandBuffer);
+        }
         #endregion
+
         #region Resource Buffers
         public static unsafe Buffer CreateResourceBuffer(ulong size, BufferUsageFlags usageFlags)
         {
@@ -560,7 +609,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         public static void StaticCopyResourceBuffer(Buffer from, Buffer to, ulong copySize)
         {
-            CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
+            /*CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
             allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
             allocateInfo.Level = CommandBufferLevel.Primary;
             allocateInfo.CommandPool = transientCommandPool;
@@ -573,26 +622,13 @@ namespace Somnium.Framework.Vulkan
             beginInfo.SType = StructureType.CommandBufferBeginInfo;
             beginInfo.Flags = CommandBufferUsageFlags.OneTimeSubmitBit;
 
-            vk.BeginCommandBuffer(transientBuffer, in beginInfo);
+            vk.BeginCommandBuffer(transientBuffer, in beginInfo);*/
+            var transientBuffer = CreateTransientCommandBuffer(true);
 
             var bufferCopyInfo = new BufferCopy(0, 0, copySize);
             vk.CmdCopyBuffer(transientBuffer, from, to, 1, in bufferCopyInfo);
 
-            vk.EndCommandBuffer(transientBuffer);
-
-            SubmitInfo submitInfo = new SubmitInfo();
-            submitInfo.SType = StructureType.SubmitInfo;
-            submitInfo.CommandBufferCount = 1;
-            submitInfo.PCommandBuffers = &transientBuffer;
-
-            if (vk.QueueSubmit(CurrentGPU.DedicatedTransferQueue, 1, in submitInfo, new Fence(null)) != Result.Success)
-            {
-                throw new ExecutionException("Error submitting transfer queue!");
-            }
-            vk.QueueWaitIdle(CurrentGPU.DedicatedTransferQueue);
-
-            //finally, delete our transient command buffer
-            vk.FreeCommandBuffers(vkDevice, transientCommandPool, 1, in transientBuffer);
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer);
         }
         #endregion
 
@@ -638,7 +674,41 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region descriptor sets
-        public static SparseArray<DescriptorPool> descriptorPools = new SparseArray<DescriptorPool>(default);
+        public static DescriptorPool descriptorPool;
+
+        public static DescriptorPool GetOrCreateDescriptorPool()
+        {
+            if (descriptorPool.Handle != 0) return descriptorPool;
+            DescriptorPoolSize* poolSizes = stackalloc DescriptorPoolSize[]
+            {
+                new DescriptorPoolSize()
+                {
+                    Type = DescriptorType.UniformBuffer,
+                    DescriptorCount = 4
+                },
+                new DescriptorPoolSize()
+                {
+                    Type = DescriptorType.CombinedImageSampler,
+                    DescriptorCount = 4
+                }
+            };
+            
+            DescriptorPoolCreateInfo createInfo = new DescriptorPoolCreateInfo();
+            createInfo.SType = StructureType.DescriptorPoolCreateInfo;
+            createInfo.PoolSizeCount = 2; //the amount of areas in the descriptor to allocate and their respective descriptor counts
+            createInfo.PPoolSizes = poolSizes;
+            createInfo.MaxSets = 4; //the maximum number of descriptor sets that can be allocated from the pool.
+
+            DescriptorPool newPool;
+            //create descriptor pool(s)
+            if (vk.CreateDescriptorPool(vkDevice, in createInfo, null, &newPool) != Result.Success)
+            {
+                throw new InitializationException("Failed to create descriptor pool!");
+            }
+            descriptorPool = newPool;
+            return descriptorPool;
+        }
+        /*public static SparseArray<DescriptorPool> descriptorPools = new SparseArray<DescriptorPool>(default);
         public static DescriptorPool GetOrCreateDescriptorPool(UniformType poolType)
         {
             if (descriptorPools.WithinLength((uint)poolType) && descriptorPools[(uint)poolType].Handle != 0)
@@ -647,21 +717,112 @@ namespace Somnium.Framework.Vulkan
             }
             DescriptorPoolSize poolSize = new DescriptorPoolSize();
             poolSize.Type = ShaderParameter.UniformTypeToVkDescriptorType[(int)poolType];//DescriptorType.UniformBuffer;
-            poolSize.DescriptorCount = 1;
+            poolSize.DescriptorCount = 1; //specifies the number of descriptors of a given type which can be allocated in total from a given pool (across all descriptor sets).
 
             DescriptorPoolCreateInfo createInfo = new DescriptorPoolCreateInfo();
             createInfo.SType = StructureType.DescriptorPoolCreateInfo;
-            createInfo.PoolSizeCount = 1;
+            createInfo.PoolSizeCount = 1; //the amount of descriptor pools to allocated
             createInfo.PPoolSizes = &poolSize;
-            createInfo.MaxSets = 1;
+            createInfo.MaxSets = 1; //the maximum number of descriptor sets that can be allocated from the pool.
 
             DescriptorPool descriptorPool;
+            //create descriptor pool(s)
             if (vk.CreateDescriptorPool(vkDevice, in createInfo, null, &descriptorPool) != Result.Success)
             {
                 throw new InitializationException("Failed to create descriptor pool!");
             }
             descriptorPools.Insert((uint)poolType, descriptorPool);
             return descriptorPool;
+        }*/
+        #endregion
+
+        #region images
+        public static void TransitionImageLayout(Texture2D texture, ImageLayout oldLayout, ImageLayout newLayout)
+        {
+            var transientBuffer = CreateTransientCommandBuffer(true);
+
+            ImageMemoryBarrier barrier = new ImageMemoryBarrier();
+            barrier.SType = StructureType.ImageMemoryBarrier;
+            barrier.OldLayout = oldLayout;
+            barrier.NewLayout= newLayout;
+
+            //we are not using the barrier to transfer queue family ownership, so we set these to ignored
+            barrier.SrcQueueFamilyIndex = 0;
+            barrier.DstQueueFamilyIndex = 0;
+
+            barrier.Image = new Image(texture.imageHandle);
+            barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;
+            barrier.SubresourceRange.BaseMipLevel = 0;
+            barrier.SubresourceRange.LevelCount = 1;
+            barrier.SubresourceRange.BaseArrayLayer = 0;
+            barrier.SubresourceRange.LayerCount = 1;
+
+            PipelineStageFlags sourceStage;
+            PipelineStageFlags destinationStage;
+
+            Queue queue = CurrentGPU.DedicatedTransferQueue;
+
+            if (oldLayout == ImageLayout.Undefined && newLayout == ImageLayout.TransferDstOptimal)
+            {
+                //transfer can write without needing to wait on anything
+                barrier.SrcAccessMask = 0;
+                barrier.DstAccessMask = AccessFlags.TransferWriteBit;
+
+                sourceStage = PipelineStageFlags.TopOfPipeBit;
+                destinationStage = PipelineStageFlags.TransferBit;
+
+            }
+            else if (oldLayout == ImageLayout.TransferDstOptimal && newLayout == ImageLayout.ShaderReadOnlyOptimal)
+            {
+                //shader reads should wait on transfer writes
+                //(specifically the shader reads in the fragment shader,
+                //because that's where we're going to use the texture, at least until VTF)
+                barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+                barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+
+                sourceStage = PipelineStageFlags.TransferBit;
+                destinationStage = PipelineStageFlags.FragmentShaderBit;
+            }
+            else
+            {
+                throw new ExecutionException("Unsupported Vulkan image layout transition!");
+            }
+
+            ReadOnlySpan<ImageMemoryBarrier> span = stackalloc ImageMemoryBarrier[1] { barrier };
+
+            vk.CmdPipelineBarrier(transientBuffer, sourceStage, destinationStage, DependencyFlags.None, null, null, span);
+
+            EndTransientCommandBuffer(queue, transientBuffer);
+        }
+        public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
+        {
+            var transientBuffer = CreateTransientCommandBuffer(true);
+
+            BufferImageCopy bufferImageCopy = new BufferImageCopy();
+            //Because we are copying from a transient buffer created specifically for this, the buffer offset is 0
+            bufferImageCopy.BufferOffset = 0;
+            //only set values other than 0 if the image buffer is not tightly packed
+            bufferImageCopy.BufferRowLength = 0;
+            bufferImageCopy.BufferImageHeight = 0;
+
+            bufferImageCopy.ImageSubresource.AspectMask = ImageAspectFlags.ColorBit;
+            bufferImageCopy.ImageSubresource.MipLevel = 0;
+            bufferImageCopy.ImageSubresource.BaseArrayLayer = 0;
+            bufferImageCopy.ImageSubresource.LayerCount = 1;
+
+            bufferImageCopy.ImageOffset = default;
+            bufferImageCopy.ImageExtent = new Extent3D((uint)to.Width, (uint)to.Height, 1);
+
+            vk.CmdCopyBufferToImage(
+                transientBuffer,
+                from,
+                new Image(to.imageHandle),
+                ImageLayout.TransferDstOptimal,
+                1, //length of things to copy
+                &bufferImageCopy
+             );
+
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer);
         }
         #endregion
 
@@ -669,13 +830,11 @@ namespace Somnium.Framework.Vulkan
         {
             if (initialized)
             {
+                SamplerState.DisposeDefaultSamplerStates();
                 CurrentGPU = default;
-                for (int i = 0; i < descriptorPools.values.Length; i++)
+                if (descriptorPool.Handle != 0)
                 {
-                    if (descriptorPools.values[i].Handle != 0)
-                    {
-                        vk.DestroyDescriptorPool(vkDevice, descriptorPools.values[i], null);
-                    }
+                    vk.DestroyDescriptorPool(vkDevice, descriptorPool, null);
                 }
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
                 VkMemory.Dispose();

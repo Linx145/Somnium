@@ -27,7 +27,7 @@ namespace Somnium.Framework.Vulkan
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
         public DescriptorSet[] descriptorSets;
-        public VkVertex[] vertexDescriptors;
+        public VkVertex vertexType;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
         CullModeFlags cullMode = CullModeFlags.None;
@@ -40,7 +40,7 @@ namespace Somnium.Framework.Vulkan
         public PipelineColorBlendStateCreateInfo colorBlendingInfo;
         public PipelineViewportStateCreateInfo viewportInfo;
 
-        public VertexInputBindingDescription[] compiledVertexBindingDescriptions;
+        public VertexInputBindingDescription compiledVertexBindingDescription;
         public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
 
         public VkGraphicsPipeline(
@@ -49,9 +49,10 @@ namespace Somnium.Framework.Vulkan
             BlendState blendState,
             PrimitiveType primitiveType,
             VkRenderPass renderPass,
-            Shader shader)
+            Shader shader,
+            VertexDeclaration vertexType)
         {
-            this.vertexDescriptors = VkVertex.registeredVertices.ToArray();
+            this.vertexType = new VkVertex(vertexType);
             this.viewport = viewport;
             this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
             this.cullMode = CullModeToFlags[(int)cullMode];
@@ -100,11 +101,11 @@ namespace Somnium.Framework.Vulkan
             PrimitiveType primitiveType,
             PolygonMode polygonMode,
             VkRenderPass renderPass,
-            VkVertex[] vertexDescriptors,
+            VkVertex vertexType,
             PipelineShaderStageCreateInfo vertexShader,
             PipelineShaderStageCreateInfo fragmentShader)
         {
-            this.vertexDescriptors = vertexDescriptors;
+            this.vertexType = vertexType;
             this.viewport = viewport;
             this.scissor = scissor;
             this.frontFaceMode = frontFace;
@@ -199,34 +200,24 @@ namespace Somnium.Framework.Vulkan
             var createInfo = new PipelineVertexInputStateCreateInfo();
             createInfo.SType = StructureType.PipelineVertexInputStateCreateInfo;
 
-            uint totalAttributes = 0;
+            uint totalAttributes = (uint)vertexType.attributeDescriptions.Length;
 
-            for (int i = 0; i < vertexDescriptors.Length; i++)
-            {
-                totalAttributes += (uint)vertexDescriptors[i].attributeDescriptions.Length;
-            }
-
-            compiledVertexBindingDescriptions = new VertexInputBindingDescription[vertexDescriptors.Length];
             compiledVertexAttributeDescriptions = new VertexInputAttributeDescription[totalAttributes];
 
-            int attributeDescriptionIndex = 0;
-            for (int i = 0; i < vertexDescriptors.Length; i++)
+            compiledVertexBindingDescription = vertexType.bindingDescription;
+            for (int j = 0; j < vertexType.attributeDescriptions.Length; j++)
             {
-                compiledVertexBindingDescriptions[i] = vertexDescriptors[i].bindingDescription;
-                for (int j = 0; j < vertexDescriptors[i].attributeDescriptions.Length; j++)
-                {
-                    compiledVertexAttributeDescriptions[attributeDescriptionIndex] = vertexDescriptors[i].attributeDescriptions[j];
-                    attributeDescriptionIndex++;
-                }
+                compiledVertexAttributeDescriptions[j] = vertexType.attributeDescriptions[j];
             }
-            createInfo.VertexBindingDescriptionCount = (uint)vertexDescriptors.Length;
+
+            createInfo.VertexBindingDescriptionCount = 1;
             createInfo.VertexAttributeDescriptionCount = totalAttributes;
 
             fixed (VertexInputAttributeDescription* ptr = compiledVertexAttributeDescriptions)
             {
                 createInfo.PVertexAttributeDescriptions = ptr;
             }
-            fixed (VertexInputBindingDescription* ptr = compiledVertexBindingDescriptions)
+            fixed (VertexInputBindingDescription* ptr = &vertexType.bindingDescription)
             {
                 createInfo.PVertexBindingDescriptions = ptr;
             }
@@ -289,7 +280,7 @@ namespace Somnium.Framework.Vulkan
         }
         internal unsafe PipelineLayout CreatePipelineLayout()
         {
-            uint descriptorSetLayoutCount = 0;
+            /*uint descriptorSetLayoutCount = 0;
             for (int i = 0; i< shaders.Length; i++)
             {
                 var shader = shaders[i];
@@ -301,7 +292,9 @@ namespace Somnium.Framework.Vulkan
                 {
                     descriptorSetLayoutCount++;
                 }
-            }
+            }*/
+            //todo: Account for shaders without descriptor sets
+            uint descriptorSetLayoutCount = (uint)shaders.Length;
 
             PipelineLayoutCreateInfo createInfo = new PipelineLayoutCreateInfo();
             createInfo.SType = StructureType.PipelineLayoutCreateInfo;
@@ -310,7 +303,7 @@ namespace Somnium.Framework.Vulkan
 
             if (descriptorSetLayoutCount > 0)
             {
-                DescriptorSetLayout* layouts = stackalloc DescriptorSetLayout[(int)descriptorSetLayoutCount];
+                /*DescriptorSetLayout* layouts = stackalloc DescriptorSetLayout[(int)descriptorSetLayoutCount];
                 int layoutIndex = 0;
                 for (int i = 0; i < shaders.Length; i++)
                 {
@@ -325,16 +318,17 @@ namespace Somnium.Framework.Vulkan
                         *(layouts + layoutIndex) = new DescriptorSetLayout(shader.shader2Params.handle);
                         layoutIndex++;
                     }
-                }
-                createInfo.PSetLayouts = layouts;
+                }*/
+                DescriptorSetLayout layoutCopy = shaders[0].descriptorSetLayout;
+                createInfo.PSetLayouts = &layoutCopy;
 
-                DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool(UniformType.uniformBuffer);
+                DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
 
                 DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
                 allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
                 allocInfo.DescriptorPool = relatedPool;
                 allocInfo.DescriptorSetCount = descriptorSetLayoutCount;
-                allocInfo.PSetLayouts = layouts;
+                allocInfo.PSetLayouts = &layoutCopy;
 
                 //DescriptorSet* descriptorSets = stackalloc DescriptorSet[(int)descriptorSetLayoutCount];
                 descriptorSets = new DescriptorSet[descriptorSetLayoutCount];
@@ -346,7 +340,9 @@ namespace Somnium.Framework.Vulkan
                     }
                 }
 
-                layoutIndex = 0;
+                shaders[0].descriptorSet = descriptorSets[0];
+
+/*layoutIndex = 0;
                 for (int i = 0; i < shaders.Length; i++)
                 {
                     var shader = shaders[i];
@@ -360,7 +356,7 @@ namespace Somnium.Framework.Vulkan
                         shader.shader2Params.descriptorSet = descriptorSets[layoutIndex];
                         layoutIndex++;
                     }
-                }
+                }*/
             }
             else
             {

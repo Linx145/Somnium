@@ -53,8 +53,7 @@ namespace Somnium.Framework
                         memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
 
-                        void* pointer;
-                        memoryRegion.Bind(&pointer);
+                        void* pointer = memoryRegion.Bind();
                         bindingPoint = (IntPtr)pointer;
                     }
                     break;

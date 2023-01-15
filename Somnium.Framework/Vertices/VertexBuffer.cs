@@ -45,8 +45,8 @@ namespace Somnium.Framework
                             var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(vertexDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
                             var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
-                            stagingMemoryRegion.Bind((void**)&data);
-                            vertices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
+                            data = stagingMemoryRegion.Bind<T>();
+                            vertices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                             stagingMemoryRegion.Unbind();
 
                             CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));

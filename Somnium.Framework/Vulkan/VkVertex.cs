@@ -1,13 +1,12 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework;
+using System;
 using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan
 {
     public struct VkVertex
     {
-        internal static List<VkVertex> registeredVertices = new List<VkVertex>();
-
         public VertexInputBindingDescription bindingDescription;
         public VertexInputAttributeDescription[] attributeDescriptions;
 
@@ -36,6 +35,7 @@ namespace Somnium.Framework.Vulkan
             //describes the vertex declaration
             bindingDescription = new VertexInputBindingDescription();
             bindingDescription.Binding = declaration.binding;
+            
             if (declaration.inputRate == VertexElementInputRate.Instance)
             {
                 bindingDescription.InputRate = VertexInputRate.Instance;

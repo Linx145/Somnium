@@ -17,4 +17,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Content\tbh.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

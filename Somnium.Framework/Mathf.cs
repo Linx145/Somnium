@@ -7,6 +7,8 @@ namespace Somnium.Framework
 {
     public static class Mathf
     {
+        public const int MatrixSize = sizeof(float) * 16;
+
         public static bool WithinEpsilon(float a, float b)
         {
             float num = a - b;

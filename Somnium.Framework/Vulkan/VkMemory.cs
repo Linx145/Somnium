@@ -2,8 +2,6 @@
 using Buffer = Silk.NET.Vulkan.Buffer;
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Collections.Generic;
-using Silk.NET.Core.Native;
 using System.Threading;
 
 namespace Somnium.Framework.Vulkan
@@ -36,23 +34,64 @@ namespace Somnium.Framework.Vulkan
             int amountToAlloc = (int)width / sizeof(T);
             Span<T> temp = stackalloc T[amountToAlloc];
 
-            T* ptr;
-            Bind((void**)&ptr);
+            T* ptr = Bind<T>();
             temp.CopyTo(new Span<T>(ptr, amountToAlloc));
             Unbind();
         }
-        public unsafe void Bind(void** data)
+        public unsafe T* Bind<T>() where T : unmanaged
         {
-            if (VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, start, width, 0, data) != Result.Success)
+            if (memory.memoryPtr == null)
             {
-                throw new ExecutionException("Error binding to Vulkan memory!");
+                lock (memory.memoryPtrLock)
+                {
+                    //start, width
+                    //map the entirety of the memory to the host's memory pointer
+                    fixed (void** ptr = &memory.memoryPtr)
+                    {
+                        if (VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, 0, memory.maxSize, 0, ptr) != Result.Success)
+                        {
+                            throw new ExecutionException("Error binding to Vulkan memory!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Map memory called to " + this.ToString());
+                        }
+                    }
+                }
             }
-            else
+            fixed (void** ptr = &memory.memoryPtr)
             {
-                Interlocked.Increment(ref memory.amountBound);
+                return (T*)((byte*)*ptr + start);
             }
         }
-        public void Unbind()
+        public unsafe void* Bind()
+        {
+            if (memory.memoryPtr == null)
+            {
+                lock (memory.memoryPtrLock)
+                {
+                    //start, width
+                    //map the entirety of the memory to the host's memory pointer
+                    fixed (void** ptr = &memory.memoryPtr)
+                    {
+                        if (VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, 0, memory.maxSize, 0, ptr) != Result.Success)
+                        {
+                            throw new ExecutionException("Error binding to Vulkan memory!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Map memory called to " + this.ToString());
+                        }
+                    }
+                }
+            }
+            fixed (void** ptr = &memory.memoryPtr)
+            {
+                return (byte*)*ptr + start;
+            }
+            //return (memory.memoryPtr + start);
+        }
+        public unsafe void Unbind()
         {
             Interlocked.Decrement(ref memory.amountBound);
             if (memory.amountBound < 0)
@@ -61,7 +100,14 @@ namespace Somnium.Framework.Vulkan
             }
             if (memory.amountBound == 0)
             {
+                Console.WriteLine("Unmap Memory called to " + this.ToString());
                 VkEngine.vk.UnmapMemory(VkEngine.vkDevice, handle);
+
+                lock (memory.memoryPtrLock)
+                {
+                    memory.memoryPtr = null;
+                }
+
             }
         }
 
@@ -91,7 +137,7 @@ namespace Somnium.Framework.Vulkan
     /// <summary>
     /// A handler for a single VkDeviceMemory pointer.
     /// </summary>
-    public class AllocatedMemory : IDisposable
+    public unsafe class AllocatedMemory : IDisposable
     {
         public static int totalDeviceMemories { get; private set; }
 
@@ -103,6 +149,9 @@ namespace Somnium.Framework.Vulkan
         public DeviceMemory handle;
         public UnorderedList<AllocatedMemoryRegion> regions;
         public UnorderedList<AllocatedMemoryRegion> gaps;
+
+        public void* memoryPtr = null;
+        public object memoryPtrLock = new object();
 
         public AllocatedMemory(DeviceMemory handle, ulong size)
         {
@@ -185,6 +234,7 @@ namespace Somnium.Framework.Vulkan
                 {
                     regions.RemoveAt(i);
                     gaps.Add(region);
+                    Console.WriteLine("Freed memory at " + region.ToString());
                     return;
                 }
             }
@@ -232,7 +282,7 @@ namespace Somnium.Framework.Vulkan
                 throw new AssetCreationException("Reached the max amount of VkDeviceMemories and cannot create another one!");
             }
             ulong minSize = GPU.limits.minMemoryAllocSize;
-            ulong sizeToAllocate = ((ulong)Mathf.Ceiling((float)memoryCreationSize / (float)minSize) * minSize);
+            ulong sizeToAllocate = Math.Max(((ulong)Mathf.Ceiling((float)memoryCreationSize / (float)minSize) * minSize), ((ulong)Mathf.Ceiling((float)requiredSpace / (float)minSize) * minSize));
 
             MemoryAllocateInfo allocInfo = new MemoryAllocateInfo();
             allocInfo.SType = StructureType.MemoryAllocateInfo;
@@ -284,6 +334,7 @@ namespace Somnium.Framework.Vulkan
     }
     public static class VkMemory
     {
+
         public static SparseArray<MemoryPool> memoryPools = new SparseArray<MemoryPool>(null);
         public static Vk vk
         {
@@ -305,6 +356,44 @@ namespace Somnium.Framework.Vulkan
             MemoryRequirements memoryRequirements;
             VkEngine.vk.GetBufferMemoryRequirements(VkEngine.vkDevice, buffer, &memoryRequirements);
 
+            AllocatedMemoryRegion memoryRegion = malloc(memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForBuffersInMiB * 1024 * 1024));
+
+            if (autoBind)
+            {
+                if (vk.BindBufferMemory(VkEngine.vkDevice, buffer, memoryRegion.handle, memoryRegion.start) != Result.Success)
+                {
+                    throw new AssetCreationException("Failed to bind Vulkan Vertex Buffer to allocated Memory!");
+                }
+            }
+
+            return memoryRegion;
+        }
+        /// <summary>
+        /// Allocates a region of memory for the input image
+        /// </summary>
+        /// <param name="image">The image you wish to create memory for</param>
+        /// <param name="memoryPropertyFlags">What properties the allocated memory should possess</param>
+        ///<param name="autoBind">Whether to automatically bind the buffer to the memory region</param>
+        /// <returns></returns>
+        public static unsafe AllocatedMemoryRegion malloc(Image image, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
+        {
+            MemoryRequirements memoryRequirements;
+            VkEngine.vk.GetImageMemoryRequirements(VkEngine.vkDevice, image, &memoryRequirements);
+
+            AllocatedMemoryRegion memoryRegion = malloc(memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForImagesInMiB * 1024 * 1024)); //we malloc a much larger DeviceMemory size for potentially image-holding buffers
+
+            if (autoBind)
+            {
+                if (vk.BindImageMemory(VkEngine.vkDevice, image, memoryRegion.handle, memoryRegion.start) != Result.Success)
+                {
+                    throw new AssetCreationException("Failed to bind Vulkan Image to allocated Memory!");
+                }
+            }
+
+            return memoryRegion;
+        }
+        public static unsafe AllocatedMemoryRegion malloc(MemoryRequirements memoryRequirements, MemoryPropertyFlags memoryPropertyFlags, ulong memoryCreationSize = 65536)
+        {
             uint memoryTypeIndex = Utils.FindMemoryType(memoryRequirements.MemoryTypeBits, memoryPropertyFlags, VkEngine.CurrentGPU);
 
             if (!memoryPools.WithinLength(memoryTypeIndex) || memoryPools[memoryTypeIndex] == null)
@@ -313,14 +402,8 @@ namespace Somnium.Framework.Vulkan
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
-            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, 65536);
-            if (autoBind)
-            {
-                if (vk.BindBufferMemory(VkEngine.vkDevice, buffer, memoryRegion.handle, memoryRegion.start) != Result.Success)
-                {
-                    throw new AssetCreationException("Failed to bind Vulkan Vertex Buffer to allocated Memory!");
-                }
-            }
+            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize);
+
             return memoryRegion;
         }
         public static void Dispose()

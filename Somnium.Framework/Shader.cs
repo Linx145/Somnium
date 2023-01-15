@@ -3,6 +3,7 @@ using Silk.NET.Vulkan;
 using System.IO;
 using Somnium.Framework.Vulkan;
 using Silk.NET.Core.Native;
+using System.Reflection.Metadata;
 
 namespace Somnium.Framework
 {
@@ -21,6 +22,14 @@ namespace Somnium.Framework
 
         public ShaderParameterCollection shader1Params;
         public ShaderParameterCollection shader2Params;
+
+        #region vulkan
+        /// <summary>
+        /// The Vulkan descriptor set layout for all this shader's parameters
+        /// </summary>
+        public DescriptorSetLayout descriptorSetLayout;
+        public DescriptorSet descriptorSet;
+        #endregion
 
         public Shader(Application application, ShaderType Type, byte[] byteCode)
         {
@@ -147,6 +156,65 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
+        public void ConstructParams()
+        {
+            int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
+            if (maxCount != null && maxCount != 0)
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        unsafe
+                        {
+                            DescriptorSetLayoutBinding* bindings = stackalloc DescriptorSetLayoutBinding[maxCount.Value];
+
+                            //if (shader1Params != null)
+                            //{
+                            foreach (var value in shader1Params!.GetParameters())
+                            {
+                                DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
+                                binding.Binding = value.binding;
+                                binding.DescriptorType = ShaderParameter.UniformTypeToVkDescriptorType[(int)value.type];
+                                //If the binding points to a variable in the shader that is an array, this would be that array's length
+                                binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
+                                binding.StageFlags = VkGraphicsPipeline.ShaderTypeToFlags[(int)shader1Params!.shaderType];
+
+                                *(bindings + value.binding) = binding;
+                            }
+
+                            if (shader2Params != null)
+                            {
+                                foreach (var value in shader2Params!.GetParameters())
+                                {
+                                    DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
+                                    binding.Binding = value.binding;
+                                    binding.DescriptorType = ShaderParameter.UniformTypeToVkDescriptorType[(int)value.type];
+                                    //If the binding points to a variable in the shader that is an array, this would be that array's length
+                                    binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
+                                    binding.StageFlags = VkGraphicsPipeline.ShaderTypeToFlags[(int)shader2Params!.shaderType];
+
+                                    *(bindings + value.binding) = binding;
+                                }
+                            }
+
+                            DescriptorSetLayoutCreateInfo createInfo = new DescriptorSetLayoutCreateInfo();
+                            createInfo.SType = StructureType.DescriptorSetLayoutCreateInfo;
+                            createInfo.BindingCount = (uint)maxCount;
+                            createInfo.PBindings = bindings;
+
+                            DescriptorSetLayout descriptorSetLayout;
+                            if (VkEngine.vk.CreateDescriptorSetLayout(VkEngine.vkDevice, in createInfo, null, &descriptorSetLayout) != Result.Success)
+                            {
+                                throw new AssetCreationException("Failed to create new Shader Parameter Collection!");
+                            }
+                            this.descriptorSetLayout = descriptorSetLayout;
+                        }
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
         /// <summary>
         /// 
         /// </summary>
@@ -154,6 +222,14 @@ namespace Somnium.Framework
         /// <param name="uniform"></param>
         /// <param name="shaderNumber">Which uniform buffer should the data be set into. Should be either 1 or 2.</param>
         public void SetUniform<T>(string uniformName, T uniform, int shaderNumber = 1) where T : unmanaged
+        {
+            if (shaderNumber == 0 || shaderNumber == 1)
+            {
+                shader1Params.Set(uniformName, uniform);
+            }
+            else shader2Params.Set(uniformName, uniform);
+        }
+        public void SetUniform(string uniformName, Texture2D uniform, int shaderNumber = 1)
         {
             if (shaderNumber == 0 || shaderNumber == 1)
             {
@@ -197,6 +273,11 @@ namespace Somnium.Framework
                                 VkEngine.vk.DestroyShaderModule(VkEngine.vkDevice, module, null);
                                 shader2Params?.Dispose();
                             }
+                            if (descriptorSetLayout.Handle != 0)
+                            {
+                                VkEngine.vk.DestroyDescriptorSetLayout(VkEngine.vkDevice, descriptorSetLayout, null);
+                                
+                            }  
                         }
                         break;
                     default:

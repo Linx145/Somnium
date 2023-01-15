@@ -71,7 +71,7 @@ namespace Somnium.Framework
             if (backend == Backends.Vulkan)
             {
                 VertexDeclaration declaration = new VertexDeclaration();
-                declaration.binding = (uint)allVertexDeclarations.Count;
+                declaration.binding = 0;// (uint)allVertexDeclarations.Count;
                 declaration.size = (uint)sizeof(T);
                 declaration.inputRate = VertexElementInputRate.Vertex;
                 declaration.registered = false;
@@ -92,25 +92,13 @@ namespace Somnium.Framework
             declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
             VertexPositionColor.internalVertexDeclaration = declaration;
             allVertexDeclarations.Add(declaration);
-        }
-        public static void RegisterAllVertexDeclarations(Backends backend)
-        {
-            if (backend == Backends.Vulkan)
-            {
-                for (int i = 0; i < allVertexDeclarations.Count; i++)
-                {
-                    VkVertex.registeredVertices.Add(new VkVertex(allVertexDeclarations[i]));
-                    //VkVertex.RegisterVertex(allVertexDeclarations[i]);
-                }
-            }
-            initialized = true;
-        }
-        public static void UnregisterAllBuffers(Backends backend)
-        {
-            if (backend == Backends.Vulkan)
-            {
 
-            }
+            declaration = NewVertexDeclaration<VertexPositionColorTexture>(backend);
+            declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
+            declaration.AddElement(new VertexElement(2, VertexElementFormat.Vector2, 28));
+            VertexPositionColorTexture.internalVertexDeclaration = declaration;
+            allVertexDeclarations.Add(declaration);
         }
     }
 }

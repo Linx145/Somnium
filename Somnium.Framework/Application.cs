@@ -18,6 +18,17 @@ namespace Somnium.Framework
 
         public Window Window;
 
+        /// <summary>
+        /// The amount that should be allocated at the start for buffers(EG: Vertex buffers, index buffers, etc) in your app.
+        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use. Not applicable in previous generation APIs like OpenGL</br>
+        /// </summary>
+        public static double memoryForBuffersInMiB = 2;
+        /// <summary>
+        /// The amount that should be allocated at the start for images in your app.
+        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use. Not applicable in previous generation APIs like OpenGL</br>
+        /// </summary>
+        public static double memoryForImagesInMiB = 64;
+
         public double FramesPerSecond
         {
             get => internalRenderPeriod <= double.Epsilon ? 0 : 1 / internalRenderPeriod;
@@ -52,13 +63,14 @@ namespace Somnium.Framework
         }
         public void Start()
         {
-            VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
             switch (runningBackend)
             {
                 case Backends.Vulkan:
                     VkEngine.Initialize(Window, AppName);
                     break;
             }
+            SamplerState.AddDefaultSamplerStates(this);
+            VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
 
             updateStopwatch = new Stopwatch();
             drawStopwatch = new Stopwatch();

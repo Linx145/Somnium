@@ -185,16 +185,6 @@ namespace Somnium.Framework
             return new Vector2(X, Y);
         }
 
-        public Silk.NET.Maths.Vector2D<int> ToVector2DInt()
-        {
-            return new Silk.NET.Maths.Vector2D<int>(X, Y);
-        }
-
-        public static implicit operator Silk.NET.Maths.Vector2D<int>(Point me)
-        {
-            return new Silk.NET.Maths.Vector2D<int>(me.X, me.Y);
-        }
-
         /// <summary>
         /// Deconstruction method for <see cref="Point"/>.
         /// </summary>
