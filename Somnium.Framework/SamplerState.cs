@@ -49,10 +49,10 @@ namespace Somnium.Framework
                     {
                         SamplerCreateInfo samplerInfo = new SamplerCreateInfo();
                         samplerInfo.SType = StructureType.SamplerCreateInfo;
-                        samplerInfo.MagFilter = FilterModeToVkFilter[(int)filterMode];
-                        samplerInfo.MinFilter = FilterModeToVkFilter[(int)filterMode];
+                        samplerInfo.MagFilter = Converters.FilterModeToVkFilter[(int)filterMode];
+                        samplerInfo.MinFilter = Converters.FilterModeToVkFilter[(int)filterMode];
 
-                        var mode = RepeatModeToVkSamplerAddressMode[(int)repeatMode];
+                        var mode = Converters.RepeatModeToVkSamplerAddressMode[(int)repeatMode];
 
                         samplerInfo.AddressModeU = mode;
                         samplerInfo.AddressModeV = mode;
@@ -66,7 +66,7 @@ namespace Somnium.Framework
                         samplerInfo.BorderColor = BorderColor.FloatTransparentBlack;
                         samplerInfo.UnnormalizedCoordinates = new Silk.NET.Core.Bool32(false);
                         samplerInfo.CompareEnable = new Silk.NET.Core.Bool32(false);
-                        samplerInfo.CompareOp = CompareOp.Never;
+                        samplerInfo.CompareOp = CompareOp.Always;
 
                         samplerInfo.MipmapMode = SamplerMipmapMode.Linear;
                         samplerInfo.MipLodBias = 0.0f;
@@ -124,17 +124,6 @@ namespace Somnium.Framework
             LinearClamp.Dispose();
             LinearWrap.Dispose();
         }
-        public static readonly Filter[] FilterModeToVkFilter = new Filter[]
-        {
-            Filter.Nearest,
-            Filter.Linear
-        };
-        public static readonly SamplerAddressMode[] RepeatModeToVkSamplerAddressMode = new SamplerAddressMode[]
-        {
-            SamplerAddressMode.ClampToEdge,
-            SamplerAddressMode.Repeat,
-            SamplerAddressMode.ClampToBorder
-        };
         #endregion
     }
 }

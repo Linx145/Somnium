@@ -94,7 +94,7 @@ namespace Somnium.Framework.Vulkan
 
             commandBuffer.Reset();
             commandBuffer.Begin();
-            renderPass.Begin(commandBuffer, swapChain, Color.Black);
+            renderPass.Begin(commandBuffer, swapChain, window.clearColor);
             //TrianglePipeline.Bind(commandBuffer);
             //BeginRenderPass(); //also clears the screen
 
@@ -447,7 +447,7 @@ namespace Somnium.Framework.Vulkan
             {
                 vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
             }
-                swapChain = SwapChain.Create(window);
+            swapChain = SwapChain.Create(window);
         }
         #endregion
 
@@ -456,7 +456,7 @@ namespace Somnium.Framework.Vulkan
 
         public static void CreateRenderPass()
         {
-            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal);
+            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Clear, AttachmentStoreOp.Store);
         }
         #endregion
 
@@ -468,28 +468,6 @@ namespace Somnium.Framework.Vulkan
             pipelines.Remove(index);
         }
         public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
-        /*private static void CreatePipelines(Window window)
-        {
-            testShader = VkShader.Create("Content/Vertex.spv", "Content/Fragment.spv");
-            TrianglePipeline = new VkGraphicsPipeline(
-                new Viewport(0, 0, swapChain.imageExtents.Width, swapChain.imageExtents.Height, 0f, 1f),
-                new Rect2D(default(Offset2D), swapChain.imageExtents),
-                FrontFace.Clockwise, 
-                CullModeFlags.BackBit,
-                BlendState.AlphaBlend,
-                PrimitiveTopology.TriangleList,
-                PolygonMode.Fill,
-                renderPass,
-                VkVertex.registeredVertices.ToArray());
-
-            TrianglePipeline.shaderStages = new PipelineShaderStageCreateInfo[]
-            {
-                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.VertexBit, testShader.vertexShader),
-                VkGraphicsPipeline.CreateShaderStage(ShaderStageFlags.FragmentBit, testShader.fragmentShader)
-            };
-
-            TrianglePipeline.BuildPipeline();
-        }*/
         #endregion
 
         #region command pools(memory) and command buffers

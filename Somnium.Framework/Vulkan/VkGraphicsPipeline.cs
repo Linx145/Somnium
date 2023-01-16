@@ -55,10 +55,10 @@ namespace Somnium.Framework.Vulkan
             this.vertexType = new VkVertex(vertexType);
             this.viewport = viewport;
             this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
-            this.cullMode = CullModeToFlags[(int)cullMode];
+            this.cullMode = Converters.CullModeToFlags[(int)cullMode];
             this.frontFaceMode = FrontFace.Clockwise;
             this.blendState = blendState;
-            this.topology = PrimitiveTypeToTopology[(int)primitiveType];
+            this.topology = Converters.PrimitiveTypeToTopology[(int)primitiveType];
             if (this.topology == PrimitiveTopology.LineList || this.topology == PrimitiveTopology.LineStrip || this.topology == PrimitiveTopology.LineListWithAdjacency)
             {
                 this.polygonMode = PolygonMode.Line;
@@ -86,7 +86,7 @@ namespace Somnium.Framework.Vulkan
                 default:
                     this.shaderStages = new PipelineShaderStageCreateInfo[]
                     {
-                        CreateShaderStage(ShaderTypeToFlags[(int)shader.type], new ShaderModule(shader.shaderHandle))
+                        CreateShaderStage(Converters.ShaderTypeToFlags[(int)shader.type], new ShaderModule(shader.shaderHandle))
                     };
                     break;
             }
@@ -113,7 +113,7 @@ namespace Somnium.Framework.Vulkan
             shaderStages = null;
 
             this.blendState = blendState;
-            this.topology = PrimitiveTypeToTopology[(int)primitiveType];//topology;
+            this.topology = Converters.PrimitiveTypeToTopology[(int)primitiveType];//topology;
             this.polygonMode = polygonMode;
             this.renderPass = renderPass;
 
@@ -124,63 +124,6 @@ namespace Somnium.Framework.Vulkan
 
             BuildPipeline();
         }
-
-        /// <summary>
-        /// Converts the Somnium.Framework generic BlendState to the Vulkan specific BlendFactor
-        /// </summary>
-        public static readonly BlendFactor[] BlendStateToFactor = new BlendFactor[]
-        {
-            BlendFactor.One,
-            BlendFactor.Zero,
-            BlendFactor.SrcColor,
-            BlendFactor.OneMinusSrcColor,
-            BlendFactor.SrcAlpha,
-            BlendFactor.OneMinusSrcAlpha,
-            BlendFactor.DstColor,
-            BlendFactor.OneMinusDstColor,
-            BlendFactor.DstAlpha,
-            BlendFactor.OneMinusDstAlpha
-        };
-        /// <summary>
-        /// Converts the Somnium.Framework generic PrimitiveType to the Vulkan specific PrimitiveTopology
-        /// </summary>
-        public static readonly PrimitiveTopology[] PrimitiveTypeToTopology = new PrimitiveTopology[]
-        {
-            PrimitiveTopology.TriangleList,
-            PrimitiveTopology.TriangleStrip,
-            PrimitiveTopology.LineList,
-            PrimitiveTopology.LineStrip,
-            PrimitiveTopology.PointList,
-            PrimitiveTopology.TriangleFan,
-            PrimitiveTopology.TriangleListWithAdjacency,
-            PrimitiveTopology.LineStripWithAdjacency,
-        };
-
-        public static readonly ShaderStageFlags[] ShaderTypeToFlags = new ShaderStageFlags[]
-        {
-            ShaderStageFlags.None,
-            ShaderStageFlags.VertexBit,
-            ShaderStageFlags.FragmentBit,
-            ShaderStageFlags.None,
-            ShaderStageFlags.TessellationControlBit,
-            ShaderStageFlags.TessellationEvaluationBit,
-            ShaderStageFlags.GeometryBit,
-            ShaderStageFlags.ComputeBit
-        };
-
-        public static readonly CullModeFlags[] CullModeToFlags = new CullModeFlags[]
-        {
-            CullModeFlags.BackBit,
-            CullModeFlags.FrontBit,
-            CullModeFlags.None
-        };
-
-        public static readonly PipelineBindPoint[] RenderStageToBindPoint = new PipelineBindPoint[]
-        {
-            PipelineBindPoint.Graphics,
-            PipelineBindPoint.Compute,
-            PipelineBindPoint.RayTracingKhr
-        };
 
         public static unsafe PipelineShaderStageCreateInfo CreateShaderStage(ShaderStageFlags stage, ShaderModule shaderModule)
         {
@@ -268,10 +211,12 @@ namespace Somnium.Framework.Vulkan
             info.ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit;
             if (blendState != null)
             {
-                info.SrcColorBlendFactor = BlendStateToFactor[(int)blendState.SourceColorBlend];
-                info.SrcAlphaBlendFactor = BlendStateToFactor[(int)blendState.SourceAlphaBlend];
-                info.DstColorBlendFactor = BlendStateToFactor[(int)blendState.DestinationColorBlend];
-                info.DstAlphaBlendFactor = BlendStateToFactor[(int)blendState.DestinationAlphaBlend];
+                info.SrcColorBlendFactor = Converters.BlendStateToFactor[(int)blendState.SourceColorBlend];
+                info.SrcAlphaBlendFactor = Converters.BlendStateToFactor[(int)blendState.SourceAlphaBlend];
+                info.DstColorBlendFactor = Converters.BlendStateToFactor[(int)blendState.DestinationColorBlend];
+                info.DstAlphaBlendFactor = Converters.BlendStateToFactor[(int)blendState.DestinationAlphaBlend];
+                info.ColorBlendOp = BlendOp.Add;
+                info.AlphaBlendOp = BlendOp.Add;
                 info.BlendEnable = new Bool32(true);
             }
             else info.BlendEnable = new Bool32(false);
@@ -394,11 +339,18 @@ namespace Somnium.Framework.Vulkan
             #endregion
 
             #region create color blending info
+            float[] blendConstants = new float[4] { 1f, 1f, 1f, 1f };
+
             colorBlendingInfo = new PipelineColorBlendStateCreateInfo();
             colorBlendingInfo.SType = StructureType.PipelineColorBlendStateCreateInfo;
             colorBlendingInfo.LogicOpEnable = false;
             colorBlendingInfo.LogicOp = LogicOp.Copy;
             colorBlendingInfo.AttachmentCount = 1;
+
+            colorBlendingInfo.BlendConstants[0] = 1f;
+            colorBlendingInfo.BlendConstants[1] = 1f;
+            colorBlendingInfo.BlendConstants[2] = 1f;
+            colorBlendingInfo.BlendConstants[3] = 1f;
 
             colorBlendAttachment = CreateColorBlend(blendState);
             fixed (PipelineColorBlendAttachmentState* ptr = &colorBlendAttachment)
@@ -463,10 +415,10 @@ namespace Somnium.Framework.Vulkan
 
         public unsafe void Bind(VkCommandBuffer commandBuffer, RenderStage bindType)
         {
-            vk.CmdBindPipeline(commandBuffer.handle, RenderStageToBindPoint[(int)bindType], handle);
+            vk.CmdBindPipeline(commandBuffer.handle, Converters.RenderStageToBindPoint[(int)bindType], handle);
             fixed (DescriptorSet* ptr = descriptorSets)
             {
-                vk.CmdBindDescriptorSets(commandBuffer.handle, RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+                vk.CmdBindDescriptorSets(commandBuffer.handle, Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
             }
         }
 

@@ -174,10 +174,10 @@ namespace Somnium.Framework
                             {
                                 DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
                                 binding.Binding = value.binding;
-                                binding.DescriptorType = ShaderParameter.UniformTypeToVkDescriptorType[(int)value.type];
+                                binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
                                 //If the binding points to a variable in the shader that is an array, this would be that array's length
                                 binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                binding.StageFlags = VkGraphicsPipeline.ShaderTypeToFlags[(int)shader1Params!.shaderType];
+                                binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader1Params!.shaderType];
 
                                 *(bindings + value.binding) = binding;
                             }
@@ -188,10 +188,10 @@ namespace Somnium.Framework
                                 {
                                     DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
                                     binding.Binding = value.binding;
-                                    binding.DescriptorType = ShaderParameter.UniformTypeToVkDescriptorType[(int)value.type];
+                                    binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
                                     //If the binding points to a variable in the shader that is an array, this would be that array's length
                                     binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                    binding.StageFlags = VkGraphicsPipeline.ShaderTypeToFlags[(int)shader2Params!.shaderType];
+                                    binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader2Params!.shaderType];
 
                                     *(bindings + value.binding) = binding;
                                 }

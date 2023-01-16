@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Content\tbh.jpg">
+    <None Update="Content\tbh.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

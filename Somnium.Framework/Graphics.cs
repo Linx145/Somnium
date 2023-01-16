@@ -50,6 +50,30 @@ namespace Somnium.Framework
                 }
             }
         }
+        public void SetRenderTarget(RenderTarget2D renderTarget)
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    unsafe
+                    {
+                        if (!VkEngine.renderPass.begun)
+                        {
+                            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
+                            beginInfo.SType = StructureType.RenderPassBeginInfo;
+                            beginInfo.RenderPass = VkEngine.renderPass;
+                            beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
+                            beginInfo.RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D(renderTarget.width, renderTarget.height));
+                            beginInfo.ClearValueCount = 0;
+                            //beginInfo.PClearValues = &clearValue;
+                        }
+                        else throw new InvalidOperationException("Cannot set RenderTarget during render pass");
+                    }
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
         public void DrawPrimitives(uint vertexCount, uint instanceCount)
         {
             unsafe

@@ -37,20 +37,26 @@ namespace Test
         {
             vertices = new VertexPositionColorTexture[]
             {
-                new VertexPositionColorTexture(new Vector3(-0.5f, -0.5f, 0f), Color.Red, new Vector2(0, 0)),
-                new VertexPositionColorTexture(new Vector3(0.5f, -0.5f, 0f), Color.Green, new Vector2(1, 0)),
-                new VertexPositionColorTexture(new Vector3(0.5f, 0.5f, 0f), Color.Blue, new Vector2(1, 1)),
-                new VertexPositionColorTexture(new Vector3(-0.5f, 0.5f, 0f), Color.Blue, new Vector2(0, 1))
+                new VertexPositionColorTexture(new Vector3(-0.5f, -0.5f, 0f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(0.5f, -0.5f, 0f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(0.5f, 0.5f, 0f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(-0.5f, 0.5f, 0f), Color.White, new Vector2(0, 1)),
+                
+                new VertexPositionColorTexture(new Vector3(-1f, -0.5f, 0.1f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(0f, -0.5f, 0.1f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(0f, 0.5f, 0.1f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(-1f, 0.5f, 0.1f), Color.White, new Vector2(0, 1))
             };
-            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, 4, false);
-            vb.SetData(vertices, 0, 4);
+            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, 8, false);
+            vb.SetData(vertices, 0, 8);
 
             indices = new ushort[]
             {
-                0, 1, 2, 2, 3, 0
+                0, 1, 2, 2, 3, 0,
+                4, 5, 6, 6, 7, 4
             };
-            indexBuffer = new IndexBuffer(application, IndexSize.Uint16, 6, false);
-            indexBuffer.SetData(indices, 0, 6);
+            indexBuffer = new IndexBuffer(application, IndexSize.Uint16, 12, false);
+            indexBuffer.SetData(indices, 0, 12);
 
             shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
             shader.shader1Params.AddParameter<WorldViewProjection>("ubo", 0, UniformType.uniformBuffer);
@@ -59,7 +65,7 @@ namespace Test
             //shader.shader2Params.Construct();
             shader.ConstructParams();
 
-            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.AlphaBlend, shader, VertexPositionColorTexture.VertexDeclaration);
+            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 
             float width = 2f;
             float height = 2f * (9f / 16f);
@@ -69,7 +75,7 @@ namespace Test
                 Matrix4x4.CreateOrthographicOffCenter(-width, width, -height, height, -1f, 1f)
                 ), 1);
 
-            using (FileStream stream = File.OpenRead("Content/tbh.jpg"))
+            using (FileStream stream = File.OpenRead("Content/tbh.png"))
             {
                 texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
             }
@@ -83,7 +89,7 @@ namespace Test
             Graphics.SetVertexBuffer(vb);
             Graphics.SetIndexBuffer(indexBuffer);
 
-            Graphics.DrawIndexedPrimitives(6, 2);
+            Graphics.DrawIndexedPrimitives(12, 4);
         }
 
         private static void Unload()

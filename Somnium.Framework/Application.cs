@@ -55,7 +55,7 @@ namespace Somnium.Framework
             //check for preferredBackend compatibility
             app.runningBackend = preferredBackend;
 
-            app.Window = WindowGLFW.New(windowSize, title, preferredBackend);
+            app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend);
 
             app.Graphics = new Graphics(app);
 

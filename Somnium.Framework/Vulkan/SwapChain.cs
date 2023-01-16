@@ -42,6 +42,7 @@ namespace Somnium.Framework.Vulkan
                 return VkEngine.KhrSwapchainAPI;
             }
         }
+        private readonly Application application;
         public SwapchainKHR handle;
 
         public uint minImageCount;
@@ -56,9 +57,10 @@ namespace Somnium.Framework.Vulkan
         public Window window;
 
         public uint currentImageIndex;
+        public RenderTarget2D[] renderTargets;
         public Image[] images;
-        public ImageData[] imageDatas;
-        public VkFramebuffer[] imageFrameBuffers;
+        //public ImageData[] imageDatas;
+        //public VkFramebuffer[] imageFrameBuffers;
 
         public uint ImageCount
         {
@@ -69,11 +71,12 @@ namespace Somnium.Framework.Vulkan
                 return imageCount;
             }
         }
-        public VkFramebuffer CurrentFramebuffer
+        public Framebuffer CurrentFramebuffer
         {
             get
             {
-                return imageFrameBuffers[currentImageIndex];
+                return new Framebuffer(renderTargets[currentImageIndex].framebufferHandle);
+                //return imageFrameBuffers[currentImageIndex];
             }
         }
 
@@ -90,6 +93,7 @@ namespace Somnium.Framework.Vulkan
             Extent2D imageExtents = default) //if we pass in default here, the swapchain will automatically take the imageExtents of the window at Create() time
         {
             this.window = window;
+            this.application = window.application;
             this.supportDetails = supportDetails;
             this.minImageCount = minImageCount;
             this.imageFormat = imageFormat;
@@ -177,7 +181,7 @@ namespace Somnium.Framework.Vulkan
                 VkEngine.SwapChainImages = swapChainSupport.Capabilities.MinImageCount + 1;
             }
 
-            SurfaceFormatKHR surfaceFormat = FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Srgb, swapChainSupport.supportedSurfaceFormats);
+            SurfaceFormatKHR surfaceFormat = FindSurfaceWith(ColorSpaceKHR.PaceSrgbNonlinearKhr, Format.B8G8R8A8Unorm, swapChainSupport.supportedSurfaceFormats);
 
             SwapChain swapChain = new SwapChain(
                 window,
@@ -221,11 +225,11 @@ namespace Somnium.Framework.Vulkan
             {
                 swapchainAPI.GetSwapchainImages(device, handle, ref imageCount, ptr);
             }
-            imageDatas = new ImageData[imageCount];
+            /*imageDatas = new ImageData[imageCount];
             for (int i = 0; i < imageDatas.Length; i++)
             {
                 imageDatas[i] = ImageData.Create(images[i], imageFormat);
-            }
+            }*/
 
             if (VkEngine.renderPass != null)
             {
@@ -234,7 +238,19 @@ namespace Somnium.Framework.Vulkan
         }
         public unsafe void RecreateFramebuffers(RenderPass renderPass)
         {
-            if (imageFrameBuffers != null)
+            if (renderTargets != null)
+            {
+                for (int i = 0;i  < renderTargets.Length;i++)
+                {
+                    renderTargets[i].Dispose();
+                }
+            }
+            renderTargets = new RenderTarget2D[ImageCount];
+            for (int i = 0; i < renderTargets.Length; i++)
+            {
+                renderTargets[i] = new RenderTarget2D(application, new Texture2D(application, images[i].Handle, imageExtents.Width, imageExtents.Height, Converters.VkFormatToImageFormat(imageFormat)));
+            }
+            /*if (imageFrameBuffers != null)
             {
                 for (int i = 0; i < imageFrameBuffers.Length; i++)
                 {
@@ -246,19 +262,23 @@ namespace Somnium.Framework.Vulkan
             for (int i = 0; i < imageFrameBuffers.Length; i++)
             {
                 imageFrameBuffers[i] = VkFramebuffer.Create(imageDatas[i], renderPass, imageExtents.Width, imageExtents.Height);
-            }
+            }*/
         }
 
         public void Dispose()
         {
             vk.DeviceWaitIdle(device);
-            for (int i = 0; i < imageFrameBuffers.Length; i++)
+            /*for (int i = 0; i < imageFrameBuffers.Length; i++)
             {
                 imageFrameBuffers[i].Dispose();
             }
             for (int i = 0; i < imageDatas.Length; i++)
             {
                 imageDatas[i].Dispose();
+            }*/
+            for (int i =0; i<renderTargets.Length; i++)
+            {
+                renderTargets[i].Dispose();
             }
             if (handle.Handle != 0)
             {

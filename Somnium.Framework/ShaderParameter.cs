@@ -248,15 +248,6 @@ namespace Somnium.Framework
             return new ShaderParameter(collection, name, index, type, (uint)size, arrayLength);
         }
 
-        public static readonly DescriptorType[] UniformTypeToVkDescriptorType = new DescriptorType[]
-        {
-            DescriptorType.UniformBuffer,
-            DescriptorType.SampledImage,
-            DescriptorType.StorageImage,
-            DescriptorType.Sampler,
-            DescriptorType.CombinedImageSampler
-        };
-
         public void Dispose()
         {
             uniformBuffer?.Dispose();

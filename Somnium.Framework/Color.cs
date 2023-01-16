@@ -1743,7 +1743,7 @@ namespace Somnium.Framework
         /// <returns>A <see cref="Vector3"/> representation for this object.</returns>
         public Vector3 ToVector3()
         {
-            return new Vector3(R / 255.0f, G / 255.0f, B / 255.0f);
+            return new Vector3((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f);
         }
 
         /// <summary>
@@ -1752,7 +1752,7 @@ namespace Somnium.Framework
         /// <returns>A <see cref="Vector4"/> representation for this object.</returns>
         public Vector4 ToVector4()
         {
-            return new Vector4(R / 255.0f, G / 255.0f, B / 255.0f, A / 255.0f);
+            return new Vector4((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f, (float)A / 255.0f);
         }
 
         /// <summary>

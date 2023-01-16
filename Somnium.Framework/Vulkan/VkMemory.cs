@@ -17,7 +17,7 @@ namespace Somnium.Framework.Vulkan
         {
             get
             {
-                return !memory.isDisposed;
+                return memory != null && !memory.isDisposed;
             }
         }
 

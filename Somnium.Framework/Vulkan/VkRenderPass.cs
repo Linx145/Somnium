@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using System;
+using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -25,6 +26,8 @@ namespace Somnium.Framework.Vulkan
         {
             return pass.handle;
         }
+        public RenderPassBeginInfo beginInfo;
+        public bool begun { get; private set; }
         /// <summary>
         /// Creates a new renderpass for rendering into a framebuffer
         /// </summary>
@@ -93,25 +96,59 @@ namespace Somnium.Framework.Vulkan
 
             return result;
         }
+        /// <summary>
+        /// Begins the render pass with data in beginInfo
+        /// </summary>
+        /// <param name="cmdBuffer"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void Begin(VkCommandBuffer cmdBuffer)
+        {
+            if (begun)
+            {
+                throw new InvalidOperationException("Vulkan render pass already began!");
+            }
+            //use inline for primary command buffers
+            vk.CmdBeginRenderPass(cmdBuffer, in beginInfo, SubpassContents.Inline);
+
+            begun = true;
+        }
+        /// <summary>
+        /// Begins the renderpass with data specified in arguments
+        /// </summary>
+        /// <param name="cmdBuffer"></param>
+        /// <param name="swapchain"></param>
+        /// <param name="clearColor"></param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Begin(VkCommandBuffer cmdBuffer, SwapChain swapchain, Color clearColor)
         {
-            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
+            if (begun)
+            {
+                throw new InvalidOperationException("Vulkan render pass already began!");
+            }
+            ClearValue clearValue = new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, 1f));
+
+            beginInfo = new RenderPassBeginInfo();
             beginInfo.SType = StructureType.RenderPassBeginInfo;
             beginInfo.RenderPass = handle;
             beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
             beginInfo.RenderArea = new Rect2D(default, swapchain.imageExtents);
             beginInfo.ClearValueCount = 1;
-
-            ClearValue clearValue = new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, clearColor.A / 255f));
-
             beginInfo.PClearValues = &clearValue;
 
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(cmdBuffer, in beginInfo, SubpassContents.Inline);
+
+            begun = true;
         }
         public void End(VkCommandBuffer cmdBuffer)
         {
+            if (!begun)
+            {
+                throw new InvalidOperationException("Render pass not yet begun!");
+            }
             vk.CmdEndRenderPass(cmdBuffer);
+
+            begun = false;
         }
         public void Dispose()
         {

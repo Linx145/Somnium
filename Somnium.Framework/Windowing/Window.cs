@@ -7,6 +7,8 @@ namespace Somnium.Framework.Windowing
 {
     public abstract unsafe class Window : IDisposable
     {
+        public Application application;
+        public Color clearColor = Color.CornflowerBlue;//new Color(50, 50, 50);
         public abstract string Title { get; set; }
         public abstract Point Size { get; set; }
         public abstract Point Position { get; set; }

@@ -118,7 +118,7 @@ namespace Somnium.Framework.Windowing
 
         public GlfwContext GLContext { get; private set; }
 
-        public static WindowGLFW New(Point windowSize, string title, Backends backend)
+        public static WindowGLFW New(Application application, Point windowSize, string title, Backends backend)
         {
             if (!SomniumGLFW.initialized)
             {
@@ -129,6 +129,7 @@ namespace Somnium.Framework.Windowing
                 }
             }
             WindowGLFW window = new WindowGLFW();
+            window.application = application;
             window.internalSize = windowSize;
             window.internalTitle = title;
 
