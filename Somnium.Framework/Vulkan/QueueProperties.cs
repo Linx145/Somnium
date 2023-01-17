@@ -32,6 +32,68 @@ namespace Somnium.Framework.Vulkan
             dedicatedTransferQueueIndex = null;
         }
 
+        public unsafe uint? GetQueue(in PhysicalDevice device, CommandQueueType queueType)
+        {
+            switch (queueType)
+            {
+                case CommandQueueType.GeneralPurpose:
+                    return GetGeneralPurposeQueue(in device);
+                case CommandQueueType.Transfer:
+                    return GetTransferQueue(in device);
+                case CommandQueueType.Graphics:
+                    return GetGraphicsQueue(in device, false);
+                default:
+                    throw new System.NotImplementedException();
+            }
+        }
+        public unsafe uint? GetGraphicsQueue(in PhysicalDevice device, bool mustPresent = true)
+        {
+            if (dedicatedGraphicsQueueIndex != null)
+            {
+                return dedicatedGraphicsQueueIndex;
+            }
+
+            int maxScore = int.MinValue;
+            for (uint i = 0; i < properties.Length; i++)
+            {
+                ref readonly var property = ref properties[i];
+                if (mustPresent)
+                {
+                    Bool32 isSupported = new Bool32(false);
+                    VkEngine.KhrSurfaceAPI.GetPhysicalDeviceSurfaceSupport(device, i, VkEngine.WindowSurface, &isSupported);
+                    if (!isSupported)
+                    {
+                        continue;
+                    }
+                }
+                int score = 0;
+                //if we dont have a transfer bit, dont bother with this queue
+                if ((property.QueueFlags & QueueFlags.GraphicsBit) == 0)
+                {
+                    continue;
+                }
+                if ((property.QueueFlags & QueueFlags.TransferBit) != 0)
+                {
+                    score--;
+                }
+                if ((property.QueueFlags & QueueFlags.ComputeBit) != 0)
+                {
+                    score--;
+                }
+                //ignore sparse binding bit
+                /*if ((property.QueueFlags & QueueFlags.SparseBindingBit) != 0)
+                {
+                    score--;
+                }*/
+
+                if (score > maxScore)
+                {
+                    maxScore = score;
+                    dedicatedGraphicsQueueIndex = i;
+                }
+            }
+            return dedicatedGraphicsQueueIndex;
+        }
         public unsafe uint? GetTransferQueue(in PhysicalDevice device, bool mustPresent = false)
         {
             if (dedicatedTransferQueueIndex != null)

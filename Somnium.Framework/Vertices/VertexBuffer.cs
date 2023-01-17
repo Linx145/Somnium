@@ -49,7 +49,7 @@ namespace Somnium.Framework
                             vertices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                             stagingMemoryRegion.Unbind();
 
-                            CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
+                            CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
 
                             VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                             stagingMemoryRegion.Free();
@@ -64,14 +64,14 @@ namespace Somnium.Framework
                 }
             }
         }
-        public static void CopyData(Backends runningBackend, bool isDynamic, ulong fromHandle, ulong toHandle, ulong copySize)
+        public static void CopyData(Application application, bool isDynamic, ulong fromHandle, ulong toHandle, ulong copySize)
         {
-            switch (runningBackend)
+            switch (application.runningBackend)
             {
                 case Backends.Vulkan:
                     if (!isDynamic)
                     {
-                        VkEngine.StaticCopyResourceBuffer(new Buffer(fromHandle), new Buffer(toHandle), copySize);
+                        VkEngine.StaticCopyResourceBuffer(application, new Buffer(fromHandle), new Buffer(toHandle), copySize);
                     }
                     else throw new NotImplementedException();
                     break;

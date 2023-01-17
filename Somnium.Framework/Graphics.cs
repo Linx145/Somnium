@@ -24,7 +24,7 @@ namespace Somnium.Framework
                         Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
                         {
-                            VkEngine.vk.CmdBindVertexBuffers(VkEngine.commandBuffer, 0, &vkBuffer, noOffset.AsSpan());
+                            VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), 0, &vkBuffer, noOffset.AsSpan());
                         }
                             break;
                     default:
@@ -42,7 +42,7 @@ namespace Somnium.Framework
                         Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
                         {
-                            VkEngine.vk.CmdBindIndexBuffer(VkEngine.commandBuffer, vkBuffer, 0, IndexType.Uint16);
+                            VkEngine.vk.CmdBindIndexBuffer(new CommandBuffer(VkEngine.commandBuffer.handle), vkBuffer, 0, IndexType.Uint16);
                         }
                         break;
                     default:
@@ -81,7 +81,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        VkEngine.vk.CmdDraw(VkEngine.commandBuffer, vertexCount, instanceCount, 0, 0);
+                        VkEngine.vk.CmdDraw(new CommandBuffer(VkEngine.commandBuffer.handle), vertexCount, instanceCount, 0, 0);
                         break;
                     default:
                         throw new NotImplementedException();
@@ -95,7 +95,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        VkEngine.vk.CmdDrawIndexed(VkEngine.commandBuffer, indexCount, instanceCount, 0, 0, 0);
+                        VkEngine.vk.CmdDrawIndexed(new CommandBuffer(VkEngine.commandBuffer.handle), indexCount, instanceCount, 0, 0, 0);
                         break;
                     default:
                         throw new NotImplementedException();

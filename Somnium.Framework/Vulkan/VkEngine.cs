@@ -72,8 +72,8 @@ namespace Somnium.Framework.Vulkan
                 //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
-                CreateCommandPool();
-                CreateCommandBuffer();
+                CreateCommandPool(window.application);
+                CreateCommandBuffer(window.application);
                 CreateSynchronizers();
             }
         }
@@ -129,10 +129,8 @@ namespace Somnium.Framework.Vulkan
             }
 
             submitInfo.CommandBufferCount = 1;
-            fixed (CommandBuffer* ptr = &commandBuffer.handle)
-            {
-                submitInfo.PCommandBuffers = ptr;
-            }
+            CommandBuffer cmdBuffer = new CommandBuffer(commandBuffer.handle);
+            submitInfo.PCommandBuffers = &cmdBuffer;
 
             if (vk.QueueSubmit(CurrentGPU.AllPurposeQueue, 1, in submitInfo, fence) != Result.Success)
             {
@@ -471,22 +469,27 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region command pools(memory) and command buffers
-        static CommandPoolCreateInfo poolCreateInfo;
-        static CommandPool commandPool;
 
-        static CommandPoolCreateInfo transientTransferPoolCreateInfo;
-        /// <summary>
-        /// the transient command pool is a pool for short lived command buffers that are created on the fly, submitted then deleted.
-        /// </summary>
+        static CommandRegistrar commandPool;
+        static CommandRegistrar transientTransferCommandPool;
+        static CommandRegistrar transientGraphicsCommandPool;
+
+        public static CommandCollection commandBuffer;
+
+        /*static CommandPool commandPool;
+
         static CommandPool transientTransferCommandPool;
 
-        static CommandPoolCreateInfo transientGraphicsPoolCreateInfo;
         static CommandPool transientGraphicsCommandPool;
 
-        public static VkCommandBuffer commandBuffer;
-        public static void CreateCommandPool()
+        public static VkCommandBuffer commandBuffer;*/
+
+        public static void CreateCommandPool(Application application)
         {
-            poolCreateInfo = new CommandPoolCreateInfo();
+            commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
+            transientGraphicsCommandPool = new CommandRegistrar(application, true, CommandQueueType.Graphics);
+            transientTransferCommandPool = new CommandRegistrar(application, true, CommandQueueType.Transfer);
+            /*var poolCreateInfo = new CommandPoolCreateInfo();
             poolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
             //we reset our command buffers every frame individually, so use this
             poolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit;
@@ -500,8 +503,7 @@ namespace Somnium.Framework.Vulkan
                     throw new InitializationException("Failed to create general Vulkan Command Pool!");
                 }
             }
-
-            transientTransferPoolCreateInfo = new CommandPoolCreateInfo();
+            var transientTransferPoolCreateInfo = new CommandPoolCreateInfo();
             transientTransferPoolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
             transientTransferPoolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit | CommandPoolCreateFlags.TransientBit;
             transientTransferPoolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetTransferQueue(CurrentGPU.Device)!.Value;
@@ -514,7 +516,7 @@ namespace Somnium.Framework.Vulkan
                 }
             }
 
-            transientGraphicsPoolCreateInfo = new CommandPoolCreateInfo();
+            var transientGraphicsPoolCreateInfo = new CommandPoolCreateInfo();
             transientGraphicsPoolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
             transientGraphicsPoolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit | CommandPoolCreateFlags.TransientBit;
             transientGraphicsPoolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetGeneralPurposeQueue(CurrentGPU.Device, mustPresent:false)!.Value;
@@ -525,18 +527,19 @@ namespace Somnium.Framework.Vulkan
                 {
                     throw new InitializationException("Failed to create transient graphics Vulkan Command Pool!");
                 }
-            }
+            }*/
         }
-        public static void CreateCommandBuffer()
+        public static void CreateCommandBuffer(Application application)
         {
-            commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
+            commandBuffer = new CommandCollection(application, commandPool);
+            //commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
         }
         public static CommandBuffer CreateTransientCommandBuffer(bool alsoBeginBuffer, bool forGraphics = false)
         {
             CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
             allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
             allocateInfo.Level = CommandBufferLevel.Primary;
-            allocateInfo.CommandPool = forGraphics ? transientGraphicsCommandPool : transientTransferCommandPool;
+            allocateInfo.CommandPool = forGraphics ? new CommandPool(transientGraphicsCommandPool.handle) : new CommandPool(transientTransferCommandPool.handle);
             allocateInfo.CommandBufferCount = 1;
 
             CommandBuffer transientBuffer;
@@ -601,7 +604,7 @@ namespace Somnium.Framework.Vulkan
         /// Copies a resource(AKA Vertex, index etc etc) buffer by creating a command buffer, sending a command, submitting it and deleting it.
         /// Thus, not to be called every frame.
         /// </summary>
-        public static void StaticCopyResourceBuffer(Buffer from, Buffer to, ulong copySize)
+        public static void StaticCopyResourceBuffer(Application application, Buffer from, Buffer to, ulong copySize)
         {
             /*CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
             allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
@@ -622,7 +625,7 @@ namespace Somnium.Framework.Vulkan
             var bufferCopyInfo = new BufferCopy(0, 0, copySize);
             vk.CmdCopyBuffer(transientBuffer, from, to, 1, in bufferCopyInfo);
 
-            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, transientTransferCommandPool);
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
         #endregion
 
@@ -780,7 +783,7 @@ namespace Somnium.Framework.Vulkan
                 destinationStage = PipelineStageFlags.TransferBit;
 
                 queue = CurrentGPU.DedicatedTransferQueue;
-                commandPool = transientTransferCommandPool;
+                commandPool = new CommandPool(transientTransferCommandPool.handle);
             }
             else if (oldLayout == ImageLayout.TransferDstOptimal && newLayout == ImageLayout.ShaderReadOnlyOptimal)
             {
@@ -794,7 +797,7 @@ namespace Somnium.Framework.Vulkan
                 destinationStage = PipelineStageFlags.FragmentShaderBit;
 
                 queue = CurrentGPU.AllPurposeQueue;
-                commandPool = transientGraphicsCommandPool;
+                commandPool = new CommandPool(transientGraphicsCommandPool.handle);
             }
             else
             {
@@ -835,7 +838,7 @@ namespace Somnium.Framework.Vulkan
                 &bufferImageCopy
              );
 
-            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, transientTransferCommandPool);
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
         #endregion
 
@@ -855,9 +858,12 @@ namespace Somnium.Framework.Vulkan
                 vk.DestroySemaphore(vkDevice, presentSemaphore, null);
                 vk.DestroySemaphore(vkDevice, renderSemaphore, null);
                 vk.DestroyFence(vkDevice, fence, null);
-                vk.DestroyCommandPool(vkDevice, commandPool, null);
-                vk.DestroyCommandPool(vkDevice, transientTransferCommandPool, null);
-                vk.DestroyCommandPool(vkDevice, transientGraphicsCommandPool, null);
+                commandPool.Dispose();
+                transientTransferCommandPool.Dispose();
+                transientGraphicsCommandPool.Dispose();
+                //vk.DestroyCommandPool(vkDevice, new CommandPool(commandPool.handle), null);
+                //vk.DestroyCommandPool(vkDevice, new CommandPool(transientTransferCommandPool.handle), null);
+                //vk.DestroyCommandPool(vkDevice, new CommandPool(transientGraphicsCommandPool.handle), null);
                 //vk.DestroyPipelineLayout(vkDevice, TrianglePipelineLayout, null);
                 //TrianglePipeline.Dispose();
                 swapChain.Dispose();

@@ -413,12 +413,12 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public unsafe void Bind(VkCommandBuffer commandBuffer, RenderStage bindType)
+        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
         {
-            vk.CmdBindPipeline(commandBuffer.handle, Converters.RenderStageToBindPoint[(int)bindType], handle);
+            vk.CmdBindPipeline(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], handle);
             fixed (DescriptorSet* ptr = descriptorSets)
             {
-                vk.CmdBindDescriptorSets(commandBuffer.handle, Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+                vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
             }
         }
 

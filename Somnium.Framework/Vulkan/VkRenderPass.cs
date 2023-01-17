@@ -101,14 +101,14 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="cmdBuffer"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(VkCommandBuffer cmdBuffer)
+        public void Begin(CommandCollection cmdBuffer)
         {
             if (begun)
             {
                 throw new InvalidOperationException("Vulkan render pass already began!");
             }
             //use inline for primary command buffers
-            vk.CmdBeginRenderPass(cmdBuffer, in beginInfo, SubpassContents.Inline);
+            vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
 
             begun = true;
         }
@@ -119,7 +119,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(VkCommandBuffer cmdBuffer, SwapChain swapchain, Color clearColor)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor)
         {
             if (begun)
             {
@@ -136,17 +136,17 @@ namespace Somnium.Framework.Vulkan
             beginInfo.PClearValues = &clearValue;
 
             //use inline for primary command buffers
-            vk.CmdBeginRenderPass(cmdBuffer, in beginInfo, SubpassContents.Inline);
+            vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
 
             begun = true;
         }
-        public void End(VkCommandBuffer cmdBuffer)
+        public void End(CommandCollection cmdBuffer)
         {
             if (!begun)
             {
                 throw new InvalidOperationException("Render pass not yet begun!");
             }
-            vk.CmdEndRenderPass(cmdBuffer);
+            vk.CmdEndRenderPass(new CommandBuffer(cmdBuffer.handle));
 
             begun = false;
         }

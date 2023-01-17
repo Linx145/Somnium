@@ -72,7 +72,7 @@ namespace Somnium.Framework
 
                             //Since there is no distinction between vertex and index buffers in Vulkan
                             //up until the point where we utilise them, we can share the same copy code
-                            VertexBuffer.CopyData(Backends.Vulkan, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
+                            VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
 
                             VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                             stagingMemoryRegion.Free();
