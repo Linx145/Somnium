@@ -9,10 +9,10 @@ namespace Somnium.Framework
     {
         Application application;
         public nint handle;
-        public CommandMemoryPool memoryPool;
+        public CommandRegistrar memoryPool;
         public bool usedForDirectSubmission;
 
-        public CommandCollection(Application application, CommandMemoryPool memoryPool, bool usedForDirectSubmission = true)
+        public CommandCollection(Application application, CommandRegistrar memoryPool, bool usedForDirectSubmission = true)
         {
             this.application = application;
             this.memoryPool = memoryPool;

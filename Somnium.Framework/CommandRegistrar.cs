@@ -11,7 +11,7 @@ namespace Somnium.Framework
     /// <summary>
     /// A pool to allocate command collections from.
     /// </summary>
-    public class CommandMemoryPool : IDisposable
+    public class CommandRegistrar : IDisposable
     {
         private Application application;
         public ulong handle;
@@ -25,7 +25,7 @@ namespace Somnium.Framework
         /// The command queue that command collections allocated from this pool should utilise
         /// </summary>
         public readonly CommandQueueType commandQueueType;
-        public CommandMemoryPool(Application application, bool isForTransientCommands, CommandQueueType commandQueueType)
+        public CommandRegistrar(Application application, bool isForTransientCommands, CommandQueueType commandQueueType)
         {
             this.application = application;
             this.isForTransientCommands = isForTransientCommands;
