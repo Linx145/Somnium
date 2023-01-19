@@ -135,7 +135,7 @@ namespace Somnium.Framework
                         {
                             fences[i] = VkEngine.frames[i].fence;
                         }
-                        VkEngine.vk.WaitForFences(VkEngine.vkDevice, 1, fences, new Bool32(true), uint.MaxValue);
+                        VkEngine.vk.WaitForFences(VkEngine.vkDevice, (uint)Window.maxSimultaneousFrames, fences, new Bool32(true), uint.MaxValue);
                     }
                     break;
             }
