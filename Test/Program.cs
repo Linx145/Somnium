@@ -1,4 +1,5 @@
 ﻿using Somnium.Framework;
+using Somnium.Framework.Windowing;
 using System;
 using System.Numerics;
 
@@ -21,7 +22,7 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan))
+            using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan, 2))
             {
                 application.OnLoad = OnLoad;
                 application.Update = Update;
@@ -59,31 +60,31 @@ namespace Test
             indexBuffer.SetData(indices, 0, 12);
 
             shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
-            shader.shader1Params.AddParameter<WorldViewProjection>("ubo", 0, UniformType.uniformBuffer);
-            shader.shader2Params.AddTexture2DParameter("texSampler", 1, 1);
+            shader.shader1Params.AddParameter<WorldViewProjection>("ubo", 0);
+            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             //shader.shader1Params.Construct();
             //shader.shader2Params.Construct();
             shader.ConstructParams();
 
             state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 
+            using (FileStream stream = File.OpenRead("Content/tbh.png"))
+            {
+                texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
+            }
+        }
+
+        private static void Draw(float deltaTime)
+        {
+            shader.SetUniform("texSampler", texture);
             float width = 2f;
             float height = 2f * (9f / 16f);
             shader.SetUniform("ubo", new WorldViewProjection(
                 Matrix4x4.Identity,
                 Matrix4x4.Identity,
                 Matrix4x4.CreateOrthographicOffCenter(-width, width, -height, height, -1f, 1f)
-                ), 1);
+                ));
 
-            using (FileStream stream = File.OpenRead("Content/tbh.png"))
-            {
-                texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
-            }
-            shader.SetUniform("texSampler", texture, 2);
-        }
-
-        private static void Draw(float deltaTime)
-        {
             state.Bind();
 
             Graphics.SetVertexBuffer(vb);

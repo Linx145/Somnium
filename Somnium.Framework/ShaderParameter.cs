@@ -2,28 +2,26 @@
 using Somnium.Framework.Vulkan;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using Somnium.Framework.Windowing;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
-    public class ShaderParameterCollection : IDisposable
+    public class ShaderParameterCollection// : IDisposable
     {
         public int Count => parameters.Count;
         private Dictionary<string, int> map;
         private UnorderedList<ShaderParameter> parameters;
         public readonly Shader shader;
-        internal readonly Application application;
+        private readonly Application application;
         public readonly ShaderType shaderType;
         public bool constructed { get; private set; } = false;
 
-        private uint maxWidth;
-
-        public ShaderParameterCollection(Shader shader, ShaderType shaderType, Application application)
+        public ShaderParameterCollection(Application application, Shader shader, ShaderType shaderType)
         {
+            this.application = application;
             this.shader = shader;
             this.shaderType = shaderType;
-            this.application = application;
             map = new Dictionary<string, int>();
             parameters = new UnorderedList<ShaderParameter>();
         }
@@ -43,85 +41,48 @@ namespace Somnium.Framework
         /// <param name="param"></param>
         public void AddParameter(string name, uint index, UniformType type, uint size, uint arrayLength = 0)
         {
-            ShaderParameter param = new ShaderParameter(this, name, index, type, size, arrayLength);
-            param.offset = maxWidth;
-            maxWidth += param.size;
+            ShaderParameter param = new ShaderParameter(application.Window, this, name, index, type, size, arrayLength);
+            param.offset = shader.bufferSize;
+            shader.bufferSize += param.size;
             AddParameter(param);
         }
         /// <summary>
         /// Adds a parameter to the shader to be constructed.
         /// </summary>
         /// <param name="param"></param>
-        public void AddParameter<T>(string name, uint index, UniformType type, uint arrayLength = 0) where T : unmanaged
+        public void AddParameter<T>(string name, uint index, UniformType type = UniformType.uniformBuffer, uint arrayLength = 0) where T : unmanaged
         {
             unsafe
             {
                 AddParameter(name, index, type, (uint)sizeof(T), arrayLength);
             }
         }
-        public void AddTexture2DParameter(string name, uint index, uint arrayLength)
+        public void AddTexture2DParameter(string name, uint index, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(this, name, index, UniformType.imageAndSampler, 0, arrayLength);
+            ShaderParameter param = new ShaderParameter(application.Window, this, name, index, UniformType.imageAndSampler, 0, arrayLength);
             AddParameter(param);
             //param.offset = maxWidth;
             //maxWidth += param.size;
         }
         public ReadOnlySpan<ShaderParameter> GetParameters() => parameters.AsReadonlySpan();
-        /*public void Construct()
+        public void HasUniform(string paramName) => map.ContainsKey(paramName);
+        public bool Set<T>(string paramName, T value) where T : unmanaged
         {
-            if (constructed)
+            if (map.TryGetValue(paramName, out var index))
             {
-                throw new InvalidOperationException("Shader parameter collection already built!");
+                Set(index, value);
+                return true;
             }
-            if (map.Count == 0)
-            {
-                throw new AssetCreationException("Attempting to construct a shader parameter collection without any parameters!");
-            }
-            switch (application.runningBackend)
-            {
-                case Backends.Vulkan:
-                    unsafe
-                    {
-                        DescriptorSetLayoutBinding* bindings = stackalloc DescriptorSetLayoutBinding[map.Count];
-
-                        for (int i = 0; i < parameters.Count; i++)
-                        {
-                            var value = parameters[i];
-                            DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
-                            binding.Binding = value.binding;
-                            binding.DescriptorType = ShaderParameter.UniformTypeToVkDescriptorType[(int)value.type];
-                            //If the binding points to a variable in the shader that is an array, this would be that array's length
-                            binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                            binding.StageFlags = VkGraphicsPipeline.ShaderTypeToFlags[(int)shaderType];
-
-                            *(bindings + i) = binding;
-                        }
-
-                        DescriptorSetLayoutCreateInfo createInfo = new DescriptorSetLayoutCreateInfo();
-                        createInfo.SType = StructureType.DescriptorSetLayoutCreateInfo;
-                        createInfo.BindingCount = (uint)map.Count;
-                        createInfo.PBindings = bindings;
-
-                        DescriptorSetLayout descriptorSetLayout;
-                        if (VkEngine.vk.CreateDescriptorSetLayout(VkEngine.vkDevice, in createInfo, null, &descriptorSetLayout) != Result.Success)
-                        {
-                            throw new AssetCreationException("Failed to create new Shader Parameter Collection!");
-                        }
-                        handle = descriptorSetLayout.Handle;
-                    }
-                    break;
-                default:
-                    break;
-            }
-            constructed = true;
-        }*/
-        public void Set<T>(string paramName, T value) where T: unmanaged
-        {
-            Set(map[paramName], value);
+            else return false;
         }
-        public void Set(string paramName, Texture2D texture)
+        public bool Set(string paramName, Texture2D texture)
         {
-            Set(map[paramName], texture);
+            if (map.TryGetValue(paramName, out var index))
+            {
+                Set(index, texture);
+                return true;
+            }
+            return false;
         }
         public void Set(int paramIndex, Texture2D texture)
         {
@@ -161,7 +122,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.uniformBuffer)
             {
-                param.uniformBuffer.SetData(value);
+                shader.uniformBuffer.SetData(value, param.offset);
 
                 switch (application.runningBackend)
                 {
@@ -169,7 +130,7 @@ namespace Somnium.Framework
                         unsafe
                         {
                             DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                            bufferInfo.Buffer = new Buffer(param.uniformBuffer.handle);//uniformBuffers[i];
+                            bufferInfo.Buffer = new Buffer(shader.uniformBuffer.handle);//uniformBuffers[i];
                             bufferInfo.Offset = param.offset;
                             bufferInfo.Range = param.size;
 
@@ -192,7 +153,7 @@ namespace Somnium.Framework
             }
             else throw new NotImplementedException();
         }
-        public void Dispose()
+        /*public void Dispose()
         {
             switch (application.runningBackend)
             {
@@ -203,16 +164,16 @@ namespace Somnium.Framework
                         {
                             parameters[i].Dispose();
                         }
-                        
                     }
                     break;
                 default:
                     throw new NotImplementedException();
             }
-        }
+        }*/
     }
-    public class ShaderParameter : IDisposable
+    public class ShaderParameter// : IDisposable
     {
+        readonly Window window;
         /// <summary>
         /// The name of the parameter
         /// </summary>
@@ -223,34 +184,57 @@ namespace Somnium.Framework
         public readonly uint size;
         public readonly ShaderParameterCollection collection;
         public uint offset;
-        public UniformBuffer uniformBuffer;
-
-        public ShaderParameter(ShaderParameterCollection collection, string name, uint index, UniformType type, uint size, uint arrayLength = 0)
+        /*public UniformBuffer[] uniformBuffersPerFrame;
+        public UniformBuffer uniformBuffer
         {
+            get
+            {
+                if (uniformBuffersPerFrame == null)
+                {
+                    return null;
+                }
+                return uniformBuffersPerFrame[window.frameNumber];
+            }
+        }*/
+
+        public ShaderParameter(Window window, ShaderParameterCollection collection, string name, uint index, UniformType type, uint size, uint arrayLength = 0)
+        {
+            this.window = window;
             this.type = type;
             this.name = name;
             this.binding = index;
             this.arrayLength = arrayLength;
             this.size = size;
-            if (size != 0)
+            /*if (size != 0)
             {
-                uniformBuffer = new UniformBuffer(collection.application, size);
+                uniformBuffersPerFrame = new UniformBuffer[window.maxSimultaneousFrames];
+                for (int i = 0; i < window.maxSimultaneousFrames; i++)
+                {
+                    uniformBuffersPerFrame[i] = new UniformBuffer(window.application, size);
+                }
+                //uniformBuffer = new UniformBuffer(collection.application, size);
             }
-            else uniformBuffer = null;
+            else uniformBuffersPerFrame = null;*/
         }
-        public static ShaderParameter Create<T>(ShaderParameterCollection collection, string name, uint index, UniformType type, uint arrayLength = 0) where T : unmanaged
+        public static ShaderParameter Create<T>(Window window, ShaderParameterCollection collection, string name, uint index, UniformType type, uint arrayLength = 0) where T : unmanaged
         {
             int size;
             unsafe
             {
                 size = sizeof(T);
             }
-            return new ShaderParameter(collection, name, index, type, (uint)size, arrayLength);
+            return new ShaderParameter(window, collection, name, index, type, (uint)size, arrayLength);
         }
 
-        public void Dispose()
+        /*public void Dispose()
         {
-            uniformBuffer?.Dispose();
-        }
+            if (uniformBuffersPerFrame != null)
+            {
+                for (int i = 0; i < window.maxSimultaneousFrames; i++)
+                {
+                    uniformBuffersPerFrame[i].Dispose();
+                }
+            }
+        }*/
     }
 }

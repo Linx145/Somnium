@@ -47,7 +47,7 @@ namespace Somnium.Framework
 
         public Backends runningBackend { get; private set; }
 
-        public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend)
+        public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend, int maxSimultaneousFrames = 2)
         {
             Application app = new Application();
             app.AppName = AppName;
@@ -55,7 +55,7 @@ namespace Somnium.Framework
             //check for preferredBackend compatibility
             app.runningBackend = preferredBackend;
 
-            app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend);
+            app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend, maxSimultaneousFrames);
 
             app.Graphics = new Graphics(app);
 
@@ -106,14 +106,19 @@ namespace Somnium.Framework
                     }
                     else if (runningBackend == Backends.Vulkan)
                     {
-                        VkEngine.BeginDraw(Window);
+                        VkEngine.BeginDraw();
                     }
 
                     Draw?.Invoke((float)delta);
 
                     if (runningBackend == Backends.Vulkan)
                     {
-                        VkEngine.EndDraw(Window);
+                        VkEngine.EndDraw();
+                    }
+                    Window.frameNumber++;
+                    if (Window.frameNumber >= Window.maxSimultaneousFrames)
+                    {
+                        Window.frameNumber = 0;
                     }
                 }
                 Window.Update();
@@ -123,7 +128,15 @@ namespace Somnium.Framework
             switch (runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.vk.WaitForFences(VkEngine.vkDevice, 1, in VkEngine.fence, new Bool32(true), uint.MaxValue);
+                    unsafe
+                    {
+                        Fence* fences = stackalloc Fence[Window.maxSimultaneousFrames];
+                        for (int i = 0; i < Window.maxSimultaneousFrames; i++)
+                        {
+                            fences[i] = VkEngine.frames[i].fence;
+                        }
+                        VkEngine.vk.WaitForFences(VkEngine.vkDevice, 1, fences, new Bool32(true), uint.MaxValue);
+                    }
                     break;
             }
             Unload?.Invoke();

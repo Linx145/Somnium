@@ -3,11 +3,14 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using System.Runtime.InteropServices;
 using System;
+using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {
     public static unsafe class VkDebug
     {
+        static Window window;
+
         public enum Mode
         {
             /// <summary>
@@ -49,14 +52,16 @@ namespace Somnium.Framework.Vulkan
             }
             else
             {
+                Console.WriteLine("FRAME: " + window.frameNumber);
                 Console.WriteLine(str);
                 Console.WriteLine();
             }
 
             return Vk.False;
         }
-        internal static void InitializeDebugMessenger()
+        internal static void InitializeDebugMessenger(Window appWindow)
         {
+            window = appWindow;
             if (!VkEngine.vk.TryGetInstanceExtension(VkEngine.vkInstance, out debugUtils)) throw new InitializationException("Failed to initialize ExtDebugUtils!");
 
             DebugUtilsMessengerCreateInfoEXT createInfo = new();

@@ -1,8 +1,10 @@
 ﻿using Silk.NET.Vulkan;
+using System;
+using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Somnium.Framework.Vulkan
 {
-    public struct FrameData
+    public class FrameData : IDisposable
     {
         /// <summary>
         /// waited on in the GPU for when presenting the queue
@@ -12,15 +14,45 @@ namespace Somnium.Framework.Vulkan
         /// waited on in the GPU for when submitting the queue
         /// </summary>
         public Semaphore renderSemaphore;
+        /// <summary>
+        /// waited on by the CPU for the render loop to finish rendering and submitting
+        /// </summary>
+        public Fence fence;
 
         //public CommandPoolCreateInfo poolCreateInfo;
-        public CommandPool commandPool;
+        public CommandRegistrar commandPool;
+        public CommandCollection commandBuffer;//CommandRegistrar commandPool;
         //public CommandBuffer commandBuffer;
-        public FrameData(Semaphore presentSemaphore, Semaphore renderSemaphore, CommandPool commandPool)
+
+        public bool isDisposed { get; private set; }
+
+        public FrameData(Application application)//Semaphore presentSemaphore, Semaphore renderSemaphore, CommandPool commandPool)
         {
-            this.presentSemaphore = presentSemaphore;
+            commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
+            commandBuffer = new CommandCollection(application, commandPool, true);
+            presentSemaphore = VkEngine.CreateSemaphore();
+            renderSemaphore = VkEngine.CreateSemaphore();
+            fence = VkEngine.CreateFence();
+
+            /*this.presentSemaphore = presentSemaphore;
             this.renderSemaphore = renderSemaphore;
-            this.commandPool = commandPool;
+            this.commandPool = commandPool;*/
+        }
+
+        public unsafe void Dispose()
+        {
+            if (!isDisposed)
+            {
+                var vk = VkEngine.vk;
+                var vkDevice = VkEngine.vkDevice;
+
+                vk.DestroySemaphore(vkDevice, presentSemaphore, null);
+                vk.DestroySemaphore(vkDevice, renderSemaphore, null);
+                vk.DestroyFence(vkDevice, fence, null);
+
+                commandPool.Dispose();
+                isDisposed = true;
+            }
         }
     }
 }

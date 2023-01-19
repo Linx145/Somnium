@@ -9,6 +9,10 @@ namespace Somnium.Framework
 {
     public sealed class Shader : IDisposable
     {
+        public enum SetNumber
+        {
+            Either, First, Second
+        }
         public const string main = "main";
 
         Application application;
@@ -23,12 +27,29 @@ namespace Somnium.Framework
         public ShaderParameterCollection shader1Params;
         public ShaderParameterCollection shader2Params;
 
+        public uint bufferSize = 0;
+        public UniformBuffer[] uniformBuffersPerFrame;
+        public UniformBuffer uniformBuffer
+        {
+            get
+            {
+                return uniformBuffersPerFrame[application.Window.frameNumber];
+            }
+        }
+
         #region vulkan
         /// <summary>
-        /// The Vulkan descriptor set layout for all this shader's parameters
+        /// The Vulkan descriptor set layout for all this shader's parameters. One copy of the same layout per frame
         /// </summary>
         public DescriptorSetLayout descriptorSetLayout;
-        public DescriptorSet descriptorSet;
+        public DescriptorSet[] descriptorSetsPerFrame;
+        public DescriptorSet descriptorSet
+        {
+            get
+            {
+                return descriptorSetsPerFrame[application.Window.frameNumber];
+            }
+        }
         #endregion
 
         public Shader(Application application, ShaderType Type, byte[] byteCode)
@@ -37,7 +58,7 @@ namespace Somnium.Framework
             this.byteCode = byteCode;
             this.byteCode2 = null;
             this.type = Type;
-            shader1Params = new ShaderParameterCollection(this, Type, application);
+            shader1Params = new ShaderParameterCollection(application, this, Type);
             shader2Params = null;
 
             Construct();
@@ -51,12 +72,12 @@ namespace Somnium.Framework
             switch (type)
             {
                 case ShaderType.VertexAndFragment:
-                    shader1Params = new ShaderParameterCollection(this, ShaderType.Vertex, application);
-                    shader2Params = new ShaderParameterCollection(this, ShaderType.Fragment, application);
+                    shader1Params = new ShaderParameterCollection(application, this, ShaderType.Vertex);
+                    shader2Params = new ShaderParameterCollection(application, this, ShaderType.Fragment);
                     break;
                 case ShaderType.Tessellation:
-                    shader1Params = new ShaderParameterCollection(this, ShaderType.TessellationControl, application);
-                    shader2Params = new ShaderParameterCollection(this, ShaderType.TessellationEvaluation, application);
+                    shader1Params = new ShaderParameterCollection(application, this, ShaderType.TessellationControl);
+                    shader2Params = new ShaderParameterCollection(application, this, ShaderType.TessellationEvaluation);
                     break;
             }
 
@@ -166,10 +187,9 @@ namespace Somnium.Framework
                     case Backends.Vulkan:
                         unsafe
                         {
+                            #region create descriptor set layout
                             DescriptorSetLayoutBinding* bindings = stackalloc DescriptorSetLayoutBinding[maxCount.Value];
 
-                            //if (shader1Params != null)
-                            //{
                             foreach (var value in shader1Params!.GetParameters())
                             {
                                 DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
@@ -208,6 +228,40 @@ namespace Somnium.Framework
                                 throw new AssetCreationException("Failed to create new Shader Parameter Collection!");
                             }
                             this.descriptorSetLayout = descriptorSetLayout;
+                            #endregion
+
+                            uniformBuffersPerFrame = new UniformBuffer[]
+                            {
+                                new UniformBuffer(application, bufferSize, true),
+                                new UniformBuffer(application, bufferSize, true)
+                            };
+
+                            # region create descriptor sets
+                            //we need this so we can fill in the allocate info
+
+                            DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
+                            descriptorSetsPerFrame = new DescriptorSet[application.Window.maxSimultaneousFrames];
+
+                            DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
+                            allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
+                            allocInfo.DescriptorPool = relatedPool;
+                            allocInfo.DescriptorSetCount = (uint)descriptorSetsPerFrame.Length;
+
+                            DescriptorSetLayout* descriptorSetLayoutCopies = stackalloc DescriptorSetLayout[application.Window.maxSimultaneousFrames];
+                            for (int c = 0; c < application.Window.maxSimultaneousFrames; c++)
+                            {
+                                descriptorSetLayoutCopies[c] = descriptorSetLayout;
+                            }
+                            allocInfo.PSetLayouts = descriptorSetLayoutCopies;
+
+                            fixed (DescriptorSet* ptr = descriptorSetsPerFrame)
+                            {
+                                if (VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, ptr) != Result.Success)
+                                {
+                                    throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
+                                }
+                            }
+                            #endregion
                         }
                         break;
                     default:
@@ -220,18 +274,38 @@ namespace Somnium.Framework
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="uniform"></param>
-        /// <param name="shaderNumber">Which uniform buffer should the data be set into. Should be either 1 or 2.</param>
-        public void SetUniform<T>(string uniformName, T uniform, int shaderNumber = 1) where T : unmanaged
+        /// <param name="shaderNumber">Which uniform buffer should the data be set into</param>
+        public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
-            if (shaderNumber == 0 || shaderNumber == 1)
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniform))
+                {
+                    if (!shader2Params.Set(uniformName, uniform))
+                    {
+                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
             {
                 shader1Params.Set(uniformName, uniform);
             }
             else shader2Params.Set(uniformName, uniform);
         }
-        public void SetUniform(string uniformName, Texture2D uniform, int shaderNumber = 1)
+        public void SetUniform(string uniformName, Texture2D uniform, SetNumber shaderNumber = SetNumber.Either)
         {
-            if (shaderNumber == 0 || shaderNumber == 1)
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniform))
+                {
+                    if (!shader2Params.Set(uniformName, uniform))
+                    {
+                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
             {
                 shader1Params.Set(uniformName, uniform);
             }
@@ -256,6 +330,11 @@ namespace Somnium.Framework
         {
             if (!isDisposed)
             {
+                if (uniformBuffersPerFrame != null)
+                {
+                    uniformBuffersPerFrame[0].Dispose();
+                    uniformBuffersPerFrame[1].Dispose();
+                }
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
@@ -265,18 +344,17 @@ namespace Somnium.Framework
                             {
                                 ShaderModule module = new ShaderModule(shaderHandle);
                                 VkEngine.vk.DestroyShaderModule(VkEngine.vkDevice, module, null);
-                                shader1Params?.Dispose();
                             }
                             if (shaderHandle2 != 0)
                             {
                                 ShaderModule module = new ShaderModule(shaderHandle2);
                                 VkEngine.vk.DestroyShaderModule(VkEngine.vkDevice, module, null);
-                                shader2Params?.Dispose();
                             }
                             if (descriptorSetLayout.Handle != 0)
                             {
+                                //only need to destroy one as all members of the array are in fact,
+                                //just copies of one another for use in multiple simultaneous frames
                                 VkEngine.vk.DestroyDescriptorSetLayout(VkEngine.vkDevice, descriptorSetLayout, null);
-                                
                             }  
                         }
                         break;

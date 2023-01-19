@@ -49,7 +49,7 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     if (shaders.Length != 1) throw new NotImplementedException();
 
-                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertexType);
+                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertexType);
                     handle = VkEngine.AddPipeline(pipeline);
                     break;
                 default:

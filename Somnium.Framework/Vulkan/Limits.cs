@@ -13,6 +13,7 @@ namespace Somnium.Framework.Vulkan
         }
         public readonly uint maxMemoryAllocationsCount;
         public readonly ulong minMemoryAllocSize;
+        public readonly ulong minUniformBufferOffsetAlignment;
 
         public readonly PhysicalDeviceLimits limits;
 
@@ -22,6 +23,7 @@ namespace Somnium.Framework.Vulkan
             vk.GetPhysicalDeviceProperties(gpu.Device, out properties);
             maxMemoryAllocationsCount = properties.Limits.MaxMemoryAllocationCount;
             minMemoryAllocSize = properties.Limits.BufferImageGranularity; //1024
+            minUniformBufferOffsetAlignment = properties.Limits.MinUniformBufferOffsetAlignment;
             limits = properties.Limits;
             //PhysicalDeviceLimits
         }

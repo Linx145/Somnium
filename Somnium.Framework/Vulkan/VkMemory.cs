@@ -59,10 +59,10 @@ namespace Somnium.Framework.Vulkan
                     }
                 }
             }
-            fixed (void** ptr = &memory.memoryPtr)
-            {
-                return (T*)((byte*)*ptr + start);
-            }
+            //fixed (void* ptr = memory.memoryPtr)
+            //{
+                return (T*)((byte*)memory.memoryPtr + start);
+            //}
         }
         public unsafe void* Bind()
         {

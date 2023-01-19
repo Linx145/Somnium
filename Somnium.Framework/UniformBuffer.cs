@@ -8,9 +8,13 @@ namespace Somnium.Framework
     public class UniformBuffer : IDisposable
     {
         private readonly Application application;
+        /// <summary>
+        /// Whether the buffer is used to store a single object type, or an entire shader's worth of uniforms
+        /// </summary>
+        public readonly bool isUnified;
 
         public ulong handle;
-        public uint uniformBufferObjectSize;
+        public ulong uniformBufferObjectSize;
 
         public IntPtr bindingPoint;
 
@@ -18,28 +22,33 @@ namespace Somnium.Framework
         AllocatedMemoryRegion memoryRegion;
         #endregion
 
-        public UniformBuffer(Application application, uint uniformBufferObjectSize)
+        public UniformBuffer(Application application, ulong uniformBufferObjectSize, bool isUnified)
         {
             this.application = application;
             this.uniformBufferObjectSize = uniformBufferObjectSize;
+            this.isUnified = isUnified;
 
             Construct();
         }
-        public void SetData<T>(T data) where T : unmanaged
+        public void SetData<T>(T data, ulong offset) where T : unmanaged
         {
 #if DEBUG
-            unsafe
+            if (!isUnified)
             {
-                int sizeofT = sizeof(T);
-                if (sizeofT != uniformBufferObjectSize)
+                unsafe
                 {
-                    throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this uniform buffer (" + uniformBufferObjectSize.ToString() + ")!");
+                    int sizeofT = sizeof(T);
+                    if ((ulong)sizeofT != uniformBufferObjectSize)
+                    {
+                        throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this uniform buffer (" + uniformBufferObjectSize.ToString() + ")!");
+                    }
                 }
             }
 #endif
             unsafe
             {
-                new Span<T>((void*)bindingPoint, 1)[0] = data;
+                *(T*)((byte*)bindingPoint + offset) = data;
+                //new Span<T>((void*)bindingPoint, 1)[0] = data;
             }
         }
         public void Construct()

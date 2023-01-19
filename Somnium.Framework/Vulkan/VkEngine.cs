@@ -36,6 +36,7 @@ namespace Somnium.Framework.Vulkan
                 return internalWindowSurface;
             }
         }
+        public static Window window;
         public static VkGPU CurrentGPU { get; private set; }
         //public static VkGraphicsPipeline TrianglePipeline;
 
@@ -45,12 +46,43 @@ namespace Somnium.Framework.Vulkan
         private static SurfaceKHR internalWindowSurface;
 
         private static GenerationalArray<VkGraphicsPipeline> pipelines = new GenerationalArray<VkGraphicsPipeline>(null);
+        public static FrameData[] frames;
+
+        public static CommandCollection commandBuffer
+        {
+            get
+            {
+                return frames[window.frameNumber].commandBuffer;
+            }
+        }
+        public static ref Fence fence
+        {
+            get
+            {
+                return ref frames[window.frameNumber].fence;
+            }
+        }
+        public static ref Semaphore presentSemaphore
+        {
+            get
+            {
+                return ref frames[window.frameNumber].presentSemaphore;
+            }
+        }
+        public static ref Semaphore renderSemaphore
+        {
+            get
+            {
+                return ref frames[window.frameNumber].renderSemaphore;
+            }
+        }
 
         public static bool initialized { get; private set; }
         internal static bool recreatedSwapChainThisFrame = false;
         private static bool onResized;
-        public static unsafe void Initialize(Window window, string AppName, bool enableValidationLayers = true)
+        public static unsafe void Initialize(Window forWindow, string AppName, bool enableValidationLayers = true)
         {
+            window = forWindow;
             if (!initialized)
             {
                 window.OnResized += OnResized;
@@ -60,24 +92,25 @@ namespace Somnium.Framework.Vulkan
 
                 vk = Vk.GetApi();
 
-                CreateInstance(window);
+                CreateInstance();
                 if (ValidationLayersActive)
                 {
-                    VkDebug.InitializeDebugMessenger();
+                    VkDebug.InitializeDebugMessenger(window);
                 }
-                CreateSurface(window);
+                CreateSurface();
                 CreateLogicalDevice();
-                CreateSwapChain(window); //also creates image views
+                CreateSwapChain(); //also creates image views
                 CreateRenderPass();
                 //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
                 CreateCommandPool(window.application);
-                CreateCommandBuffer(window.application);
-                CreateSynchronizers();
+                CreateFrames(window.application);
+                //CreateCommandBuffer(window.application);
+                //CreateSynchronizers();
             }
         }
-        public static void BeginDraw(Window window)
+        public static void BeginDraw()
         {
             vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
             vk.ResetFences(vkDevice, 1, in fence);
@@ -99,15 +132,15 @@ namespace Somnium.Framework.Vulkan
             //BeginRenderPass(); //also clears the screen
 
         }
-        public static void EndDraw(Window window)
+        public static void EndDraw()
         {
             //EndRenderPass();
             renderPass.End(commandBuffer);
             commandBuffer.End();
 
-            SubmitToGPU(window);
+            SubmitToGPU();
         }
-        public static void SubmitToGPU(Window window)
+        public static void SubmitToGPU()
         {
             //submit what we rendered to the GPU
             SubmitInfo submitInfo = new SubmitInfo();
@@ -191,7 +224,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="window">The window that should be used</param>
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="InitializationException"></exception>
-        private static void CreateInstance(Window window)
+        private static void CreateInstance()
         {
             ApplicationInfo vkApplicationInfo = new ApplicationInfo();
             vkApplicationInfo.SType = StructureType.ApplicationInfo;
@@ -208,7 +241,7 @@ namespace Somnium.Framework.Vulkan
 
             //get the required window extensions needed to hook the app in, plus additional stuff to get
             //optional modules like Validation Layer Debug Messengers up and running
-            requiredInstanceExtensions = GetRequiredInstanceExtensions(window);
+            requiredInstanceExtensions = GetRequiredInstanceExtensions();
             
             vkInstanceCreateInfo.EnabledExtensionCount = (uint)requiredInstanceExtensions.Length;
             requiredInstanceExtensionsPtr = (byte**)SilkMarshal.StringArrayToPtr(requiredInstanceExtensions);
@@ -248,7 +281,7 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region surface creation
-        private static void CreateSurface(Window window)
+        private static void CreateSurface()
         {
             //windowSurface = window.CreateWindowSurfaceVulkan();
             if (!vk.TryGetInstanceExtension(vkInstance, out KhrSurfaceAPI))
@@ -334,7 +367,7 @@ namespace Somnium.Framework.Vulkan
         #region extensions
         public static string[] requiredInstanceExtensions;
         private static byte** requiredInstanceExtensionsPtr;
-        private static string[] GetRequiredInstanceExtensions(Window window)
+        private static string[] GetRequiredInstanceExtensions()
         {
             var glfwExtensions = window.GetRequiredExtensions(out var glfwExtensionCount);
             var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount);
@@ -439,7 +472,7 @@ namespace Somnium.Framework.Vulkan
         }
         private static SwapChain swapChain;
         private static PresentModeKHR internalPreferredPresentMode = PresentModeKHR.MailboxKhr;
-        public static void CreateSwapChain(Window window)
+        public static void CreateSwapChain()
         {
             if (KhrSwapchainAPI == null)
             {
@@ -468,72 +501,24 @@ namespace Somnium.Framework.Vulkan
         public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
         #endregion
 
-        #region command pools(memory) and command buffers
+        #region command pools(memory)
 
-        static CommandRegistrar commandPool;
-        static CommandRegistrar transientTransferCommandPool;
-        static CommandRegistrar transientGraphicsCommandPool;
+        public static CommandRegistrar commandPool;
+        public static CommandRegistrar transientTransferCommandPool;
+        public static CommandRegistrar transientGraphicsCommandPool;
 
-        public static CommandCollection commandBuffer;
-
-        /*static CommandPool commandPool;
-
-        static CommandPool transientTransferCommandPool;
-
-        static CommandPool transientGraphicsCommandPool;
-
-        public static VkCommandBuffer commandBuffer;*/
+        //public static CommandCollection commandBuffer;
 
         public static void CreateCommandPool(Application application)
         {
-            commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
+            //commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
             transientGraphicsCommandPool = new CommandRegistrar(application, true, CommandQueueType.Graphics);
             transientTransferCommandPool = new CommandRegistrar(application, true, CommandQueueType.Transfer);
-            /*var poolCreateInfo = new CommandPoolCreateInfo();
-            poolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
-            //we reset our command buffers every frame individually, so use this
-            poolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit;
-            //TODO: update to specific queues
-            poolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetGeneralPurposeQueue(CurrentGPU.Device)!.Value;
-
-            fixed (CommandPool* ptr = &commandPool)
-            {
-                if (vk.CreateCommandPool(vkDevice, in poolCreateInfo, null, ptr) != Result.Success)
-                {
-                    throw new InitializationException("Failed to create general Vulkan Command Pool!");
-                }
-            }
-            var transientTransferPoolCreateInfo = new CommandPoolCreateInfo();
-            transientTransferPoolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
-            transientTransferPoolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit | CommandPoolCreateFlags.TransientBit;
-            transientTransferPoolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetTransferQueue(CurrentGPU.Device)!.Value;
-
-            fixed (CommandPool* ptr = &transientTransferCommandPool)
-            {
-                if (vk.CreateCommandPool(vkDevice, in transientTransferPoolCreateInfo, null, ptr) != Result.Success)
-                {
-                    throw new InitializationException("Failed to create transient transfer Vulkan Command Pool!");
-                }
-            }
-
-            var transientGraphicsPoolCreateInfo = new CommandPoolCreateInfo();
-            transientGraphicsPoolCreateInfo.SType = StructureType.CommandPoolCreateInfo;
-            transientGraphicsPoolCreateInfo.Flags = CommandPoolCreateFlags.ResetCommandBufferBit | CommandPoolCreateFlags.TransientBit;
-            transientGraphicsPoolCreateInfo.QueueFamilyIndex = CurrentGPU.queueInfo.GetGeneralPurposeQueue(CurrentGPU.Device, mustPresent:false)!.Value;
-
-            fixed (CommandPool* ptr = &transientGraphicsCommandPool)
-            {
-                if (vk.CreateCommandPool(vkDevice, in transientGraphicsPoolCreateInfo, null, ptr) != Result.Success)
-                {
-                    throw new InitializationException("Failed to create transient graphics Vulkan Command Pool!");
-                }
-            }*/
         }
-        public static void CreateCommandBuffer(Application application)
+        /*public static void CreateCommandBuffer(Application application)
         {
             commandBuffer = new CommandCollection(application, commandPool);
-            //commandBuffer = VkCommandBuffer.Create(commandPool, CommandBufferLevel.Primary);
-        }
+        }*/
         public static CommandBuffer CreateTransientCommandBuffer(bool alsoBeginBuffer, bool forGraphics = false)
         {
             CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
@@ -584,6 +569,17 @@ namespace Somnium.Framework.Vulkan
         }
         #endregion
 
+        #region simultaneous frames
+        public static void CreateFrames(Application application)
+        {
+            frames = new FrameData[window.maxSimultaneousFrames];
+            for (int i = 0; i < window.maxSimultaneousFrames; i++)
+            {
+                frames[i] = new FrameData(application);
+            }
+        }
+        #endregion
+
         #region Resource Buffers
         public static unsafe Buffer CreateResourceBuffer(ulong size, BufferUsageFlags usageFlags)
         {
@@ -606,20 +602,6 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         public static void StaticCopyResourceBuffer(Application application, Buffer from, Buffer to, ulong copySize)
         {
-            /*CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
-            allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
-            allocateInfo.Level = CommandBufferLevel.Primary;
-            allocateInfo.CommandPool = transientCommandPool;
-            allocateInfo.CommandBufferCount = 1;
-
-            CommandBuffer transientBuffer;
-            vk.AllocateCommandBuffers(vkDevice, in allocateInfo, &transientBuffer);
-
-            CommandBufferBeginInfo beginInfo = new CommandBufferBeginInfo();
-            beginInfo.SType = StructureType.CommandBufferBeginInfo;
-            beginInfo.Flags = CommandBufferUsageFlags.OneTimeSubmitBit;
-
-            vk.BeginCommandBuffer(transientBuffer, in beginInfo);*/
             var transientBuffer = CreateTransientCommandBuffer(true);
 
             var bufferCopyInfo = new BufferCopy(0, 0, copySize);
@@ -627,32 +609,35 @@ namespace Somnium.Framework.Vulkan
 
             EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
+        public static ulong GetSafeUniformBufferSize(ulong originalSize)
+        {
+            var minUniformBufferAlignment = CurrentGPU.limits.minUniformBufferOffsetAlignment;
+            var alignedSize = originalSize;
+            if (minUniformBufferAlignment > 0)
+            {
+                alignedSize = (alignedSize + minUniformBufferAlignment - 1) & ~(minUniformBufferAlignment - 1);
+            }
+            return alignedSize;
+
+        }
         #endregion
 
         #region synchronization
-        public static Semaphore presentSemaphore;
-        public static Semaphore renderSemaphore;
-        public static Fence fence;
+        //public static Semaphore presentSemaphore;
+        //public static Semaphore renderSemaphore;
+        //public static Fence fence;
 
         private static SemaphoreCreateInfo semaphoreCreateInfo;
         private static FenceCreateInfo fenceCreateInfo;
-
-        public static void CreateSynchronizers()
+        public static Semaphore CreateSemaphore()
         {
-            semaphoreCreateInfo = new SemaphoreCreateInfo();
-            semaphoreCreateInfo.SType = StructureType.SemaphoreCreateInfo;
-            fenceCreateInfo = new FenceCreateInfo();
-            fenceCreateInfo.Flags = FenceCreateFlags.SignaledBit;
-            fenceCreateInfo.SType = StructureType.FenceCreateInfo;
+            if (semaphoreCreateInfo.SType == 0)
+            {
+                semaphoreCreateInfo = new SemaphoreCreateInfo();
+                semaphoreCreateInfo.SType = StructureType.SemaphoreCreateInfo;
+            }
 
-            presentSemaphore = CreateSemaphore();
-            renderSemaphore = CreateSemaphore();
-
-            fence = CreateFence();
-        }
-        public static Silk.NET.Vulkan.Semaphore CreateSemaphore()
-        {
-            Silk.NET.Vulkan.Semaphore result;
+            Semaphore result;
             if (vk.CreateSemaphore(vkDevice, in semaphoreCreateInfo, null, &result) != Result.Success)
             {
                 throw new InitializationException("Failed to create Vulkan Semaphore!");
@@ -661,6 +646,13 @@ namespace Somnium.Framework.Vulkan
         }
         public static Fence CreateFence()
         {
+            if (fenceCreateInfo.SType == 0)
+            {
+                fenceCreateInfo = new FenceCreateInfo();
+                fenceCreateInfo.SType = StructureType.FenceCreateInfo;
+                fenceCreateInfo.Flags = FenceCreateFlags.SignaledBit;
+            }
+
             Fence result;
             if (vk.CreateFence(vkDevice, in fenceCreateInfo, null, &result) != Result.Success)
             {
@@ -855,10 +847,11 @@ namespace Somnium.Framework.Vulkan
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
                 VkMemory.Dispose();
                 renderPass.Dispose();
-                vk.DestroySemaphore(vkDevice, presentSemaphore, null);
-                vk.DestroySemaphore(vkDevice, renderSemaphore, null);
-                vk.DestroyFence(vkDevice, fence, null);
-                commandPool.Dispose();
+                for (int i = 0; i < frames.Length; i++)
+                {
+                    frames[i].Dispose();
+                }
+                //commandPool.Dispose();
                 transientTransferCommandPool.Dispose();
                 transientGraphicsCommandPool.Dispose();
                 //vk.DestroyCommandPool(vkDevice, new CommandPool(commandPool.handle), null);

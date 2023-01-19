@@ -118,7 +118,7 @@ namespace Somnium.Framework.Windowing
 
         public GlfwContext GLContext { get; private set; }
 
-        public static WindowGLFW New(Application application, Point windowSize, string title, Backends backend)
+        public static WindowGLFW New(Application application, Point windowSize, string title, Backends backend, int maxSimultaneousFrames = 2)
         {
             if (!SomniumGLFW.initialized)
             {
@@ -143,6 +143,7 @@ namespace Somnium.Framework.Windowing
                     break;
                 case Backends.Vulkan:
                     Glfw.WindowHint(WindowHintClientApi.ClientApi, ClientApi.NoApi);
+                    window.maxSimultaneousFrames = maxSimultaneousFrames;
                     break;
                 default:
                     throw new NotImplementedException();
@@ -162,6 +163,7 @@ namespace Somnium.Framework.Windowing
             Glfw.SetFramebufferSizeCallback(window.handle, new GlfwCallbacks.FramebufferSizeCallback(window.OnResizedCallback));
 
             activeWindows++;
+            window.initialized = true;
             return window;
         }
         public void Close()

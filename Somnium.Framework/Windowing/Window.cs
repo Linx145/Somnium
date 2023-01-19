@@ -7,6 +7,24 @@ namespace Somnium.Framework.Windowing
 {
     public abstract unsafe class Window : IDisposable
     {
+        public bool initialized { get; internal set; } = false;
+        public int frameNumber { get; internal set; }
+        public int maxSimultaneousFrames
+        {
+            get
+            {
+                return internalMaxSimultaneousFrames;
+            }
+            set
+            {
+                if (initialized)
+                {
+                    throw new InvalidOperationException("Cannot change the max simultaneous frames of a window during runtime!");
+                }
+                internalMaxSimultaneousFrames = value;
+            }
+        }
+        private int internalMaxSimultaneousFrames;
         public Application application;
         public Color clearColor = Color.CornflowerBlue;//new Color(50, 50, 50);
         public abstract string Title { get; set; }

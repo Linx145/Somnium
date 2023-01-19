@@ -15,6 +15,7 @@ namespace Somnium.Framework.Vulkan
                 return VkEngine.vk;
             }
         }
+        private readonly Application application;
         public Pipeline handle;
 
         public Shader[] shaders;
@@ -26,7 +27,6 @@ namespace Somnium.Framework.Vulkan
         public PolygonMode polygonMode;
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
-        public DescriptorSet[] descriptorSets;
         public VkVertex vertexType;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
@@ -44,6 +44,7 @@ namespace Somnium.Framework.Vulkan
         public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
 
         public VkGraphicsPipeline(
+            Application application,
             Silk.NET.Vulkan.Viewport viewport,
             CullMode cullMode,
             BlendState blendState,
@@ -52,6 +53,7 @@ namespace Somnium.Framework.Vulkan
             Shader shader,
             VertexDeclaration vertexType)
         {
+            this.application = application;
             this.vertexType = new VkVertex(vertexType);
             this.viewport = viewport;
             this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
@@ -93,6 +95,7 @@ namespace Somnium.Framework.Vulkan
             BuildPipeline();
         }
         public VkGraphicsPipeline(
+            Application application,
             Silk.NET.Vulkan.Viewport viewport,
             Rect2D scissor,
             FrontFace frontFace,
@@ -105,6 +108,7 @@ namespace Somnium.Framework.Vulkan
             PipelineShaderStageCreateInfo vertexShader,
             PipelineShaderStageCreateInfo fragmentShader)
         {
+            this.application = application;
             this.vertexType = vertexType;
             this.viewport = viewport;
             this.scissor = scissor;
@@ -225,21 +229,12 @@ namespace Somnium.Framework.Vulkan
         }
         internal unsafe PipelineLayout CreatePipelineLayout()
         {
-            /*uint descriptorSetLayoutCount = 0;
-            for (int i = 0; i< shaders.Length; i++)
+            if (shaders.Length > 1)
             {
-                var shader = shaders[i];
-                if (shader.shader1Params != null && shader.shader1Params.constructed)
-                {
-                    descriptorSetLayoutCount++;
-                }
-                if (shader.shader2Params != null && shader.shader2Params.constructed)
-                {
-                    descriptorSetLayoutCount++;
-                }
-            }*/
+                throw new NotImplementedException();
+            }
             //todo: Account for shaders without descriptor sets
-            uint descriptorSetLayoutCount = (uint)shaders.Length;
+            uint descriptorSetLayoutCount = (uint)(shaders.Length);
 
             PipelineLayoutCreateInfo createInfo = new PipelineLayoutCreateInfo();
             createInfo.SType = StructureType.PipelineLayoutCreateInfo;
@@ -248,60 +243,10 @@ namespace Somnium.Framework.Vulkan
 
             if (descriptorSetLayoutCount > 0)
             {
-                /*DescriptorSetLayout* layouts = stackalloc DescriptorSetLayout[(int)descriptorSetLayoutCount];
-                int layoutIndex = 0;
-                for (int i = 0; i < shaders.Length; i++)
+                fixed (DescriptorSetLayout* ptr = &shaders[0].descriptorSetLayout)
                 {
-                    var shader = shaders[i];
-                    if (shader.shader1Params != null && shader.shader1Params.constructed)
-                    {
-                        *(layouts + layoutIndex) = new DescriptorSetLayout(shader.shader1Params.handle);
-                        layoutIndex++;
-                    }
-                    if (shader.shader2Params != null && shader.shader2Params.constructed)
-                    {
-                        *(layouts + layoutIndex) = new DescriptorSetLayout(shader.shader2Params.handle);
-                        layoutIndex++;
-                    }
-                }*/
-                DescriptorSetLayout layoutCopy = shaders[0].descriptorSetLayout;
-                createInfo.PSetLayouts = &layoutCopy;
-
-                DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
-
-                DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
-                allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
-                allocInfo.DescriptorPool = relatedPool;
-                allocInfo.DescriptorSetCount = descriptorSetLayoutCount;
-                allocInfo.PSetLayouts = &layoutCopy;
-
-                //DescriptorSet* descriptorSets = stackalloc DescriptorSet[(int)descriptorSetLayoutCount];
-                descriptorSets = new DescriptorSet[descriptorSetLayoutCount];
-                fixed (DescriptorSet* ptr = descriptorSets)
-                {
-                    if (vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, ptr) != Result.Success)
-                    {
-                        throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
-                    }
+                    createInfo.PSetLayouts = ptr;
                 }
-
-                shaders[0].descriptorSet = descriptorSets[0];
-
-/*layoutIndex = 0;
-                for (int i = 0; i < shaders.Length; i++)
-                {
-                    var shader = shaders[i];
-                    if (shader.shader1Params != null && shader.shader1Params.constructed)
-                    {
-                        shader.shader1Params.descriptorSet = descriptorSets[layoutIndex];
-                        layoutIndex++;
-                    }
-                    if (shader.shader2Params != null && shader.shader2Params.constructed)
-                    {
-                        shader.shader2Params.descriptorSet = descriptorSets[layoutIndex];
-                        layoutIndex++;
-                    }
-                }*/
             }
             else
             {
@@ -416,10 +361,23 @@ namespace Somnium.Framework.Vulkan
         public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
         {
             vk.CmdBindPipeline(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], handle);
-            fixed (DescriptorSet* ptr = descriptorSets)
+
+            for (int i = 0; i < shaders.Length; i++)
             {
-                vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+                DescriptorSet currentFrameDescriptorSet = shaders[i].descriptorSet;
+
+                vk.CmdBindDescriptorSets(
+                    new CommandBuffer(commandBuffer.handle), 
+                    Converters.RenderStageToBindPoint[(int)bindType],
+                    pipelineLayout,
+                    0,
+                    1,
+                    &currentFrameDescriptorSet,
+                    0,
+                    null);
             }
+            //for (int i = )
+                //vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
         }
 
         public unsafe void Dispose()
