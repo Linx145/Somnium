@@ -27,7 +27,7 @@ namespace Somnium.Framework.Vulkan
         public PolygonMode polygonMode;
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
-        public VkVertex vertexType;
+        public VkVertex[] vertices;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
         CullModeFlags cullMode = CullModeFlags.None;
@@ -41,7 +41,7 @@ namespace Somnium.Framework.Vulkan
         public PipelineViewportStateCreateInfo viewportInfo;
         public PipelineDepthStencilStateCreateInfo depthInfo;
 
-        public VertexInputBindingDescription compiledVertexBindingDescription;
+        public VertexInputBindingDescription[] compiledVertexBindingDescriptions;
         public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
 
         public VkGraphicsPipeline(
@@ -52,10 +52,14 @@ namespace Somnium.Framework.Vulkan
             PrimitiveType primitiveType,
             VkRenderPass renderPass,
             Shader shader,
-            VertexDeclaration vertexType)
+            params VertexDeclaration[] vertexTypes)
         {
             this.application = application;
-            this.vertexType = new VkVertex(vertexType);
+            this.vertices = new VkVertex[vertexTypes.Length];//new VkVertex(vertexType);
+            for (int i = 0; i < this.vertices.Length; i++)
+            {
+                vertices[i] = new VkVertex(vertexTypes[i]);
+            }
             this.viewport = viewport;
             this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
             this.cullMode = Converters.CullModeToFlags[(int)cullMode];
@@ -95,40 +99,6 @@ namespace Somnium.Framework.Vulkan
             }
             BuildPipeline();
         }
-        public VkGraphicsPipeline(
-            Application application,
-            Silk.NET.Vulkan.Viewport viewport,
-            Rect2D scissor,
-            FrontFace frontFace,
-            CullModeFlags cullMode,
-            BlendState blendState,
-            PrimitiveType primitiveType,
-            PolygonMode polygonMode,
-            VkRenderPass renderPass,
-            VkVertex vertexType,
-            PipelineShaderStageCreateInfo vertexShader,
-            PipelineShaderStageCreateInfo fragmentShader)
-        {
-            this.application = application;
-            this.vertexType = vertexType;
-            this.viewport = viewport;
-            this.scissor = scissor;
-            this.frontFaceMode = frontFace;
-            this.cullMode = cullMode;
-            shaderStages = null;
-
-            this.blendState = blendState;
-            this.topology = Converters.PrimitiveTypeToTopology[(int)primitiveType];//topology;
-            this.polygonMode = polygonMode;
-            this.renderPass = renderPass;
-
-            this.shaderStages = new PipelineShaderStageCreateInfo[]
-            {
-                vertexShader, fragmentShader
-            };
-
-            BuildPipeline();
-        }
 
         public static unsafe PipelineShaderStageCreateInfo CreateShaderStage(ShaderStageFlags stage, ShaderModule shaderModule)
         {
@@ -148,26 +118,45 @@ namespace Somnium.Framework.Vulkan
             var createInfo = new PipelineVertexInputStateCreateInfo();
             createInfo.SType = StructureType.PipelineVertexInputStateCreateInfo;
 
-            uint totalAttributes = (uint)vertexType.attributeDescriptions.Length;
-
-            compiledVertexAttributeDescriptions = new VertexInputAttributeDescription[totalAttributes];
-
-            compiledVertexBindingDescription = vertexType.bindingDescription;
-            for (int j = 0; j < vertexType.attributeDescriptions.Length; j++)
+            //compile vertex bindings
+            uint totalBindings = (uint)vertices.Length;
+            compiledVertexBindingDescriptions = new VertexInputBindingDescription[totalBindings];
+            for (int i = 0; i < totalBindings; i++)
             {
-                compiledVertexAttributeDescriptions[j] = vertexType.attributeDescriptions[j];
+                compiledVertexBindingDescriptions[i] = vertices[i].bindingDescription;
+                compiledVertexBindingDescriptions[i].Binding = (uint)i;
             }
 
-            createInfo.VertexBindingDescriptionCount = 1;
-            createInfo.VertexAttributeDescriptionCount = totalAttributes;
+            //compile attribute bindings
+            uint totalAttributes = 0;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                totalAttributes += (uint)vertices[i].attributeDescriptions.Length;
+            }
+            compiledVertexAttributeDescriptions = new VertexInputAttributeDescription[totalAttributes];
+            int attributeDescriptionIndex = 0;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                for (int j = 0; j < vertices[i].attributeDescriptions.Length; j++)
+                {
+                    compiledVertexAttributeDescriptions[attributeDescriptionIndex] = vertices[i].attributeDescriptions[j];
+                    compiledVertexAttributeDescriptions[attributeDescriptionIndex].Binding = (uint)i;
+                    compiledVertexAttributeDescriptions[attributeDescriptionIndex].Location = (uint)attributeDescriptionIndex;
+                    attributeDescriptionIndex++;
+                }
+                //compiledVertexAttributeDescription += (uint)vertices[i].attributeDescriptions.Length;
+            }
 
+            createInfo.VertexBindingDescriptionCount = totalBindings;
+            fixed (VertexInputBindingDescription* ptr = compiledVertexBindingDescriptions)
+            {
+                createInfo.PVertexBindingDescriptions = ptr;
+            }
+
+            createInfo.VertexAttributeDescriptionCount = totalAttributes;
             fixed (VertexInputAttributeDescription* ptr = compiledVertexAttributeDescriptions)
             {
                 createInfo.PVertexAttributeDescriptions = ptr;
-            }
-            fixed (VertexInputBindingDescription* ptr = &vertexType.bindingDescription)
-            {
-                createInfo.PVertexBindingDescriptions = ptr;
             }
 
             return createInfo;

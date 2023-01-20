@@ -7,7 +7,7 @@ namespace Somnium.Framework
 {
     public enum VertexElementFormat
     {
-        None, Float, Vector2, Vector3, Vector4
+        Float, Vector2, Vector3, Vector4
     }
     public enum VertexElementInputRate
     {
@@ -15,15 +15,15 @@ namespace Somnium.Framework
     }
     public struct VertexElement
     {
-        public uint binding;
-        public uint location;
+        //public uint binding;
+        //public uint location;
         public VertexElementFormat format;
         public uint offset;
 
-        public VertexElement(uint location, VertexElementFormat format, uint offset)
+        public VertexElement(VertexElementFormat format, uint offset)
         {
-            binding = 0;
-            this.location = location;
+            //binding = 0;
+            //this.location = location;
             this.format = format;
             this.offset = offset;
         }
@@ -37,10 +37,6 @@ namespace Somnium.Framework
         public static bool initialized { get; private set; }
 
         public List<VertexElement> elements;
-        /// <summary>
-        /// The index of the vertex in the grand scheme of registered vertex types. Used in Vulkan
-        /// </summary>
-        public uint binding;
         /// <summary>
         /// The sizeof the vertex structure
         /// </summary>
@@ -58,11 +54,13 @@ namespace Somnium.Framework
 
         public void AddElement(VertexElement element)
         {
-            element.binding = binding;
             elements.Add(element);
         }
-
-        public static unsafe VertexDeclaration NewVertexDeclaration<T>(Backends backend) where T : unmanaged
+        public static unsafe VertexDeclaration NewVertexDeclaration<T>(Backends backend, VertexElementInputRate inputRate = VertexElementInputRate.Vertex) where T : unmanaged
+        {
+            return NewVertexDeclaration(backend, (uint)sizeof(T), inputRate);
+        }
+        public static unsafe VertexDeclaration NewVertexDeclaration(Backends backend, uint size, VertexElementInputRate inputRate)
         {
             if (initialized)
             {
@@ -71,9 +69,8 @@ namespace Somnium.Framework
             if (backend == Backends.Vulkan)
             {
                 VertexDeclaration declaration = new VertexDeclaration();
-                declaration.binding = 0;// (uint)allVertexDeclarations.Count;
-                declaration.size = (uint)sizeof(T);
-                declaration.inputRate = VertexElementInputRate.Vertex;
+                declaration.size = size;
+                declaration.inputRate = inputRate;
                 declaration.registered = false;
 
                 return declaration;
@@ -88,15 +85,15 @@ namespace Somnium.Framework
                 allVertexDeclarations = new List<VertexDeclaration>();
             }
             var declaration = NewVertexDeclaration<VertexPositionColor>(backend);
-            declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
-            declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 12));
             VertexPositionColor.internalVertexDeclaration = declaration;
             allVertexDeclarations.Add(declaration);
 
             declaration = NewVertexDeclaration<VertexPositionColorTexture>(backend);
-            declaration.AddElement(new VertexElement(0, VertexElementFormat.Vector3, 0));
-            declaration.AddElement(new VertexElement(1, VertexElementFormat.Vector4, 12));
-            declaration.AddElement(new VertexElement(2, VertexElementFormat.Vector2, 28));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 12));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector2, 28));
             VertexPositionColorTexture.internalVertexDeclaration = declaration;
             allVertexDeclarations.Add(declaration);
         }

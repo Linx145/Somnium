@@ -32,10 +32,10 @@ namespace Somnium.Framework
         }
         public void SetData<T>(T data, ulong offset) where T : unmanaged
         {
-#if DEBUG
-            if (!isUnified)
+            unsafe
             {
-                unsafe
+#if DEBUG
+                if (!isUnified)
                 {
                     int sizeofT = sizeof(T);
                     if ((ulong)sizeofT != uniformBufferObjectSize)
@@ -43,11 +43,18 @@ namespace Somnium.Framework
                         throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this uniform buffer (" + uniformBufferObjectSize.ToString() + ")!");
                     }
                 }
-            }
 #endif
+                *(T*)((byte*)bindingPoint + offset) = data;
+                //new Span<T>((void*)bindingPoint, 1)[0] = data;
+            }
+        }
+        public void SetData<T>(ReadOnlySpan<T> data, ulong offset) where T : unmanaged
+        {
             unsafe
             {
-                *(T*)((byte*)bindingPoint + offset) = data;
+                int sizeofT = sizeof(T);
+                T* ptr = (T*)((byte*)bindingPoint + offset);
+                data.CopyTo(new Span<T>(ptr, data.Length));
                 //new Span<T>((void*)bindingPoint, 1)[0] = data;
             }
         }

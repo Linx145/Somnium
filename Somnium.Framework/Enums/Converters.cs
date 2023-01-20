@@ -5,6 +5,25 @@ namespace Somnium.Framework;
 
 public static class Converters
 {
+    public static readonly Format[] FormatFromVertexElementFormat = new Format[]
+    {
+        Format.R32Sfloat,
+        Format.R32G32Sfloat,
+        Format.R32G32B32Sfloat,
+        Format.R32G32B32A32Sfloat
+            /*case VertexElementFormat.Float:
+                return Format.R32Sfloat;
+
+            case VertexElementFormat.Vector2:
+                return Format.R32G32Sfloat;
+
+            case VertexElementFormat.Vector3:
+                return Format.R32G32B32Sfloat;
+
+            case VertexElementFormat.Vector4:
+                return Format.R32G32B32A32Sfloat;
+        }*/
+    };
     public static readonly Format[] DepthFormatToVkFormat = new Format[]
     {
         Format.Undefined,

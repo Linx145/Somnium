@@ -27,7 +27,7 @@ namespace Somnium.Framework
         public ShaderParameterCollection shader1Params;
         public ShaderParameterCollection shader2Params;
 
-        public uint bufferSize = 0;
+        public ulong bufferSize = 0;
         public UniformBuffer[] uniformBuffersPerFrame;
         public UniformBuffer uniformBuffer
         {
@@ -292,6 +292,24 @@ namespace Somnium.Framework
                 shader1Params.Set(uniformName, uniform);
             }
             else shader2Params.Set(uniformName, uniform);
+        }
+        public void SetUniforms<T>(string uniformName, ReadOnlySpan<T> uniformArray, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
+        {
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniformArray))
+                {
+                    if (!shader2Params.Set(uniformName, uniformArray))
+                    {
+                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, uniformArray);
+            }
+            else shader2Params.Set(uniformName, uniformArray);
         }
         public void SetUniform(string uniformName, Texture2D uniform, SetNumber shaderNumber = SetNumber.Either)
         {

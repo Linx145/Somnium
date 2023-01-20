@@ -14,7 +14,7 @@ namespace Somnium.Framework
             this.application = application;
         }
 
-        public void SetVertexBuffer(VertexBuffer buffer)
+        public void SetInstanceBuffer(InstanceBuffer buffer, uint bindingPoint)
         {
             unsafe
             {
@@ -24,9 +24,27 @@ namespace Somnium.Framework
                         Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
                         {
-                            VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), 0, &vkBuffer, noOffset.AsSpan());
+                            VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
                         }
-                            break;
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
+        public void SetVertexBuffer(VertexBuffer buffer, uint bindingPoint = 0)
+        {
+            unsafe
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
+                        fixed (ulong* ptr = noOffset)
+                        {
+                            VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
+                        }
+                        break;
                     default:
                         throw new NotImplementedException();
                 }
@@ -74,28 +92,28 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
-        public void DrawPrimitives(uint vertexCount, uint instanceCount)
+        public void DrawPrimitives(uint vertexCount, uint instanceCount, uint firstVertex = 0, uint firstInstance = 0)
         {
             unsafe
             {
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        VkEngine.vk.CmdDraw(new CommandBuffer(VkEngine.commandBuffer.handle), vertexCount, instanceCount, 0, 0);
+                        VkEngine.vk.CmdDraw(new CommandBuffer(VkEngine.commandBuffer.handle), vertexCount, instanceCount, firstVertex, firstInstance);
                         break;
                     default:
                         throw new NotImplementedException();
                 }
             }
         }
-        public void DrawIndexedPrimitives(uint indexCount, uint instanceCount)
+        public void DrawIndexedPrimitives(uint indexCount, uint instanceCount, uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0)
         {
             unsafe
             {
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        VkEngine.vk.CmdDrawIndexed(new CommandBuffer(VkEngine.commandBuffer.handle), indexCount, instanceCount, 0, 0, 0);
+                        VkEngine.vk.CmdDrawIndexed(new CommandBuffer(VkEngine.commandBuffer.handle), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
                         break;
                     default:
                         throw new NotImplementedException();

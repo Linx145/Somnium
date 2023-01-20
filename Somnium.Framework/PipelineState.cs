@@ -11,7 +11,7 @@ namespace Somnium.Framework
     public class PipelineState : IDisposable
     {
         readonly Application application;
-        public readonly VertexDeclaration vertexType;
+        public readonly VertexDeclaration[] vertices;
         public readonly Viewport viewport;
         public readonly CullMode cullMode;
         public readonly PrimitiveType primitiveType;
@@ -27,7 +27,7 @@ namespace Somnium.Framework
             PrimitiveType primitiveType,
             BlendState blendState,
             Shader shader,
-            VertexDeclaration vertexType)
+            params VertexDeclaration[] vertices)
         {
             this.application = application;
             this.viewport = viewport;
@@ -35,7 +35,7 @@ namespace Somnium.Framework
             this.primitiveType = primitiveType;
             this.blendState = blendState;
             shaders = new Shader[] { shader };
-            this.vertexType = vertexType;
+            this.vertices = vertices;
 
             Construct();
         }
@@ -46,7 +46,7 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     if (shaders.Length != 1) throw new NotImplementedException();
 
-                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertexType);
+                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertices);
                     handle = VkEngine.AddPipeline(pipeline);
                     break;
                 default:
