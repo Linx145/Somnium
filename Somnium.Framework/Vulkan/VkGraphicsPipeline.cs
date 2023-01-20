@@ -39,6 +39,7 @@ namespace Somnium.Framework.Vulkan
         public PipelineMultisampleStateCreateInfo multisampler;
         public PipelineColorBlendStateCreateInfo colorBlendingInfo;
         public PipelineViewportStateCreateInfo viewportInfo;
+        public PipelineDepthStencilStateCreateInfo depthInfo;
 
         public VertexInputBindingDescription compiledVertexBindingDescription;
         public VertexInputAttributeDescription[] compiledVertexAttributeDescriptions;
@@ -265,6 +266,20 @@ namespace Somnium.Framework.Vulkan
 
             return layout;
         }
+        internal unsafe PipelineDepthStencilStateCreateInfo CreateDepthStencilState(bool depthTest, bool depthWrite, CompareOp compareOperation)
+        {
+            PipelineDepthStencilStateCreateInfo createInfo = new PipelineDepthStencilStateCreateInfo();
+            createInfo.SType = StructureType.PipelineDepthStencilStateCreateInfo;
+            createInfo.DepthTestEnable = new Bool32(depthTest);
+            createInfo.DepthWriteEnable = new Bool32(depthWrite);
+            createInfo.DepthCompareOp = depthTest ? compareOperation : CompareOp.Always;
+            createInfo.DepthBoundsTestEnable = new Bool32(false);
+            createInfo.MinDepthBounds = 0.0f; // Optional
+            createInfo.MaxDepthBounds = 1.0f; // Optional
+            createInfo.StencilTestEnable = new Bool32(false);
+
+            return createInfo;
+        }
         internal unsafe GraphicsPipelineCreateInfo CreateInfo()
         {
             #region create viewport info
@@ -348,6 +363,12 @@ namespace Somnium.Framework.Vulkan
             fixed (PipelineColorBlendStateCreateInfo* ptr = &colorBlendingInfo)
             {
                 pipelineInfo.PColorBlendState = ptr;
+            }
+
+            depthInfo = CreateDepthStencilState(true, true, CompareOp.LessOrEqual);
+            fixed (PipelineDepthStencilStateCreateInfo* ptr = &depthInfo)
+            {
+                pipelineInfo.PDepthStencilState = ptr;
             }
 
             pipelineInfo.Layout = pipelineLayout;

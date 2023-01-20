@@ -225,12 +225,6 @@ namespace Somnium.Framework.Vulkan
             {
                 swapchainAPI.GetSwapchainImages(device, handle, ref imageCount, ptr);
             }
-            /*imageDatas = new ImageData[imageCount];
-            for (int i = 0; i < imageDatas.Length; i++)
-            {
-                imageDatas[i] = ImageData.Create(images[i], imageFormat);
-            }*/
-
             if (VkEngine.renderPass != null)
             {
                 RecreateFramebuffers(VkEngine.renderPass);
@@ -248,34 +242,15 @@ namespace Somnium.Framework.Vulkan
             renderTargets = new RenderTarget2D[ImageCount];
             for (int i = 0; i < renderTargets.Length; i++)
             {
-                renderTargets[i] = new RenderTarget2D(application, new Texture2D(application, images[i].Handle, imageExtents.Width, imageExtents.Height, Converters.VkFormatToImageFormat(imageFormat)));
+                Texture2D backendTexture = new Texture2D(application, images[i].Handle, imageExtents.Width, imageExtents.Height, Converters.VkFormatToImageFormat(imageFormat));
+                DepthBuffer depthBuffer = new DepthBuffer(application, imageExtents.Width, imageExtents.Height, DepthFormat.Depth32);
+                renderTargets[i] = new RenderTarget2D(application, backendTexture, depthBuffer);
             }
-            /*if (imageFrameBuffers != null)
-            {
-                for (int i = 0; i < imageFrameBuffers.Length; i++)
-                {
-                    imageFrameBuffers[i].Dispose();
-                }
-            }
-
-            imageFrameBuffers = new VkFramebuffer[ImageCount];
-            for (int i = 0; i < imageFrameBuffers.Length; i++)
-            {
-                imageFrameBuffers[i] = VkFramebuffer.Create(imageDatas[i], renderPass, imageExtents.Width, imageExtents.Height);
-            }*/
         }
 
         public void Dispose()
         {
             vk.DeviceWaitIdle(device);
-            /*for (int i = 0; i < imageFrameBuffers.Length; i++)
-            {
-                imageFrameBuffers[i].Dispose();
-            }
-            for (int i = 0; i < imageDatas.Length; i++)
-            {
-                imageDatas[i].Dispose();
-            }*/
             for (int i =0; i<renderTargets.Length; i++)
             {
                 renderTargets[i].Dispose();

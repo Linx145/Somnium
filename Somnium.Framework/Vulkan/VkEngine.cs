@@ -8,12 +8,13 @@ using Somnium.Framework.Windowing;
 using System;
 using System.Linq;
 using Buffer = Silk.NET.Vulkan.Buffer;
-using System.Collections.Concurrent;
 
 namespace Somnium.Framework.Vulkan
 {
     public static unsafe class VkEngine
     {
+        public static int begunPipelines = 0;
+
         public const string EngineName = "Somnium";
         private static string appName;
 
@@ -127,16 +128,17 @@ namespace Somnium.Framework.Vulkan
 
             commandBuffer.Reset();
             commandBuffer.Begin();
-            renderPass.Begin(commandBuffer, swapChain, window.clearColor);
-            //TrianglePipeline.Bind(commandBuffer);
-            //BeginRenderPass(); //also clears the screen
-
         }
         public static void EndDraw()
         {
             //EndRenderPass();
-            renderPass.End(commandBuffer);
+            //renderPass.End(commandBuffer);
             commandBuffer.End();
+
+            if (begunPipelines > 0)
+            {
+                throw new ExecutionException("Vulkan draw loop ended but a Pipeline State is still bound! Check that all Pipeline States have had End() called.");
+            }
 
             SubmitToGPU();
         }
@@ -470,7 +472,7 @@ namespace Somnium.Framework.Vulkan
                 internalPreferredPresentMode = value;
             }
         }
-        private static SwapChain swapChain;
+        public static SwapChain swapChain;
         private static PresentModeKHR internalPreferredPresentMode = PresentModeKHR.MailboxKhr;
         public static void CreateSwapChain()
         {

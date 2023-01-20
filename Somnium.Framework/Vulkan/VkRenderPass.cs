@@ -17,6 +17,7 @@ namespace Somnium.Framework.Vulkan
             }
         }
 
+        public bool hasDepthStencil;
         RenderPass handle;
         private VkRenderPass()
         {
@@ -35,8 +36,21 @@ namespace Somnium.Framework.Vulkan
         /// <param name="imageLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
-        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, bool hasStencil = true)
+        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, DepthFormat depthFormat = DepthFormat.Depth32)
         {
+            uint attachmentCount = 1;
+            if (depthFormat != DepthFormat.None)
+            {
+                attachmentCount++;
+            }
+            var attachments = stackalloc AttachmentDescription[(int)attachmentCount];
+            var subpasses = stackalloc SubpassDependency[(int)attachmentCount];
+
+            //subpass
+            SubpassDescription description = new SubpassDescription();
+            description.PipelineBindPoint = PipelineBindPoint.Graphics;
+
+            #region color attachment description and reference
             AttachmentReference colorAttachmentReference = new AttachmentReference();
             colorAttachmentReference.Attachment = 0;
             colorAttachmentReference.Layout = imageLayout;
@@ -46,41 +60,82 @@ namespace Somnium.Framework.Vulkan
             colorAttachment.Samples = SampleCountFlags.Count1Bit;
             colorAttachment.LoadOp = loadOperation;
             colorAttachment.StoreOp = storeOperation;
-            
-            if (hasStencil)
-            {
-                colorAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
-                colorAttachment.StencilStoreOp = storeOperation;
-            }
-            else
-            {
-                colorAttachment.StencilLoadOp = AttachmentLoadOp.DontCare;
-                colorAttachment.StencilStoreOp = AttachmentStoreOp.DontCare;
-            }
             colorAttachment.InitialLayout = ImageLayout.Undefined;
             colorAttachment.FinalLayout = ImageLayout.PresentSrcKhr;
 
-            SubpassDependency dependency = new SubpassDependency();
-            dependency.SrcSubpass = Vk.SubpassExternal;
-            dependency.DstSubpass = 0;
+            attachments[0] = colorAttachment;
 
-            dependency.SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            dependency.SrcAccessMask = 0;
-
-            dependency.DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            dependency.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
-
-            SubpassDescription description = new SubpassDescription();
-            description.PipelineBindPoint = PipelineBindPoint.Graphics;
             description.ColorAttachmentCount = 1;
             description.PColorAttachments = &colorAttachmentReference;
+            #endregion
+
+            #region color subpass
+            SubpassDependency colorDependency = new SubpassDependency();
+            colorDependency.SrcSubpass = Vk.SubpassExternal;
+            colorDependency.DstSubpass = 0;
+
+            colorDependency.SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+            colorDependency.SrcAccessMask = 0;
+
+            colorDependency.DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+            colorDependency.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
+
+            subpasses[0] = colorDependency;
+            #endregion
+
+            if (depthFormat != DepthFormat.None)
+            {
+                #region depth attachment description and reference
+                AttachmentDescription depthAttachment;
+                AttachmentReference depthAttachmentReference;
+
+                depthAttachmentReference = new AttachmentReference();
+                depthAttachmentReference.Attachment = 1;
+                depthAttachmentReference.Layout = ImageLayout.DepthStencilAttachmentOptimal;
+
+                depthAttachment = new AttachmentDescription();
+                depthAttachment.Format = Converters.DepthFormatToVkFormat[(int)depthFormat];
+                depthAttachment.Flags = AttachmentDescriptionFlags.None;
+                depthAttachment.Samples = SampleCountFlags.Count1Bit;
+                depthAttachment.LoadOp = AttachmentLoadOp.Clear;
+                depthAttachment.StoreOp = AttachmentStoreOp.Store;
+                depthAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
+                if (Converters.DepthFormatHasStencil(depthFormat))
+                {
+                    depthAttachment.StencilStoreOp = AttachmentStoreOp.Store;
+                }
+                else depthAttachment.StencilStoreOp = AttachmentStoreOp.DontCare;
+                depthAttachment.InitialLayout = ImageLayout.Undefined;
+                depthAttachment.FinalLayout = ImageLayout.DepthStencilAttachmentOptimal;
+
+                description.PDepthStencilAttachment = &depthAttachmentReference;
+
+                attachments[1] = depthAttachment;
+                #endregion
+
+                #region depth subpass
+                //ensure that the frames are not writing to the depth buffer simultaneously using
+                //an additional subpass
+                SubpassDependency depthDependency = new SubpassDependency();
+                depthDependency.SrcSubpass = Vk.SubpassExternal;
+                depthDependency.DstSubpass = 0;
+
+                depthDependency.SrcStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit;
+                depthDependency.SrcAccessMask = 0;
+
+                depthDependency.DstStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit;
+                depthDependency.DstAccessMask = AccessFlags.DepthStencilAttachmentWriteBit;
+
+                subpasses[1] = depthDependency;
+                #endregion
+            }
 
             RenderPassCreateInfo createInfo = new RenderPassCreateInfo();
             createInfo.SType = StructureType.RenderPassCreateInfo;
-            createInfo.DependencyCount = 1;
-            createInfo.PDependencies = &dependency;
-            createInfo.AttachmentCount = 1;
-            createInfo.PAttachments = &colorAttachment;
+            createInfo.DependencyCount = attachmentCount;
+            createInfo.PDependencies = subpasses;
+            createInfo.AttachmentCount = attachmentCount;
+            createInfo.PAttachments = attachments;
             createInfo.SubpassCount = 1;
             createInfo.PSubpasses = &description;
 
@@ -93,6 +148,7 @@ namespace Somnium.Framework.Vulkan
 
             VkRenderPass result = new VkRenderPass();
             result.handle = renderPass;
+            result.hasDepthStencil = depthFormat != DepthFormat.None;
 
             return result;
         }
@@ -119,22 +175,46 @@ namespace Somnium.Framework.Vulkan
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderTarget2D renderTarget = null, bool shouldClearColor = true)
         {
             if (begun)
             {
                 throw new InvalidOperationException("Vulkan render pass already began!");
             }
-            ClearValue clearValue = new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, 1f));
 
             beginInfo = new RenderPassBeginInfo();
             beginInfo.SType = StructureType.RenderPassBeginInfo;
             beginInfo.RenderPass = handle;
-            beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
-            beginInfo.RenderArea = new Rect2D(default, swapchain.imageExtents);
-            beginInfo.ClearValueCount = 1;
-            beginInfo.PClearValues = &clearValue;
+            if (renderTarget == null)
+            {
+                beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
+                beginInfo.RenderArea = new Rect2D(default, swapchain.imageExtents);
+            }
+            else
+            {
+                beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
+                beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
+            }
+            ClearValue* clearValues = stackalloc ClearValue[2];
+            if (shouldClearColor)
+            {
+                ClearColorValue? clearColorValue = null;
+                ClearDepthStencilValue? clearDepthStencilValue = null;
 
+                beginInfo.ClearValueCount++;
+                clearColorValue = new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, 1f);
+                clearValues[0] = new ClearValue(color: clearColorValue);
+
+                if (hasDepthStencil)
+                {
+                    beginInfo.ClearValueCount++;
+                    clearDepthStencilValue = new ClearDepthStencilValue(1f, 0);
+                    clearValues[1] = new ClearValue(depthStencil: clearDepthStencilValue);
+                }
+            }
+            else clearValues = null;
+
+            beginInfo.PClearValues = clearValues;
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
 

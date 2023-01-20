@@ -10,14 +10,12 @@ namespace Test
         private static Application application;
         private static float recordTime = 0f;
 
-        private static VertexBuffer vb;
-        private static IndexBuffer indexBuffer;
-
         private static Graphics Graphics;
 
         private static Shader shader;
         private static PipelineState state;
         private static Texture2D texture;
+        private static RenderTarget2D renderTarget;
 
         [STAThread]
         public static void Main(string[] args)
@@ -32,8 +30,11 @@ namespace Test
                 application.Start();
             }
         }
-        static VertexPositionColorTexture[] vertices;
-        static ushort[] indices;
+        private static VertexPositionColorTexture[] vertices;
+        private static ushort[] indices;
+        private static VertexBuffer vb;
+        private static IndexBuffer indexBuffer;
+
         private static void OnLoad()
         {
             vertices = new VertexPositionColorTexture[]
@@ -43,10 +44,10 @@ namespace Test
                 new VertexPositionColorTexture(new Vector3(0.5f, 0.5f, 0f), Color.White, new Vector2(1, 1)),
                 new VertexPositionColorTexture(new Vector3(-0.5f, 0.5f, 0f), Color.White, new Vector2(0, 1)),
                 
-                new VertexPositionColorTexture(new Vector3(-1f, -0.5f, 0.1f), Color.White, new Vector2(0, 0)),
-                new VertexPositionColorTexture(new Vector3(0f, -0.5f, 0.1f), Color.White, new Vector2(1, 0)),
-                new VertexPositionColorTexture(new Vector3(0f, 0.5f, 0.1f), Color.White, new Vector2(1, 1)),
-                new VertexPositionColorTexture(new Vector3(-1f, 0.5f, 0.1f), Color.White, new Vector2(0, 1))
+                new VertexPositionColorTexture(new Vector3(-1f, -0.5f, -0.1f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(0f, -0.5f, -0.1f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(0f, 0.5f, -0.1f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(-1f, 0.5f, -0.1f), Color.White, new Vector2(0, 1))
             };
             vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, 8, false);
             vb.SetData(vertices, 0, 8);
@@ -85,12 +86,14 @@ namespace Test
                 Matrix4x4.CreateOrthographicOffCenter(-width, width, -height, height, -1f, 1f)
                 ));
 
-            state.Bind();
+            state.Begin(Color.CornflowerBlue, renderTarget);
 
             Graphics.SetVertexBuffer(vb);
             Graphics.SetIndexBuffer(indexBuffer);
 
             Graphics.DrawIndexedPrimitives(12, 4);
+
+            state.End();
         }
 
         private static void Unload()

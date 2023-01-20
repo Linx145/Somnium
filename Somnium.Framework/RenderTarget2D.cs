@@ -8,6 +8,7 @@ namespace Somnium.Framework
     {
         private readonly Application application;
         public readonly Texture2D backendTexture;
+        public readonly DepthBuffer depthBuffer;
         public readonly uint width;
         public readonly uint height;
 
@@ -15,8 +16,9 @@ namespace Somnium.Framework
 
         public bool isDisposed { get; private set; } = false;
         public bool constructed { get; private set; } = false;
-        public RenderTarget2D(Application application, Texture2D backendTexture)
+        public RenderTarget2D(Application application, Texture2D backendTexture, DepthBuffer depthBuffer)
         {
+            this.depthBuffer = depthBuffer;
             this.application = application;
             this.backendTexture = backendTexture;
             this.width = backendTexture.Width;
@@ -24,13 +26,17 @@ namespace Somnium.Framework
 
             Construct();
         }
-        public RenderTarget2D(Application application, uint width, uint height, ImageFormat imageFormat)
+        public RenderTarget2D(Application application, uint width, uint height, ImageFormat imageFormat, DepthFormat depthFormat)
         {
             this.application = application;
             this.width = width;
             this.height = height;
 
-            backendTexture = new Texture2D(application, width, height, imageFormat);
+            backendTexture = new Texture2D(application, width, height, imageFormat, true);
+            if (depthFormat != DepthFormat.None)
+            {
+                depthBuffer = new DepthBuffer(application, width, height, depthFormat);
+            }
 
             Construct();
         }
@@ -51,8 +57,26 @@ namespace Somnium.Framework
                         createInfo.Height = height;
                         createInfo.RenderPass = VkEngine.renderPass;
                         createInfo.Layers = 1;
-                        createInfo.AttachmentCount = 1;
-                        ImageView* imageView = stackalloc ImageView[] { new ImageView(backendTexture.imageViewHandle) };
+
+                        uint attachmentCount = 1;
+                        if (depthBuffer != null)
+                        {
+                            attachmentCount++;
+                        }
+                        ImageView* imageView = stackalloc ImageView[(int)attachmentCount];
+
+                        uint attachmentIndex = 0;
+                        imageView[attachmentIndex] = new ImageView(backendTexture.imageViewHandle);
+                        attachmentIndex++;
+
+                        if (depthBuffer != null)
+                        {
+                            imageView[attachmentIndex] = new ImageView(depthBuffer.imageViewHandle);
+                            attachmentIndex++;
+                        }
+
+                        createInfo.AttachmentCount = attachmentCount;
+
                         createInfo.PAttachments = imageView;
 
                         Framebuffer frameBuffer;
@@ -72,10 +96,8 @@ namespace Somnium.Framework
         {
             if (!isDisposed && constructed)
             {
-                if (backendTexture != null && !backendTexture.isDisposed)
-                {
-                    backendTexture.Dispose();
-                }
+                backendTexture?.Dispose();
+                depthBuffer?.Dispose();
                 if (framebufferHandle != 0)
                 {
                     switch (application.runningBackend)

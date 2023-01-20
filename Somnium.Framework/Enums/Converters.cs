@@ -5,6 +5,25 @@ namespace Somnium.Framework;
 
 public static class Converters
 {
+    public static readonly Format[] DepthFormatToVkFormat = new Format[]
+    {
+        Format.Undefined,
+        Format.D16Unorm,
+        Format.D16UnormS8Uint,
+        Format.D24UnormS8Uint,
+        Format.D32Sfloat
+    };
+    public static bool DepthFormatHasStencil(DepthFormat depthFormat)
+    {
+        switch (depthFormat)
+        {
+            case DepthFormat.Depth24Stencil8:
+            case DepthFormat.Depth16Stencil8:
+                return true;
+            default:
+                return false;
+        }
+    }
     public static readonly Format[] ImageFormatToVkFormat = new Format[]
     {
         Format.R8G8B8A8Unorm,

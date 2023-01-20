@@ -19,6 +19,7 @@ namespace Somnium.Framework
         /// False in cases where the image is passed already-created into the texture2D from a third party/graphics API primitive object, such as a swapchain
         /// </summary>
         public bool imageBelongsToMe;
+        public bool usedForRenderTarget;
 
         public ulong imageHandle;
         public SamplerState samplerState;
@@ -29,7 +30,7 @@ namespace Somnium.Framework
         public AllocatedMemoryRegion memoryRegion;
         #endregion
 
-        public Texture2D(Application application, ulong fromExistingHandle, uint width, uint height, ImageFormat imageFormat, SamplerState samplerState = null, bool imageBelongsToMe = false)
+        public Texture2D(Application application, ulong fromExistingHandle, uint width, uint height, ImageFormat imageFormat, SamplerState samplerState = null, bool imageBelongsToMe = false, bool usedForRenderTarget = false)
         {
             this.imageFormat = imageFormat;
             this.Width = width;
@@ -38,10 +39,11 @@ namespace Somnium.Framework
             imageHandle = fromExistingHandle;
             this.samplerState = samplerState;
             this.imageBelongsToMe = imageBelongsToMe;
+            this.usedForRenderTarget = usedForRenderTarget;
 
             Construct();
         }
-        public Texture2D(Application application, byte[] data, uint Width, uint Height, SamplerState samplerState, ImageFormat imageFormat)
+        public Texture2D(Application application, byte[] data, uint Width, uint Height, SamplerState samplerState, ImageFormat imageFormat, bool usedForRenderTarget = false)
         {
             this.imageFormat = imageFormat;
             this.application = application;
@@ -50,20 +52,23 @@ namespace Somnium.Framework
             this.Height = Height;
             this.samplerState = samplerState;
             imageBelongsToMe = true;
+            this.usedForRenderTarget = usedForRenderTarget;
 
             Construct();
         }
-        public Texture2D(Application application, uint Width, uint Height, ImageFormat imageFormat)
+        public Texture2D(Application application, uint Width, uint Height, ImageFormat imageFormat, bool usedForRenderTarget = false)
         {
             this.imageFormat = imageFormat;
             this.application = application;
             this.data = new byte[Width * Height * 4];
             this.Width = Width;
             this.Height = Height;
-            this.samplerState = null;
+            this.samplerState = SamplerState.PointClamp;
             imageBelongsToMe = true;
+            this.usedForRenderTarget = usedForRenderTarget;
 
             Construct();
+
         }
 
         public Span<byte> GetData()
@@ -106,6 +111,10 @@ namespace Somnium.Framework
                             //LayoutPreinitialized: transitioning to this image preserves the current pixels
                             createInfo.InitialLayout = ImageLayout.Undefined;
                             createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
+                            if (usedForRenderTarget)
+                            {
+                                createInfo.Usage = createInfo.Usage | ImageUsageFlags.ColorAttachmentBit;
+                            }
                             //Though we must share it between the transfer queue and the graphics queue, we won't be
                             //reading and writing to the image at the same time, hence set it to exclusive
                             createInfo.SharingMode = SharingMode.Exclusive;
