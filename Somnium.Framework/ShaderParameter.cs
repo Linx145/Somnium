@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using Somnium.Framework.Windowing;
 using Buffer = Silk.NET.Vulkan.Buffer;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Somnium.Framework
 {
-    public class ShaderParameterCollection// : IDisposable
+    public class ShaderParameterCollection : IDisposable
     {
         public int Count => parameters.Count;
         private Dictionary<string, int> map;
@@ -39,27 +40,24 @@ namespace Somnium.Framework
         /// Adds a parameter to the shader to be constructed.
         /// </summary>
         /// <param name="param"></param>
-        public void AddParameter(string name, uint index, UniformType type, uint size, uint arrayLength = 0)
+        public void AddParameter(string name, uint binding, UniformType type, uint size, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(name, index, type, size, arrayLength);
-            param.offset = shader.bufferSize;
-            shader.bufferSize += param.width;
+            ShaderParameter param = new ShaderParameter(application, name, binding, type, size, arrayLength);
             AddParameter(param);
         }
         /// <summary>
-        /// Adds a parameter to the shader to be constructed.
+        /// Adds a parameter to the shader.
         /// </summary>
-        /// <param name="param"></param>
-        public void AddParameter<T>(string name, uint index, UniformType type = UniformType.uniformBuffer, uint arrayLength = 0) where T : unmanaged
+        public void AddParameter<T>(string name, uint binding, UniformType type = UniformType.uniformBuffer, uint arrayLength = 1) where T : unmanaged
         {
             unsafe
             {
-                AddParameter(name, index, type, (uint)sizeof(T), arrayLength);
+                AddParameter(name, binding, type, (uint)sizeof(T), arrayLength);
             }
         }
-        public void AddTexture2DParameter(string name, uint index, uint arrayLength = 1)
+        public void AddTexture2DParameter(string name, uint binding, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(name, index, UniformType.imageAndSampler, 0, arrayLength);
+            ShaderParameter param = new ShaderParameter(application, name, binding, UniformType.imageAndSampler, 0, arrayLength);
             AddParameter(param);
             //param.offset = maxWidth;
             //maxWidth += param.size;
@@ -75,7 +73,7 @@ namespace Somnium.Framework
             }
             else return false;
         }
-        public bool Set<T>(string paramName, ReadOnlySpan<T> value) where T : unmanaged
+        public bool Set<T>(string paramName, T[] value) where T : unmanaged
         {
             if (map.TryGetValue(paramName, out var index))
             {
@@ -131,7 +129,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.uniformBuffer)
             {
-                shader.uniformBuffer.SetData(value, param.offset);
+                param.uniformBuffer.SetData(value, 0);
 
                 switch (application.runningBackend)
                 {
@@ -139,8 +137,7 @@ namespace Somnium.Framework
                         unsafe
                         {
                             DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                            bufferInfo.Buffer = new Buffer(shader.uniformBuffer.handle);//uniformBuffers[i];
-                            bufferInfo.Offset = param.offset;
+                            bufferInfo.Buffer = new Buffer(param.uniformBuffer.handle);//uniformBuffers[i];
                             bufferInfo.Range = param.width;
 
                             WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
@@ -162,12 +159,12 @@ namespace Somnium.Framework
             }
             else throw new NotImplementedException();
         }
-        public void Set<T>(int paramIndex, ReadOnlySpan<T> value) where T : unmanaged
+        public void Set<T>(int paramIndex, T[] value) where T : unmanaged
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.uniformBuffer)
             {
-                shader.uniformBuffer.SetData(value, param.offset);
+                param.uniformBuffer.SetData(value, 0);
 
                 switch (application.runningBackend)
                 {
@@ -175,20 +172,26 @@ namespace Somnium.Framework
                         unsafe
                         {
                             DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                            bufferInfo.Buffer = new Buffer(shader.uniformBuffer.handle);//uniformBuffers[i];
-                            bufferInfo.Offset = param.offset;
+                            bufferInfo.Buffer = new Buffer(param.uniformBuffer.handle);//uniformBuffers[i];
                             bufferInfo.Range = param.width;
 
-                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                            descriptorWrite.DstSet = shader.descriptorSet;
-                            descriptorWrite.DstBinding = param.binding;
-                            descriptorWrite.DstArrayElement = 0;
-                            descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                            descriptorWrite.DescriptorCount = 1;// (uint)value.Length;
-                            descriptorWrite.PBufferInfo = &bufferInfo;
+                            WriteDescriptorSet* descriptorWrites = stackalloc WriteDescriptorSet[value.Length];
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            for (int i = 0; i < value.Length; i++)
+                            {
+                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                descriptorWrite.DstSet = shader.descriptorSet;
+                                descriptorWrite.DstBinding = param.binding;
+                                descriptorWrite.DstArrayElement = (uint)i;
+                                descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
+                                descriptorWrite.DescriptorCount = 1;
+                                descriptorWrite.PBufferInfo = &bufferInfo;
+
+                                descriptorWrites[i] = descriptorWrite;
+                            }
+
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, (uint)value.Length, descriptorWrites, 0, null);
                         }
                         break;
                     default:
@@ -197,9 +200,17 @@ namespace Somnium.Framework
             }
             else throw new NotImplementedException();
         }
+        public void Dispose()
+        {
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                parameters[i].Dispose();
+            }
+        }
     }
-    public class ShaderParameter// : IDisposable
+    public class ShaderParameter : IDisposable
     {
+        public readonly Application application;
         /// <summary>
         /// The name of the parameter
         /// </summary>
@@ -224,19 +235,46 @@ namespace Somnium.Framework
         /// The total width occupied by the variable that this parameter represents, equals to size * arrayLength for arrays
         /// </summary>
         public readonly ulong width;
-        /// <summary>
-        /// Where in the buffer the variable's memory space begins at
-        /// </summary>
-        public ulong offset;
 
-        public ShaderParameter(string name, uint index, UniformType type, uint size, uint arrayLength = 0)
+        public readonly UniformBuffer[] uniformBuffersPerFrame;
+        public UniformBuffer uniformBuffer
         {
+            get
+            {
+                return uniformBuffersPerFrame[application.Window.frameNumber];
+            }
+        }
+
+        public ShaderParameter(Application application, string name, uint index, UniformType type, uint size, uint arrayLength)
+        {
+            this.application = application;
             this.type = type;
             this.name = name;
             this.binding = index;
             this.arrayLength = arrayLength;
             this.size = size;
             this.width = size * Math.Max(1, arrayLength);
+
+            if (type == UniformType.uniformBuffer)
+            {
+                uniformBuffersPerFrame = new UniformBuffer[application.Window.maxSimultaneousFrames];
+                for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
+                {
+                    uniformBuffersPerFrame[i] = new UniformBuffer(application, size * Math.Max(1, arrayLength));
+                }
+            }
+            else uniformBuffersPerFrame = null;
+        }
+
+        public void Dispose()
+        {
+            if (type == UniformType.uniformBuffer)
+            {
+                for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
+                {
+                    uniformBuffersPerFrame[i].Dispose();
+                }
+            }
         }
     }
 }

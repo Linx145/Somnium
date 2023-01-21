@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 using System;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
@@ -14,6 +15,16 @@ namespace Somnium.Framework
             this.application = application;
         }
 
+        /// <summary>
+        /// Alternate way to call <paramref name="pipelineState"/>.Begin().
+        /// </summary>
+        /// <param name="pipelineState"></param>
+        /// <param name="clearColor"></param>
+        /// <param name="renderTarget"></param>
+        public void SetPipeline(PipelineState pipelineState, Color clearColor, RenderTarget2D? renderTarget = null)
+        {
+            pipelineState.Begin(clearColor, renderTarget);
+        }
         public void SetInstanceBuffer(InstanceBuffer buffer, uint bindingPoint)
         {
             unsafe
@@ -21,7 +32,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
+                        Buffer vkBuffer = new Buffer(buffer.handles[application.Window.frameNumber]);
                         fixed (ulong* ptr = noOffset)
                         {
                             VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
@@ -57,7 +68,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
+                        Buffer vkBuffer = new Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
                         {
                             VkEngine.vk.CmdBindIndexBuffer(new CommandBuffer(VkEngine.commandBuffer.handle), vkBuffer, 0, IndexType.Uint16);
@@ -66,30 +77,6 @@ namespace Somnium.Framework
                     default:
                         throw new NotImplementedException();
                 }
-            }
-        }
-        public void SetRenderTarget(RenderTarget2D renderTarget)
-        {
-            switch (application.runningBackend)
-            {
-                case Backends.Vulkan:
-                    unsafe
-                    {
-                        if (!VkEngine.renderPass.begun)
-                        {
-                            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
-                            beginInfo.SType = StructureType.RenderPassBeginInfo;
-                            beginInfo.RenderPass = VkEngine.renderPass;
-                            beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
-                            beginInfo.RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D(renderTarget.width, renderTarget.height));
-                            beginInfo.ClearValueCount = 0;
-                            //beginInfo.PClearValues = &clearValue;
-                        }
-                        else throw new InvalidOperationException("Cannot set RenderTarget during render pass");
-                    }
-                    break;
-                default:
-                    throw new NotImplementedException();
             }
         }
         public void DrawPrimitives(uint vertexCount, uint instanceCount, uint firstVertex = 0, uint firstInstance = 0)

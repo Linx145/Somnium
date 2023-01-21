@@ -53,7 +53,7 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
-        public void Begin(Color clearColor, RenderTarget2D renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        public void Begin(Color clearColor, RenderTarget2D? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
@@ -75,6 +75,7 @@ namespace Somnium.Framework
             {
                 case Backends.Vulkan:
                     VkEngine.renderPass.End(VkEngine.commandBuffer);
+                    VkEngine.commandBuffer.End();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
                     break;
                 default:

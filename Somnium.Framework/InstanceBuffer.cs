@@ -9,15 +9,13 @@ namespace Somnium.Framework
     {
         public bool constructed { get; private set; }
         public bool isDisposed { get; private set; }
-        public ulong handle;
+        public ulong[] handles;
         private readonly Application application;
         public readonly uint instanceDataSize;
         public readonly uint instanceCount;
 
-        public VertexDeclaration instanceDataDeclaration;
-
         #region Vulkan
-        AllocatedMemoryRegion memoryRegion;
+        AllocatedMemoryRegion[] memoryRegions;
         #endregion
 
         public InstanceBuffer(Application application, uint instanceDataSize, uint instanceCount)
@@ -25,7 +23,8 @@ namespace Somnium.Framework
             this.application = application;
             this.instanceDataSize = instanceDataSize;
             this.instanceCount = instanceCount;
-            instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration(application.runningBackend, instanceDataSize, VertexElementInputRate.Instance);
+
+            Construct();
         }
         public static InstanceBuffer New<T>(Application application, uint instanceCount) where T : unmanaged
         {
@@ -42,9 +41,14 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        Buffer buffer = VkEngine.CreateResourceBuffer(instanceDataSize * instanceCount, BufferUsageFlags.VertexBufferBit);
-                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
-                        handle = buffer.Handle;
+                        handles = new ulong[application.Window.maxSimultaneousFrames];
+                        memoryRegions = new AllocatedMemoryRegion[application.Window.maxSimultaneousFrames];
+                        for (int i = 0; i < handles.Length; i++)
+                        {
+                            Buffer buffer = VkEngine.CreateResourceBuffer(instanceDataSize * instanceCount, BufferUsageFlags.VertexBufferBit);
+                            memoryRegions[i] = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            handles[i] = buffer.Handle;
+                        }
                     }
                     break;
                 default:
@@ -69,9 +73,28 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        T* data = memoryRegion.Bind<T>();
-                        instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
-                        memoryRegion.Unbind();
+                        /*if (!isDynamic)
+                        {
+                            T* data;
+                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(instanceDataDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
+                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+
+                            data = stagingMemoryRegion.Bind<T>();
+                            instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                            stagingMemoryRegion.Unbind();
+
+                            VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
+
+                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                            stagingMemoryRegion.Free();
+                        }
+                        else*/
+                        {
+                            //make sure the thing is bound
+                            T* data = memoryRegions[application.Window.frameNumber].Bind<T>();
+                            instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                        }
+                        //no need to call unbind
                     }
                     break;
                 default:
@@ -88,8 +111,12 @@ namespace Somnium.Framework
                     case Backends.Vulkan:
                         unsafe
                         {
-                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handle), null);
-                            memoryRegion.Free();
+                            for (int i = 0; i < handles.Length; i++)
+                            {
+                                VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handles[i]), null);
+                                if (memoryRegions[i].isBound) memoryRegions[i].Unbind();
+                                memoryRegions[i].Free();
+                            }
                         }
                         break;
                     default:

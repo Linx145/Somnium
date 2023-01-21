@@ -3,15 +3,18 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework.Vulkan
 {
-    public readonly struct AllocatedMemoryRegion
+    public struct AllocatedMemoryRegion
     {
         public readonly AllocatedMemory memory;
         public readonly DeviceMemory handle;
         public readonly ulong start;
         public readonly ulong width;
+
+        public bool isBound { get; private set; }
 
         public bool IsValid
         {
@@ -27,6 +30,7 @@ namespace Somnium.Framework.Vulkan
             this.handle = handle;
             start = startPosition;
             width = memorySize;
+            isBound = false;
         }
 
         public unsafe void Clear<T>(T defaultT = default(T)) where T : unmanaged
@@ -38,6 +42,39 @@ namespace Somnium.Framework.Vulkan
             temp.CopyTo(new Span<T>(ptr, amountToAlloc));
             Unbind();
         }
+        public unsafe T* Pin<T>() where T : unmanaged
+        {
+            if (memory.memoryPtr == null)
+            {
+                lock (memory.memoryPtrLock)
+                {
+                    //start, width
+                    //map the entirety of the memory to the host's memory pointer
+                    fixed (void** ptr = &memory.memoryPtr)
+                    {
+                        Interlocked.Increment(ref memory.amountBound);
+                        if (VkEngine.vk.MapMemory(VkEngine.vkDevice, handle, 0, memory.maxSize, 0, ptr) != Result.Success)
+                        {
+                            throw new ExecutionException("Error binding to Vulkan memory!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Map memory called to " + this.ToString());
+                        }
+                    }
+                }
+            }
+            return (T*)((byte*)memory.memoryPtr + start);
+        }
+        /// <summary>
+        /// Binds the memory region by calling VkMapMemory if memory is not yet mapped,
+        /// then/otherwise, returning a pointer of <typeparamref name="T"/> to this memory's region.
+        /// It is not necessary to call Unbind() after calling Bind. Not calling Unbind will just keep the
+        /// memory bound. It is also safe to call Bind() every frame.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        /// <exception cref="ExecutionException"></exception>
         public unsafe T* Bind<T>() where T : unmanaged
         {
             if (memory.memoryPtr == null)
@@ -59,9 +96,14 @@ namespace Somnium.Framework.Vulkan
                     }
                 }
             }
+            if (!isBound)
+            {
+                isBound = true;
+                Interlocked.Increment(ref memory.amountBound);
+            }
             //fixed (void* ptr = memory.memoryPtr)
             //{
-                return (T*)((byte*)memory.memoryPtr + start);
+            return (T*)((byte*)memory.memoryPtr + start);
             //}
         }
         public unsafe void* Bind()
@@ -85,6 +127,11 @@ namespace Somnium.Framework.Vulkan
                     }
                 }
             }
+            if (!isBound)
+            {
+                isBound = true;
+                Interlocked.Increment(ref memory.amountBound);
+            }
             fixed (void** ptr = &memory.memoryPtr)
             {
                 return (byte*)*ptr + start;
@@ -93,6 +140,7 @@ namespace Somnium.Framework.Vulkan
         }
         public unsafe void Unbind()
         {
+            isBound = false;
             Interlocked.Decrement(ref memory.amountBound);
             if (memory.amountBound < 0)
             {

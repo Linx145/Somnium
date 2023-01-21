@@ -30,7 +30,7 @@ namespace Somnium.Framework
         }
         public void SetData<T>(T[] vertices, int offset, int Length) where T : unmanaged
         {
-            if (Length > vertices.Length)
+            if (offset + Length > vertices.Length)
             {
                 throw new IndexOutOfRangeException("Attempting to set data outside of this vertex buffer!");
             }
@@ -56,7 +56,8 @@ namespace Somnium.Framework
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            T* data = memoryRegion.Bind<T>();
+                            vertices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                         }
                         break;
                     default:

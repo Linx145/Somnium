@@ -52,7 +52,6 @@ namespace Somnium.Framework.Vulkan
             }
             else
             {
-                Console.WriteLine("FRAME: " + window.frameNumber);
                 Console.WriteLine(str);
                 Console.WriteLine();
             }

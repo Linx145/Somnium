@@ -27,16 +27,6 @@ namespace Somnium.Framework
         public ShaderParameterCollection shader1Params;
         public ShaderParameterCollection shader2Params;
 
-        public ulong bufferSize = 0;
-        public UniformBuffer[] uniformBuffersPerFrame;
-        public UniformBuffer uniformBuffer
-        {
-            get
-            {
-                return uniformBuffersPerFrame[application.Window.frameNumber];
-            }
-        }
-
         #region vulkan
         /// <summary>
         /// The Vulkan descriptor set layout for all this shader's parameters. One copy of the same layout per frame
@@ -230,12 +220,6 @@ namespace Somnium.Framework
                             this.descriptorSetLayout = descriptorSetLayout;
                             #endregion
 
-                            uniformBuffersPerFrame = new UniformBuffer[]
-                            {
-                                new UniformBuffer(application, bufferSize, true),
-                                new UniformBuffer(application, bufferSize, true)
-                            };
-
                             # region create descriptor sets
                             //we need this so we can fill in the allocate info
 
@@ -293,7 +277,7 @@ namespace Somnium.Framework
             }
             else shader2Params.Set(uniformName, uniform);
         }
-        public void SetUniforms<T>(string uniformName, ReadOnlySpan<T> uniformArray, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
+        public void SetUniforms<T>(string uniformName, T[] uniformArray, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
             if (shaderNumber == SetNumber.Either)
             {
@@ -348,11 +332,8 @@ namespace Somnium.Framework
         {
             if (!isDisposed)
             {
-                if (uniformBuffersPerFrame != null)
-                {
-                    uniformBuffersPerFrame[0].Dispose();
-                    uniformBuffersPerFrame[1].Dispose();
-                }
+                shader1Params?.Dispose();
+                shader2Params?.Dispose();
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:

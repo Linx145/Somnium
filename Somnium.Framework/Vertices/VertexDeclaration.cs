@@ -30,10 +30,6 @@ namespace Somnium.Framework
     }
     public class VertexDeclaration
     {
-        /// <summary>
-        /// Whether the vertex declaration is registered already.
-        /// </summary>
-        public bool registered { get; internal set; }
         public static bool initialized { get; private set; }
 
         public List<VertexElement> elements;
@@ -71,7 +67,6 @@ namespace Somnium.Framework
                 VertexDeclaration declaration = new VertexDeclaration();
                 declaration.size = size;
                 declaration.inputRate = inputRate;
-                declaration.registered = false;
 
                 return declaration;
             }

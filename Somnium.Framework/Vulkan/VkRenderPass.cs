@@ -175,7 +175,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderTarget2D renderTarget = null, bool shouldClearColor = true)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderTarget2D? renderTarget = null, bool shouldClearColor = true)
         {
             if (begun)
             {

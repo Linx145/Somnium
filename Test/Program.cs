@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework;
+using Somnium.Framework.Vulkan;
 using Somnium.Framework.Windowing;
 using System;
 using System.Numerics;
@@ -16,9 +17,24 @@ namespace Test
         private static Shader shader;
         private static PipelineState state;
         private static Texture2D texture;
-        private static RenderTarget2D renderTarget;
 
-        private static Vector3[] positions;
+        private static Vector4[] positions;
+        private static Vector3[] velocities;
+
+        private static VertexPositionColorTexture[] vertices;
+        private static ushort[] indices;
+        private static VertexBuffer vb;
+        private static IndexBuffer indexBuffer;
+
+        private static InstanceBuffer instanceBuffer;
+        private static VertexDeclaration instanceDataDeclaration;
+
+        private static ViewProjection viewProjection;
+        //private static WorldViewProjection[] wvps;
+
+        private static ExtendedRandom rand;
+
+        const int instanceCount = 10000;
         //private static List<Vector3[]> positionsList = new List<Vector3[]>();
 
         [STAThread]
@@ -34,16 +50,6 @@ namespace Test
                 application.Start();
             }
         }
-        private static VertexPositionColorTexture[] vertices;
-        private static ushort[] indices;
-        private static VertexBuffer vb;
-        private static InstanceBuffer instanceBuffer;
-        private static IndexBuffer indexBuffer;
-
-        private static ViewProjection viewProjection;
-        //private static WorldViewProjection[] wvps;
-
-        private static ExtendedRandom rand;
 
         private static void OnLoad()
         {
@@ -56,30 +62,37 @@ namespace Test
                 new VertexPositionColorTexture(new Vector3(-width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(0, 0)),
                 new VertexPositionColorTexture(new Vector3(width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(1, 0)),
                 new VertexPositionColorTexture(new Vector3(width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(1, 1)),
-                new VertexPositionColorTexture(new Vector3(-width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(0, 1)),
+                new VertexPositionColorTexture(new Vector3(-width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(0, 1))
             };
-            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, 4, false);
-            vb.SetData(vertices, 0, 4);
+            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices.Length, false);
+            vb.SetData(vertices, 0, vertices.Length);
 
             indices = new ushort[]
             {
                 0, 1, 2, 2, 3, 0
             };
-            indexBuffer = new IndexBuffer(application, IndexSize.Uint16, 6, false);
-            indexBuffer.SetData(indices, 0, 6);
+            indexBuffer = new IndexBuffer(application, IndexSize.Uint16, indices.Length, false);
+            indexBuffer.SetData(indices, 0, indices.Length);
 
-            instanceBuffer = InstanceBuffer.New<Vector3>(application, 8100);
-            instanceBuffer.instanceDataDeclaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 0));
-            instanceBuffer.Construct();
-
-            shader = Shader.FromFiles(application, "Content/Vertex.spv", "Content/Fragment.spv");
+            /*shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
             shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
-            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            shader.shader1Params.AddParameter<Vector4>("positions", 1, UniformType.uniformBuffer, instanceCount);
+            shader.shader2Params.AddTexture2DParameter("texSampler", 2);
             //shader.shader1Params.Construct();
             //shader.shader2Params.Construct();
             shader.ConstructParams();
 
-            state = new PipelineState(application, new Somnium.Framework.Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceBuffer.instanceDataDeclaration);
+            state = new PipelineState(application, new Somnium.Framework.Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+            */
+            shader = Shader.FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
+            shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
+            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            shader.ConstructParams();
+
+            instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration<Vector4>(Backends.Vulkan, VertexElementInputRate.Instance);
+            instanceDataDeclaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 0));
+            state = new PipelineState(application, new Somnium.Framework.Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
+            instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
 
             using (FileStream stream = File.OpenRead("Content/tbh.png"))
             {
@@ -89,57 +102,43 @@ namespace Test
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
             viewProjection = new ViewProjection(
-                Matrix4x4.CreateTranslation(-20f, -11.25f, 0f),
+                Matrix4x4.CreateTranslation(0f, 0f, 0f),
                 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
                 );
 
+            positions = new Vector4[instanceCount];
+            velocities = new Vector3[instanceCount];
 
-            /*float globalIndex = 0;
-            for (int x = 0; x < 2; x++)
-            {*/
-            positions = new Vector3[instanceBuffer.instanceCount];
-            for (int i = 0; i < 90; i++)
+            for (int i = 0; i < positions.Length; i++)
             {
-                for (int j = 0; j < 90; j++)
-                {
-                    positions[i * 90 + j] = new Vector3(rand.NextFloat(0f, 40f), rand.NextFloat(0f, 22.5f), (i * 90 + j) * 0.005f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
-                }
+                velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
+                positions[i] = new Vector4(rand.NextFloat(-15f, 15f), rand.NextFloat(-7f, 7f), (i) * 0.005f, 0f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
-            instanceBuffer.SetData(positions);
-            /*positionsList.Add(positions);
-        }*/
+            //positions[0] = new Vector4(0f, 0f, 0f, 0f);
+            
         }
-
         private static void Draw(float deltaTime)
         {
+            instanceBuffer.SetData(positions);
+
+            var commandBuffer = VkEngine.commandBuffer;
+
+            commandBuffer.Reset();
+            commandBuffer.Begin();
+
             shader.SetUniform("texSampler", texture);
-
+            //shader.SetUniforms("positions", positions);
             shader.SetUniform("matrices", viewProjection);
-
-            state.Begin(Color.CornflowerBlue, renderTarget);
-
+        
+            Graphics.SetPipeline(state, Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
-            Graphics.SetIndexBuffer(indexBuffer);
-
             Graphics.SetInstanceBuffer(instanceBuffer, 1);
 
-            //for (int i = 0; i < positionsList.Count; i++)
-            //{
-            //instanceBuffer.SetData(positionsList[0]);
-            Graphics.DrawIndexedPrimitives(6, instanceBuffer.instanceCount);
-            //}
+            Graphics.SetIndexBuffer(indexBuffer);
+
+            Graphics.DrawIndexedPrimitives(6, instanceCount);
 
             state.End();
-        }
-
-        private static void Unload()
-        {
-            texture.Dispose();
-            state.Dispose();
-            shader.Dispose();
-            vb.Dispose();
-            indexBuffer.Dispose();
-            instanceBuffer.Dispose();
         }
 
         private static void Update(float deltaTime)
@@ -150,7 +149,22 @@ namespace Test
                 application.Window.Title = string.Concat("Test ", MathF.Round(1f / deltaTime).ToString());
                 recordTime -= 0.2f;
             }
+            for (int i = 0; i < instanceCount; i++)
+            {
+                positions[i] += new Vector4(velocities[i], 0f) * deltaTime;
+            }
             //Here all updates to the program should be done.
+        }
+
+        private static void Unload()
+        {
+            texture.Dispose();
+            state.Dispose();
+            shader.Dispose();
+            vb.Dispose();
+            indexBuffer.Dispose();
+
+            instanceBuffer?.Dispose();
         }
     }
 }

@@ -125,15 +125,12 @@ namespace Somnium.Framework.Vulkan
                 swapChain = potentialNewSwapchain;
                 return;
             }
-
-            commandBuffer.Reset();
-            commandBuffer.Begin();
         }
         public static void EndDraw()
         {
             //EndRenderPass();
             //renderPass.End(commandBuffer);
-            commandBuffer.End();
+            //commandBuffer.End();
 
             if (begunPipelines > 0)
             {
@@ -181,7 +178,7 @@ namespace Somnium.Framework.Vulkan
                 presentInfo.PSwapchains = ptr;
             }
             presentInfo.WaitSemaphoreCount = 1;
-            fixed (Silk.NET.Vulkan.Semaphore* ptr = &renderSemaphore)
+            fixed (Semaphore* ptr = &renderSemaphore)
             {
                 presentInfo.PWaitSemaphores = ptr;
             }
@@ -585,6 +582,10 @@ namespace Somnium.Framework.Vulkan
         #region Resource Buffers
         public static unsafe Buffer CreateResourceBuffer(ulong size, BufferUsageFlags usageFlags)
         {
+            if (size == 0)
+            {
+                throw new ArgumentOutOfRangeException("Size of buffer created cannot be zero!");
+            }
             BufferCreateInfo createInfo = new BufferCreateInfo();
             createInfo.SType = StructureType.BufferCreateInfo;
             createInfo.Size = size;
@@ -675,7 +676,7 @@ namespace Somnium.Framework.Vulkan
                 new DescriptorPoolSize()
                 {
                     Type = DescriptorType.UniformBuffer,
-                    DescriptorCount = 4
+                    DescriptorCount = 36
                 },
                 new DescriptorPoolSize()
                 {
@@ -688,7 +689,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.SType = StructureType.DescriptorPoolCreateInfo;
             createInfo.PoolSizeCount = 2; //the amount of areas in the descriptor to allocate and their respective descriptor counts
             createInfo.PPoolSizes = poolSizes;
-            createInfo.MaxSets = 4; //the maximum number of descriptor sets that can be allocated from the pool.
+            createInfo.MaxSets = 40; //the maximum number of descriptor sets that can be allocated from the pool.
 
             DescriptorPool newPool;
             //create descriptor pool(s)

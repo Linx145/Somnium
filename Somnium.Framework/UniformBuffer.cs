@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 using System;
+using System.Threading.Tasks;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
@@ -8,13 +9,9 @@ namespace Somnium.Framework
     public class UniformBuffer : IDisposable
     {
         private readonly Application application;
-        /// <summary>
-        /// Whether the buffer is used to store a single object type, or an entire shader's worth of uniforms
-        /// </summary>
-        public readonly bool isUnified;
 
         public ulong handle;
-        public ulong uniformBufferObjectSize;
+        public ulong size;
 
         public IntPtr bindingPoint;
 
@@ -22,11 +19,15 @@ namespace Somnium.Framework
         AllocatedMemoryRegion memoryRegion;
         #endregion
 
-        public UniformBuffer(Application application, ulong uniformBufferObjectSize, bool isUnified)
+        public UniformBuffer(Application application, ulong size)
         {
             this.application = application;
-            this.uniformBufferObjectSize = uniformBufferObjectSize;
-            this.isUnified = isUnified;
+            this.size = size;
+
+            if (size == 0)
+            {
+                throw new InvalidOperationException();
+            }
 
             Construct();
         }
@@ -35,27 +36,27 @@ namespace Somnium.Framework
             unsafe
             {
 #if DEBUG
-                if (!isUnified)
+                int sizeofT = sizeof(T);
+                if ((ulong)sizeofT != size)
                 {
-                    int sizeofT = sizeof(T);
-                    if ((ulong)sizeofT != uniformBufferObjectSize)
-                    {
-                        throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this uniform buffer (" + uniformBufferObjectSize.ToString() + ")!");
-                    }
+                    throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this uniform buffer (" + size.ToString() + ")!");
                 }
 #endif
                 *(T*)((byte*)bindingPoint + offset) = data;
                 //new Span<T>((void*)bindingPoint, 1)[0] = data;
             }
         }
-        public void SetData<T>(ReadOnlySpan<T> data, ulong offset) where T : unmanaged
+        public void SetData<T>(T[] data, ulong offset) where T : unmanaged
         {
             unsafe
             {
-                int sizeofT = sizeof(T);
+                //int sizeofT = sizeof(T);
                 T* ptr = (T*)((byte*)bindingPoint + offset);
+                /*Parallel.For(0, data.Length, (int i) =>
+                {
+                    *(ptr + i) = data[i];
+                });*/
                 data.CopyTo(new Span<T>(ptr, data.Length));
-                //new Span<T>((void*)bindingPoint, 1)[0] = data;
             }
         }
         public void Construct()
@@ -65,7 +66,7 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        Buffer buffer = VkEngine.CreateResourceBuffer(uniformBufferObjectSize, BufferUsageFlags.UniformBufferBit);
+                        Buffer buffer = VkEngine.CreateResourceBuffer(size, BufferUsageFlags.UniformBufferBit);
                         memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
 
