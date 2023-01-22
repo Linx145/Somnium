@@ -109,7 +109,7 @@ namespace Somnium.Framework.Vulkan
             //the shader pointer itself
             createInfo.Module = shaderModule;
             //the entry point of the shader
-            createInfo.PName = VkShader.Main();
+            createInfo.PName = Shader.Main();
             return createInfo;
         }
         internal unsafe PipelineVertexInputStateCreateInfo CreateVertexInputState()
@@ -376,15 +376,31 @@ namespace Somnium.Framework.Vulkan
             {
                 DescriptorSet currentFrameDescriptorSet = shaders[i].descriptorSet;
 
-                vk.CmdBindDescriptorSets(
-                    new CommandBuffer(commandBuffer.handle), 
-                    Converters.RenderStageToBindPoint[(int)bindType],
-                    pipelineLayout,
-                    0,
-                    1,
-                    &currentFrameDescriptorSet,
-                    0,
-                    null);
+                if (shaders[i].useDynamicUniformBuffer)
+                {
+                    vk.CmdBindDescriptorSets(
+                        new CommandBuffer(commandBuffer.handle),
+                        Converters.RenderStageToBindPoint[(int)bindType],
+                        pipelineLayout,
+                        0,
+                        1,
+                        &currentFrameDescriptorSet,
+                        (uint)VkEngine.unifiedDynamicBuffer.dataOffsets.Count,
+                        VkEngine.unifiedDynamicBuffer.dataOffsets.AsReadonlySpan()
+                        );
+                }
+                else
+                {
+                    vk.CmdBindDescriptorSets(
+    new CommandBuffer(commandBuffer.handle),
+    Converters.RenderStageToBindPoint[(int)bindType],
+    pipelineLayout,
+    0,
+    1,
+    &currentFrameDescriptorSet,
+    0,
+    null);
+                }
             }
             //for (int i = )
                 //vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);

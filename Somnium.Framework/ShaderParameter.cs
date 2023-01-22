@@ -42,7 +42,7 @@ namespace Somnium.Framework
         /// <param name="param"></param>
         public void AddParameter(string name, uint binding, UniformType type, uint size, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(application, name, binding, type, size, arrayLength);
+            ShaderParameter param = new ShaderParameter(shader, name, binding, type, size, arrayLength);
             AddParameter(param);
         }
         /// <summary>
@@ -57,7 +57,7 @@ namespace Somnium.Framework
         }
         public void AddTexture2DParameter(string name, uint binding, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(application, name, binding, UniformType.imageAndSampler, 0, arrayLength);
+            ShaderParameter param = new ShaderParameter(shader, name, binding, UniformType.imageAndSampler, 0, arrayLength);
             AddParameter(param);
             //param.offset = maxWidth;
             //maxWidth += param.size;
@@ -129,28 +129,57 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.uniformBuffer)
             {
-                param.uniformBuffer.SetData(value, 0);
+                if (shader.useDynamicUniformBuffer)
+                {
+                    //dont need to specify offset here as it will automatically set the offset to the dynamic
+                    //buffer extents
+                    VkEngine.unifiedDynamicBuffer.SetData(value, 0);
+                }
+                else param.uniformBuffer.SetData(value, 0);
 
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
                         unsafe
                         {
-                            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                            bufferInfo.Buffer = new Buffer(param.uniformBuffer.handle);//uniformBuffers[i];
-                            bufferInfo.Range = param.width;
+                            if (shader.useDynamicUniformBuffer)
+                            {
+                                DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
+                                bufferInfo.Buffer = new Buffer(VkEngine.unifiedDynamicBuffer.handle);//uniformBuffers[i];
+                                bufferInfo.Range = param.width;
+                                bufferInfo.Offset = 0; //dont need to specify offset here because we will do so in cmdBindDescriptorSet
 
-                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                            descriptorWrite.DstSet = shader.descriptorSet;
-                            descriptorWrite.DstBinding = param.binding;
-                            descriptorWrite.DstArrayElement = 0;
+                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                descriptorWrite.DstSet = shader.descriptorSet;
+                                descriptorWrite.DstBinding = param.binding;
+                                descriptorWrite.DstArrayElement = 0;
 
-                            descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                            descriptorWrite.DescriptorCount = 1;
-                            descriptorWrite.PBufferInfo = &bufferInfo;
+                                descriptorWrite.DescriptorType = DescriptorType.UniformBufferDynamic;
+                                descriptorWrite.DescriptorCount = 1;
+                                descriptorWrite.PBufferInfo = &bufferInfo;
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                                VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            }
+                            else
+                            {
+                                DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
+                                bufferInfo.Buffer = new Buffer(param.uniformBuffer.handle);//uniformBuffers[i];
+                                bufferInfo.Range = param.width;
+                                bufferInfo.Offset = 0;
+
+                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                descriptorWrite.DstSet = shader.descriptorSet;
+                                descriptorWrite.DstBinding = param.binding;
+                                descriptorWrite.DstArrayElement = 0;
+
+                                descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
+                                descriptorWrite.DescriptorCount = 1;
+                                descriptorWrite.PBufferInfo = &bufferInfo;
+
+                                VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            }
                         }
                         break;
                     default:
@@ -245,9 +274,9 @@ namespace Somnium.Framework
             }
         }
 
-        public ShaderParameter(Application application, string name, uint index, UniformType type, uint size, uint arrayLength)
+        public ShaderParameter(Shader shader, string name, uint index, UniformType type, uint size, uint arrayLength)
         {
-            this.application = application;
+            this.application = shader.application;
             this.type = type;
             this.name = name;
             this.binding = index;
@@ -255,7 +284,7 @@ namespace Somnium.Framework
             this.size = size;
             this.width = size * Math.Max(1, arrayLength);
 
-            if (type == UniformType.uniformBuffer)
+            if (type == UniformType.uniformBuffer && !shader.useDynamicUniformBuffer)
             {
                 uniformBuffersPerFrame = new UniformBuffer[application.Window.maxSimultaneousFrames];
                 for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
@@ -270,9 +299,12 @@ namespace Somnium.Framework
         {
             if (type == UniformType.uniformBuffer)
             {
-                for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
+                if (uniformBuffersPerFrame != null)
                 {
-                    uniformBuffersPerFrame[i].Dispose();
+                    for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
+                    {
+                        uniformBuffersPerFrame[i].Dispose();
+                    }
                 }
             }
         }

@@ -34,7 +34,7 @@ namespace Somnium.Framework.Windowing
             }
         }
         private int internalMaxSimultaneousFrames;
-        public readonly Application application;
+        public Application application;
         /// <summary>
         /// The window title
         /// </summary>

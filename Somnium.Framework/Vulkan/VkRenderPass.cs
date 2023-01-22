@@ -36,7 +36,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="imageLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
-        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, DepthFormat depthFormat = DepthFormat.Depth32)
+        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, DepthFormat depthFormat = DepthFormat.Depth32, ImageLayout finalLayout = ImageLayout.PresentSrcKhr)
         {
             uint attachmentCount = 1;
             if (depthFormat != DepthFormat.None)
@@ -61,7 +61,7 @@ namespace Somnium.Framework.Vulkan
             colorAttachment.LoadOp = loadOperation;
             colorAttachment.StoreOp = storeOperation;
             colorAttachment.InitialLayout = ImageLayout.Undefined;
-            colorAttachment.FinalLayout = ImageLayout.PresentSrcKhr;
+            colorAttachment.FinalLayout = finalLayout;
 
             attachments[0] = colorAttachment;
 
@@ -153,29 +153,13 @@ namespace Somnium.Framework.Vulkan
             return result;
         }
         /// <summary>
-        /// Begins the render pass with data in beginInfo
-        /// </summary>
-        /// <param name="cmdBuffer"></param>
-        /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer)
-        {
-            if (begun)
-            {
-                throw new InvalidOperationException("Vulkan render pass already began!");
-            }
-            //use inline for primary command buffers
-            vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
-
-            begun = true;
-        }
-        /// <summary>
         /// Begins the renderpass with data specified in arguments
         /// </summary>
         /// <param name="cmdBuffer"></param>
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderTarget2D? renderTarget = null, bool shouldClearColor = true)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderBuffer? renderTarget = null, bool shouldClearColor = true)
         {
             if (begun)
             {

@@ -100,7 +100,7 @@ namespace Somnium.Framework
                     {
                         VkEngine.vk.DestroyImageView(VkEngine.vkDevice, new ImageView(imageViewHandle), null);
                         VkEngine.vk.DestroyImage(VkEngine.vkDevice, new Image(handle), null);
-                        memoryRegion.Unbind();
+                        if (memoryRegion.isBound) memoryRegion.Unbind();
                     }
                     break;
                 default:

@@ -27,14 +27,15 @@ namespace Test
 
         private static InstanceBuffer instanceBuffer;
         private static VertexDeclaration instanceDataDeclaration;
+
+        const int instanceCount = 1000;
+#endif
+
+#if RENDERBUFFERS
+        private static RenderBuffer renderBuffer;
 #endif
 
         private static ViewProjection viewProjection;
-
-#if INSTANCING
-        const int instanceCount = 1000;
-#endif
-        //private static List<Vector3[]> positionsList = new List<Vector3[]>();
 
         [STAThread]
         public static void Main(string[] args)
@@ -71,19 +72,32 @@ namespace Test
             indexBuffer = new IndexBuffer(application, IndexSize.Uint16, indices.Length, false);
             indexBuffer.SetData(indices, 0, indices.Length);
 
+            #region test: render buffers
+#if RENDERBUFFERS
+            shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
+            shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
+            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            shader.ConstructParams();
+
+            renderBuffer = new RenderBuffer(application, 16, 16, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
+
+            state = new PipelineState(application, new Viewport(0, 0, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+#endif
+            #endregion
+
             #region test: regular drawing
-            #if DRAWING
+#if DRAWING
             shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
             shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
             shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
             state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
-            #endif
+#endif
             #endregion
 
             #region test: instancing
-            #if INSTANCING
+#if INSTANCING
             rand = new ExtendedRandom();
             shader = Shader.FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
             shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
@@ -104,7 +118,7 @@ namespace Test
                 velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
                 positions[i] = new Vector4(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f, 0f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
-            #endif
+#endif
             #endregion
 
             #region uniforms
@@ -133,19 +147,38 @@ namespace Test
 
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("matrices", viewProjection);
-        
+
+#if RENDERBUFFERS
+            Graphics.SetPipeline(state, Color.Transparent, renderBuffer);
+            Graphics.SetVertexBuffer(vb, 0);
+            Graphics.SetIndexBuffer(indexBuffer);
+            Graphics.DrawIndexedPrimitives(6, 1);
+            state.End();
+
+            Graphics.SetPipeline(state, Color.CornflowerBlue, null);
+            
+            Graphics.SetVertexBuffer(vb, 0);
+            Graphics.SetIndexBuffer(indexBuffer);
+            Graphics.DrawIndexedPrimitives(6, 1);
+            //Graphics.SetPipeline(state, Color.CornflowerBlue, null);
+#endif
+#if DRAWING
             Graphics.SetPipeline(state, Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
-#if INSTANCING
-            Graphics.SetInstanceBuffer(instanceBuffer, 1);
-            Graphics.DrawIndexedPrimitives(6, instanceCount);
-#endif
-#if DRAWING
             Graphics.DrawIndexedPrimitives(6, 1);
+#endif
+#if INSTANCING
+            Graphics.SetPipeline(state, Color.CornflowerBlue);
+            Graphics.SetVertexBuffer(vb, 0);
+            Graphics.SetIndexBuffer(indexBuffer);
+            Graphics.SetInstanceBuffer(instanceBuffer, 1);
+
+            Graphics.DrawIndexedPrimitives(6, instanceCount);
 #endif
 
             state.End();
+            commandBuffer.End();
         }
 
         private static void Update(float deltaTime)
@@ -171,6 +204,9 @@ namespace Test
 
 #if INSTANCING
             instanceBuffer?.Dispose();
+#endif
+#if RENDERBUFFERS
+            renderBuffer?.Dispose();
 #endif
         }
     }

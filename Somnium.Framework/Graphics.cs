@@ -21,7 +21,7 @@ namespace Somnium.Framework
         /// <param name="pipelineState"></param>
         /// <param name="clearColor"></param>
         /// <param name="renderTarget"></param>
-        public void SetPipeline(PipelineState pipelineState, Color clearColor, RenderTarget2D? renderTarget = null)
+        public void SetPipeline(PipelineState pipelineState, Color clearColor, RenderBuffer? renderTarget = null)
         {
             pipelineState.Begin(clearColor, renderTarget);
         }

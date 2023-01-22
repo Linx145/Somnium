@@ -97,7 +97,7 @@ namespace Somnium.Framework
                     {
                         Image image;
 
-                        if (imageHandle == 0) //this is true in cases where the images are passed in already created,  EG: From a swapchain
+                        if (imageHandle == 0) //this is false in cases where the images are passed in already created,  EG: From a swapchain
                         {
                             ImageCreateInfo createInfo = new ImageCreateInfo();
                             createInfo.SType = StructureType.ImageCreateInfo;
@@ -113,7 +113,7 @@ namespace Somnium.Framework
                             createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
                             if (usedForRenderTarget)
                             {
-                                createInfo.Usage = createInfo.Usage | ImageUsageFlags.ColorAttachmentBit;
+                                createInfo.Usage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
                             }
                             //Though we must share it between the transfer queue and the graphics queue, we won't be
                             //reading and writing to the image at the same time, hence set it to exclusive
@@ -135,21 +135,24 @@ namespace Somnium.Framework
                             //set data into image using a staging buffer
                             memoryRegion = VkMemory.malloc(image, MemoryPropertyFlags.DeviceLocalBit);
 
-                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferSrcBit);
-                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            if (!usedForRenderTarget)
+                            {
+                                var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferSrcBit);
+                                var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
-                            byte* stagingData = stagingMemoryRegion.Bind<byte>();
-                            //stagingMemoryRegion.Bind(&stagingData);
-                            data.AsSpan().CopyTo(new Span<byte>(stagingData, data.Length));
-                            stagingMemoryRegion.Unbind();
+                                byte* stagingData = stagingMemoryRegion.Bind<byte>();
+                                //stagingMemoryRegion.Bind(&stagingData);
+                                data.AsSpan().CopyTo(new Span<byte>(stagingData, data.Length));
+                                stagingMemoryRegion.Unbind();
 
-                            VkEngine.TransitionImageLayout(this, ImageLayout.Undefined, ImageLayout.TransferDstOptimal);
-                            VkEngine.StaticCopyBufferToImage(stagingBuffer, this);
+                                VkEngine.TransitionImageLayout(this, ImageLayout.Undefined, ImageLayout.TransferDstOptimal);
+                                VkEngine.StaticCopyBufferToImage(stagingBuffer, this);
 
-                            VkEngine.TransitionImageLayout(this, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
+                                VkEngine.TransitionImageLayout(this, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
 
-                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
-                            stagingMemoryRegion.Free();
+                                VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                                stagingMemoryRegion.Free();
+                            }
                         }
 
                         //create image view

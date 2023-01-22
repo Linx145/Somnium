@@ -20,6 +20,8 @@ namespace Somnium.Framework
 
         public GenerationalIndex handle;
 
+        public RenderBuffer? currentRenderbuffer { get; private set; }
+
         public PipelineState(
             Application application, 
             Somnium.Framework.Viewport viewport, 
@@ -48,19 +50,31 @@ namespace Somnium.Framework
 
                     VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertices);
                     handle = VkEngine.AddPipeline(pipeline);
+
+                    pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], vertices);
+                    VkEngine.AddRenderbufferPipeline(pipeline);
                     break;
                 default:
                     throw new NotImplementedException();
             }
         }
-        public void Begin(Color clearColor, RenderTarget2D? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        public void Begin(Color clearColor, RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, clearColor, renderTarget);
-
-                    var pipeline = VkEngine.GetPipeline(handle);
+                    this.currentRenderbuffer = renderTarget;
+                    VkGraphicsPipeline pipeline;
+                    if (renderTarget == null)
+                    {
+                        pipeline = VkEngine.GetPipeline(handle);
+                        VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, clearColor, renderTarget);
+                    }
+                    else
+                    {
+                        pipeline = VkEngine.GetRenderbufferPipeline(handle);
+                        VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, clearColor, renderTarget);
+                    }
                     pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
@@ -74,8 +88,12 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.renderPass.End(VkEngine.commandBuffer);
-                    VkEngine.commandBuffer.End();
+                    if (currentRenderbuffer == null)
+                    {
+                        VkEngine.renderPass.End(VkEngine.commandBuffer);
+                    }
+                    else VkEngine.framebufferRenderPass.End(VkEngine.commandBuffer);
+                    VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
                     break;
                 default:

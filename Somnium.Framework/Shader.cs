@@ -14,9 +14,11 @@ namespace Somnium.Framework
             Either, First, Second
         }
         public const string main = "main";
+        public static IntPtr mainPtr;
 
-        Application application;
+        internal readonly Application application;
         public readonly ShaderType type;
+        public readonly bool useDynamicUniformBuffer;
         public bool isDisposed { get; private set; }
         private byte[] byteCode;
         private byte[] byteCode2;
@@ -42,8 +44,9 @@ namespace Somnium.Framework
         }
         #endregion
 
-        public Shader(Application application, ShaderType Type, byte[] byteCode)
+        public Shader(Application application, ShaderType Type, byte[] byteCode, bool useDynamicUniformBuffer = true)
         {
+            this.useDynamicUniformBuffer = useDynamicUniformBuffer;
             this.application = application;
             this.byteCode = byteCode;
             this.byteCode2 = null;
@@ -53,8 +56,9 @@ namespace Somnium.Framework
 
             Construct();
         }
-        public Shader(Application application, byte[] shaderCode1, byte[] shaderCode2, ShaderType type = ShaderType.VertexAndFragment)
+        public Shader(Application application, byte[] shaderCode1, byte[] shaderCode2, ShaderType type = ShaderType.VertexAndFragment, bool useDynamicUniformBuffer = false)
         {
+            this.useDynamicUniformBuffer = useDynamicUniformBuffer;
             this.application = application;
             this.type = type;
             this.byteCode = shaderCode1; //vertex / tessellation control
@@ -185,6 +189,10 @@ namespace Somnium.Framework
                                 DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
                                 binding.Binding = value.binding;
                                 binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
+                                if (binding.DescriptorType == DescriptorType.UniformBuffer && useDynamicUniformBuffer)
+                                {
+                                    binding.DescriptorType = DescriptorType.UniformBufferDynamic;
+                                }
                                 //If the binding points to a variable in the shader that is an array, this would be that array's length
                                 binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
                                 binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader1Params!.shaderType];
@@ -315,6 +323,22 @@ namespace Somnium.Framework
         }
 
         #region static methods
+        public static unsafe byte* Main()
+        {
+            if (mainPtr == IntPtr.Zero)
+            {
+                mainPtr = (IntPtr)(byte*)SilkMarshal.StringToPtr(main);
+            }
+            return (byte*)mainPtr;
+        }
+        public static void FreeMainStringPointer()
+        {
+            if (mainPtr != IntPtr.Zero)
+            {
+                SilkMarshal.Free((nint)mainPtr);
+                mainPtr = IntPtr.Zero;
+            }
+        }
         public static Shader FromFile(Application application, string filePath, ShaderType type)
         {
             byte[] bytes = File.ReadAllBytes(filePath);

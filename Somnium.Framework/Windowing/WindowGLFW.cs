@@ -20,6 +20,11 @@ namespace Somnium.Framework.Windowing
 
         public WindowHandle* handle;
 
+        public WindowGLFW(Application application)
+        {
+            this.application = application;
+        }
+
         #region properties
         public override Point Size
         {
@@ -128,8 +133,7 @@ namespace Somnium.Framework.Windowing
                     throw new InitializationException("GLFW failed to initialize!");
                 }
             }
-            WindowGLFW window = new WindowGLFW();
-            window.application = application;
+            WindowGLFW window = new WindowGLFW(application);
             window.internalSize = windowSize;
             window.internalTitle = title;
 

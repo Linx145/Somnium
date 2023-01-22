@@ -54,6 +54,11 @@ namespace Somnium.Framework.Vulkan
             {
                 Console.WriteLine(str);
                 Console.WriteLine();
+
+                if ((messageSeverity | DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt) != 0)
+                {
+                    throw new ExecutionException(str);
+                }
             }
 
             return Vk.False;

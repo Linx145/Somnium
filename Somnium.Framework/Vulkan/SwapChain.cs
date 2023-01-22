@@ -57,7 +57,7 @@ namespace Somnium.Framework.Vulkan
         public Window window;
 
         public uint currentImageIndex;
-        public RenderTarget2D[] renderTargets;
+        public RenderBuffer[] renderTargets;
         public Image[] images;
         //public ImageData[] imageDatas;
         //public VkFramebuffer[] imageFrameBuffers;
@@ -239,12 +239,12 @@ namespace Somnium.Framework.Vulkan
                     renderTargets[i].Dispose();
                 }
             }
-            renderTargets = new RenderTarget2D[ImageCount];
+            renderTargets = new RenderBuffer[ImageCount];
             for (int i = 0; i < renderTargets.Length; i++)
             {
                 Texture2D backendTexture = new Texture2D(application, images[i].Handle, imageExtents.Width, imageExtents.Height, Converters.VkFormatToImageFormat(imageFormat));
                 DepthBuffer depthBuffer = new DepthBuffer(application, imageExtents.Width, imageExtents.Height, DepthFormat.Depth32);
-                renderTargets[i] = new RenderTarget2D(application, backendTexture, depthBuffer);
+                renderTargets[i] = new RenderBuffer(application, backendTexture, depthBuffer, true);
             }
         }
 

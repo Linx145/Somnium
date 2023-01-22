@@ -22,6 +22,8 @@ namespace Somnium.Framework.Vulkan
         //public CommandPoolCreateInfo poolCreateInfo;
         public CommandRegistrar commandPool;
         public CommandCollection commandBuffer;//CommandRegistrar commandPool;
+
+        public UniformBuffer unifiedDynamicBuffer;
         //public CommandBuffer commandBuffer;
 
         public bool isDisposed { get; private set; }
@@ -34,9 +36,7 @@ namespace Somnium.Framework.Vulkan
             renderSemaphore = VkEngine.CreateSemaphore();
             fence = VkEngine.CreateFence();
 
-            /*this.presentSemaphore = presentSemaphore;
-            this.renderSemaphore = renderSemaphore;
-            this.commandPool = commandPool;*/
+            unifiedDynamicBuffer = new UniformBuffer(application, 256, true);
         }
 
         public unsafe void Dispose()
@@ -51,6 +51,8 @@ namespace Somnium.Framework.Vulkan
                 vk.DestroyFence(vkDevice, fence, null);
 
                 commandPool.Dispose();
+
+                unifiedDynamicBuffer?.Dispose();
                 isDisposed = true;
             }
         }

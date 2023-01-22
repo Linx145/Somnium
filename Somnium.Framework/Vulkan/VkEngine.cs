@@ -47,6 +47,7 @@ namespace Somnium.Framework.Vulkan
         private static SurfaceKHR internalWindowSurface;
 
         private static GenerationalArray<VkGraphicsPipeline> pipelines = new GenerationalArray<VkGraphicsPipeline>(null);
+        private static GenerationalArray<VkGraphicsPipeline> renderbufferPipelines = new GenerationalArray<VkGraphicsPipeline>(null);
         public static FrameData[] frames;
 
         public static CommandCollection commandBuffer
@@ -75,6 +76,13 @@ namespace Somnium.Framework.Vulkan
             get
             {
                 return ref frames[window.frameNumber].renderSemaphore;
+            }
+        }
+        public static UniformBuffer unifiedDynamicBuffer
+        {
+            get
+            {
+                return frames[window.frameNumber].unifiedDynamicBuffer;
             }
         }
 
@@ -134,15 +142,15 @@ namespace Somnium.Framework.Vulkan
             //renderPass.End(commandBuffer);
             //commandBuffer.End();
 
+            SubmitToGPU();
+        }
+        public static void SubmitToGPU()
+        {
             if (begunPipelines > 0)
             {
                 throw new ExecutionException("Vulkan draw loop ended but a Pipeline State is still bound! Check that all Pipeline States have had End() called.");
             }
 
-            SubmitToGPU();
-        }
-        public static void SubmitToGPU()
-        {
             //submit what we rendered to the GPU
             SubmitInfo submitInfo = new SubmitInfo();
             submitInfo.SType = StructureType.SubmitInfo;
@@ -485,21 +493,27 @@ namespace Somnium.Framework.Vulkan
 
         #region render pass
         public static VkRenderPass renderPass;
+        public static VkRenderPass framebufferRenderPass;
 
         public static void CreateRenderPass()
         {
             renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Clear, AttachmentStoreOp.Store);
+            framebufferRenderPass = VkRenderPass.Create(Format.R8G8B8A8Unorm, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Clear, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.ShaderReadOnlyOptimal);
         }
         #endregion
 
         #region pipelines
         public static GenerationalIndex AddPipeline(VkGraphicsPipeline pipeline) => pipelines.Add(pipeline);
+        public static GenerationalIndex AddRenderbufferPipeline(VkGraphicsPipeline pipeline) => renderbufferPipelines.Add(pipeline);
         public static void DestroyPipeline(GenerationalIndex index)
         {
             pipelines[index].Dispose();
             pipelines.Remove(index);
+            renderbufferPipelines[index].Dispose();
+            renderbufferPipelines.Remove(index);
         }
         public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
+        public static VkGraphicsPipeline GetRenderbufferPipeline(GenerationalIndex index) => renderbufferPipelines.Get(index);
         #endregion
 
         #region command pools(memory)
@@ -852,6 +866,7 @@ namespace Somnium.Framework.Vulkan
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
                 VkMemory.Dispose();
                 renderPass.Dispose();
+                framebufferRenderPass.Dispose();
                 for (int i = 0; i < frames.Length; i++)
                 {
                     frames[i].Dispose();
@@ -888,7 +903,6 @@ namespace Somnium.Framework.Vulkan
                 Marshal.FreeHGlobal(appNamePtr);
                 Marshal.FreeHGlobal(engineNamePtr);
                 SilkMarshal.Free((nint)requiredDeviceExtensionsPtr);
-                VkShader.FreeMainStringPointer();
 
                 initialized = false;
             }

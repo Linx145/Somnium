@@ -4,19 +4,31 @@ using System;
 
 namespace Somnium.Framework
 {
-    public class RenderTarget2D : IDisposable
+    public class RenderBuffer : IDisposable
     {
         private readonly Application application;
         public readonly Texture2D backendTexture;
         public readonly DepthBuffer depthBuffer;
         public readonly uint width;
         public readonly uint height;
+        public readonly bool isBackbuffer;
 
         public ulong framebufferHandle;
 
         public bool isDisposed { get; private set; } = false;
         public bool constructed { get; private set; } = false;
-        public RenderTarget2D(Application application, Texture2D backendTexture, DepthBuffer depthBuffer)
+        internal RenderBuffer(Application application, Texture2D backendTexture, DepthBuffer depthBuffer, bool isBackbuffer)
+        {
+            this.depthBuffer = depthBuffer;
+            this.application = application;
+            this.backendTexture = backendTexture;
+            this.width = backendTexture.Width;
+            this.height = backendTexture.Height;
+            this.isBackbuffer = isBackbuffer;
+
+            Construct();
+        }
+        public RenderBuffer(Application application, Texture2D backendTexture, DepthBuffer depthBuffer)
         {
             this.depthBuffer = depthBuffer;
             this.application = application;
@@ -26,7 +38,7 @@ namespace Somnium.Framework
 
             Construct();
         }
-        public RenderTarget2D(Application application, uint width, uint height, ImageFormat imageFormat, DepthFormat depthFormat)
+        public RenderBuffer(Application application, uint width, uint height, ImageFormat imageFormat, DepthFormat depthFormat)
         {
             this.application = application;
             this.width = width;
@@ -55,7 +67,11 @@ namespace Somnium.Framework
                         createInfo.SType = StructureType.FramebufferCreateInfo;
                         createInfo.Width = width;
                         createInfo.Height = height;
-                        createInfo.RenderPass = VkEngine.renderPass;
+                        if (isBackbuffer)
+                        {
+                            createInfo.RenderPass = VkEngine.renderPass;
+                        }
+                        else createInfo.RenderPass = VkEngine.framebufferRenderPass;
                         createInfo.Layers = 1;
 
                         uint attachmentCount = 1;

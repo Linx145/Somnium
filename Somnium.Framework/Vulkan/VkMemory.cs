@@ -140,6 +140,10 @@ namespace Somnium.Framework.Vulkan
         }
         public unsafe void Unbind()
         {
+            if (!isBound)
+            {
+                throw new InvalidOperationException("Attempting to unbind already unbound Memory Region!");
+            }
             isBound = false;
             Interlocked.Decrement(ref memory.amountBound);
             if (memory.amountBound < 0)
@@ -155,7 +159,6 @@ namespace Somnium.Framework.Vulkan
                 {
                     memory.memoryPtr = null;
                 }
-
             }
         }
 
@@ -308,11 +311,13 @@ namespace Somnium.Framework.Vulkan
     {
         public bool isDisposed { get; private set; }
         public readonly uint memoryTypeIndex;
+        public readonly uint memoryBits;
         public UnorderedList<AllocatedMemory> allocatedMemories;
-        public MemoryPool(uint memoryTypeIndex)
+        public MemoryPool(uint memoryTypeIndex, uint memoryBits)
         {
             this.memoryTypeIndex = memoryTypeIndex;
             allocatedMemories = new UnorderedList<AllocatedMemory>();
+            this.memoryBits = memoryBits;
         }
         public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize)
         {
@@ -443,13 +448,17 @@ namespace Somnium.Framework.Vulkan
         public static unsafe AllocatedMemoryRegion malloc(MemoryRequirements memoryRequirements, MemoryPropertyFlags memoryPropertyFlags, ulong memoryCreationSize = 65536)
         {
             uint memoryTypeIndex = Utils.FindMemoryType(memoryRequirements.MemoryTypeBits, memoryPropertyFlags, VkEngine.CurrentGPU);
-
+            
             if (!memoryPools.WithinLength(memoryTypeIndex) || memoryPools[memoryTypeIndex] == null)
             {
-                Console.WriteLine("Created new Memory Pool at index " + memoryTypeIndex);
-                memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex));
+                Console.WriteLine("Created new Memory Pool at index " + memoryTypeIndex + " for bit types " + memoryRequirements.MemoryTypeBits);
+                memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex, memoryRequirements.MemoryTypeBits));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
+            if (pool.memoryBits != memoryRequirements.MemoryTypeBits)
+            {
+                throw new InvalidOperationException("Attempted to use memory pool with type bits " + pool.memoryBits + " for type bits " + memoryRequirements.MemoryTypeBits);
+            }
             AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize);
 
             return memoryRegion;
