@@ -198,6 +198,16 @@ namespace Somnium.Framework.Windowing
             Glfw.PollEvents();
         }
         public override IGLContext GetGLContext() => GLContext;
+        public override CommandCollection GetDefaultCommandCollection()
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    return VkEngine.commandBuffer;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
         public override SurfaceKHR CreateWindowSurfaceVulkan()
         {
             VkNonDispatchableHandle surfaceHandle;

@@ -125,6 +125,8 @@ namespace Somnium.Framework.Vulkan
                 swapChain = potentialNewSwapchain;
                 return;
             }
+
+            commandBuffer.Reset();
         }
         public static void EndDraw()
         {
