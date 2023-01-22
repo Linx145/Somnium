@@ -3,7 +3,7 @@ using Silk.NET.Vulkan;
 using System.IO;
 using Somnium.Framework.Vulkan;
 using Silk.NET.Core.Native;
-using System.Reflection.Metadata;
+using System.Collections.Generic;
 
 namespace Somnium.Framework
 {
@@ -34,12 +34,20 @@ namespace Somnium.Framework
         /// The Vulkan descriptor set layout for all this shader's parameters. One copy of the same layout per frame
         /// </summary>
         public DescriptorSetLayout descriptorSetLayout;
-        public DescriptorSet[] descriptorSetsPerFrame;
+        public List<DescriptorSet>[] descriptorSetsPerFrame;
+
+        /// <summary>
+        /// This gets increased by 1 if the parameter data is set and a draw call is made.
+        /// <br>It will not be increased if it is unused during a draw call, or no draw call is made.</br>
+        /// <br>It is then reset when the present queue is submitted</br>
+        /// </summary>
+        public int descriptorForThisDrawCall = 0;
+        public bool uniformHasBeenSet = false;
         public DescriptorSet descriptorSet
         {
             get
             {
-                return descriptorSetsPerFrame[application.Window.frameNumber];
+                return descriptorSetsPerFrame[application.Window.frameNumber][descriptorForThisDrawCall];
             }
         }
         #endregion
@@ -231,27 +239,10 @@ namespace Somnium.Framework
                             # region create descriptor sets
                             //we need this so we can fill in the allocate info
 
-                            DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
-                            descriptorSetsPerFrame = new DescriptorSet[application.Window.maxSimultaneousFrames];
-
-                            DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
-                            allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
-                            allocInfo.DescriptorPool = relatedPool;
-                            allocInfo.DescriptorSetCount = (uint)descriptorSetsPerFrame.Length;
-
-                            DescriptorSetLayout* descriptorSetLayoutCopies = stackalloc DescriptorSetLayout[application.Window.maxSimultaneousFrames];
-                            for (int c = 0; c < application.Window.maxSimultaneousFrames; c++)
+                            descriptorSetsPerFrame = new List<DescriptorSet>[application.Window.maxSimultaneousFrames];
+                            for (int i = 0; i < descriptorSetsPerFrame.Length; i++)
                             {
-                                descriptorSetLayoutCopies[c] = descriptorSetLayout;
-                            }
-                            allocInfo.PSetLayouts = descriptorSetLayoutCopies;
-
-                            fixed (DescriptorSet* ptr = descriptorSetsPerFrame)
-                            {
-                                if (VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, ptr) != Result.Success)
-                                {
-                                    throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
-                                }
+                                descriptorSetsPerFrame[i] = new List<DescriptorSet>();
                             }
                             #endregion
                         }
@@ -261,6 +252,31 @@ namespace Somnium.Framework
                 }
             }
         }
+        public unsafe void AddDescriptorSets()
+        {
+            DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
+
+            DescriptorSet result;
+
+            DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
+            allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
+            allocInfo.DescriptorPool = relatedPool;
+            allocInfo.DescriptorSetCount = 1;
+            fixed (DescriptorSetLayout* copy = &descriptorSetLayout)
+            {
+                allocInfo.PSetLayouts = copy;
+            }
+
+            if (VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, &result) != Result.Success)
+            {
+                throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
+            }
+
+            descriptorSetsPerFrame[application.Window.frameNumber].Add(result);
+
+            shader1Params?.AddUniformBuffers();
+            shader2Params?.AddUniformBuffers();
+        }
         /// <summary>
         /// 
         /// </summary>
@@ -269,6 +285,15 @@ namespace Somnium.Framework
         /// <param name="shaderNumber">Which uniform buffer should the data be set into</param>
         public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
+            if (!uniformHasBeenSet)
+            {
+                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                {
+                    AddDescriptorSets();
+                }
+                uniformHasBeenSet = true;
+            }
+
             if (shaderNumber == SetNumber.Either)
             {
                 if (!shader1Params.Set(uniformName, uniform))
@@ -287,6 +312,15 @@ namespace Somnium.Framework
         }
         public void SetUniforms<T>(string uniformName, T[] uniformArray, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
+            if (!uniformHasBeenSet)
+            {
+                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                {
+                    AddDescriptorSets();
+                }
+                uniformHasBeenSet = true;
+            }
+
             if (shaderNumber == SetNumber.Either)
             {
                 if (!shader1Params.Set(uniformName, uniformArray))
@@ -305,13 +339,22 @@ namespace Somnium.Framework
         }
         public void SetUniform(string uniformName, Texture2D uniform, SetNumber shaderNumber = SetNumber.Either)
         {
+            if (!uniformHasBeenSet)
+            {
+                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                {
+                    AddDescriptorSets();
+                }
+                uniformHasBeenSet = true;
+            }
+
             if (shaderNumber == SetNumber.Either)
             {
                 if (!shader1Params.Set(uniformName, uniform))
                 {
                     if (!shader2Params.Set(uniformName, uniform))
                     {
-                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
                     }
                 }
             }

@@ -58,7 +58,14 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
-        public void Begin(Color clearColor, RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        /// <summary>
+        /// Public call available in Graphics.SetPipeline
+        /// </summary>
+        /// <param name="clearColor"></param>
+        /// <param name="renderTarget"></param>
+        /// <param name="renderStageToBindTo"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        internal void Begin(Color? clearColor, RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
@@ -82,6 +89,20 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
             //vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, handle);
+        }
+        internal void ForceUpdateUniforms(RenderStage bindType)
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    //dont care about renderbuffer here because we are ultimately only accessing the
+                    //shader of the pipeline, which is shared between both renderbuffered pipeline and regular pipeline
+                    VkGraphicsPipeline pipeline = VkEngine.GetPipeline(handle);
+                    pipeline.PushUniformUpdates(VkEngine.commandBuffer, bindType);
+                    break;
+                default:
+                    break;
+            }
         }
         public void End()
         {

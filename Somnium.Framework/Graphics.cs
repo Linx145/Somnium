@@ -7,6 +7,7 @@ namespace Somnium.Framework
 {
     public class Graphics
     {
+        public PipelineState currentPipeline { get; private set; }
         public readonly Application application;
         ulong[] noOffset = new ulong[1] { 0 };
 
@@ -21,9 +22,17 @@ namespace Somnium.Framework
         /// <param name="pipelineState"></param>
         /// <param name="clearColor"></param>
         /// <param name="renderTarget"></param>
-        public void SetPipeline(PipelineState pipelineState, Color clearColor, RenderBuffer? renderTarget = null)
+        public void SetPipeline(PipelineState pipelineState, Color? clearColor, RenderBuffer? renderTarget = null)
         {
             pipelineState.Begin(clearColor, renderTarget);
+            currentPipeline = pipelineState;
+        }
+        /// <summary>
+        /// Syncs the local state of the uniform buffers with the shader
+        /// </summary>
+        public void ForceUpdateUniforms()
+        {
+            currentPipeline.ForceUpdateUniforms(RenderStage.Graphics);
         }
         public void SetInstanceBuffer(InstanceBuffer buffer, uint bindingPoint)
         {
@@ -50,7 +59,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
-                        Silk.NET.Vulkan.Buffer vkBuffer = new Silk.NET.Vulkan.Buffer(buffer.handle);
+                        Buffer vkBuffer = new Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
                         {
                             VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
@@ -86,6 +95,7 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
+                        ResetPipelineShaders();
                         VkEngine.vk.CmdDraw(new CommandBuffer(VkEngine.commandBuffer.handle), vertexCount, instanceCount, firstVertex, firstInstance);
                         break;
                     default:
@@ -100,11 +110,31 @@ namespace Somnium.Framework
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
+                        ResetPipelineShaders();
                         VkEngine.vk.CmdDrawIndexed(new CommandBuffer(VkEngine.commandBuffer.handle), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
                         break;
                     default:
                         throw new NotImplementedException();
                 }
+            }
+        }
+        private void ResetPipelineShaders()
+        {
+            bool updateUniforms = false;
+            for (int i = 0; i < currentPipeline.shaders.Length; i++)
+            {
+                if (currentPipeline.shaders[i].uniformHasBeenSet)
+                {
+                    updateUniforms = true;
+                }
+                currentPipeline.shaders[i].uniformHasBeenSet = false;
+            }
+            if (updateUniforms) ForceUpdateUniforms();
+
+            //need to update using the old descriptorForThisDrawCall state
+            for (int i = 0; i < currentPipeline.shaders.Length; i++)
+            {
+                currentPipeline.shaders[i].descriptorForThisDrawCall++;
             }
         }
     }

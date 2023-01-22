@@ -138,9 +138,23 @@ namespace Somnium.Framework.Vulkan
         }
         public static void EndDraw()
         {
-            //EndRenderPass();
-            //renderPass.End(commandBuffer);
-            //commandBuffer.End();
+            //reset the parameters of all shaders in pipelines
+            //since pipeline shader is shared identically between
+            //pipelines and renderbufferPipelines, only need to clear once for pipelines (for now)
+            for (int i = 0; i < pipelines.internalArray.Length; i++)
+            {
+                if (pipelines.internalArray[i] != null)
+                {
+                    var pipeline = pipelines.internalArray[i];
+                    if (pipeline.shaders != null && pipeline.shaders.Length > 0)
+                    {
+                        for (int j = 0; j < pipeline.shaders.Length; j++)
+                        {
+                            pipeline.shaders[j].descriptorForThisDrawCall = 0;
+                        }
+                    }
+                }
+            }
 
             SubmitToGPU();
         }

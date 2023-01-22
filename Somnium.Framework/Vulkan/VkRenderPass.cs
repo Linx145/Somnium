@@ -159,7 +159,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color clearColor, RenderBuffer? renderTarget = null, bool shouldClearColor = true)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color? clearColor, RenderBuffer? renderTarget = null)
         {
             if (begun)
             {
@@ -180,13 +180,13 @@ namespace Somnium.Framework.Vulkan
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }
             ClearValue* clearValues = stackalloc ClearValue[2];
-            if (shouldClearColor)
+            if (clearColor != null)
             {
                 ClearColorValue? clearColorValue = null;
                 ClearDepthStencilValue? clearDepthStencilValue = null;
 
                 beginInfo.ClearValueCount++;
-                clearColorValue = new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, 1f);
+                clearColorValue = new ClearColorValue(clearColor!.Value.R / 255f, clearColor!.Value.G / 255f, clearColor!.Value.B / 255f, 1f);
                 clearValues[0] = new ClearValue(color: clearColorValue);
 
                 if (hasDepthStencil)

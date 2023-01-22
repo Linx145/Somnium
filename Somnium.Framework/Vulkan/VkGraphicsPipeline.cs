@@ -372,6 +372,13 @@ namespace Somnium.Framework.Vulkan
         {
             vk.CmdBindPipeline(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], handle);
 
+            PushUniformUpdates(commandBuffer, bindType);
+            //for (int i = )
+                //vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+        }
+
+        public unsafe void PushUniformUpdates(CommandCollection commandBuffer, RenderStage bindType)
+        {
             for (int i = 0; i < shaders.Length; i++)
             {
                 DescriptorSet currentFrameDescriptorSet = shaders[i].descriptorSet;
@@ -402,8 +409,6 @@ namespace Somnium.Framework.Vulkan
     null);
                 }
             }
-            //for (int i = )
-                //vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
         }
 
         public unsafe void Dispose()

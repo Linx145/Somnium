@@ -15,8 +15,9 @@ namespace Test
         private static Texture2D texture;
 
         private static VertexPositionColorTexture[] vertices;
-        private static ushort[] indices;
         private static VertexBuffer vb;
+
+        private static ushort[] indices;
         private static IndexBuffer indexBuffer;
 
 #if INSTANCING
@@ -33,6 +34,9 @@ namespace Test
 
 #if RENDERBUFFERS
         private static RenderBuffer renderBuffer;
+
+        private static VertexPositionColorTexture[] vertices2;
+        private static VertexBuffer vb2;
 #endif
 
         private static ViewProjection viewProjection;
@@ -82,6 +86,18 @@ namespace Test
             renderBuffer = new RenderBuffer(application, 16, 16, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
 
             state = new PipelineState(application, new Viewport(0, 0, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+
+            width = 2f;
+            height = 2f;
+            vertices2 = new VertexPositionColorTexture[]
+            {
+                new VertexPositionColorTexture(new Vector3(-width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(-width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(0, 1))
+            };
+            vb2 = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices2.Length, false);
+            vb2.SetData(vertices2, 0, vertices2.Length);
 #endif
             #endregion
 
@@ -126,13 +142,6 @@ namespace Test
             {
                 texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
             }
-
-            float camWidth = 20f;
-            float camHeight = camWidth * (9f / 16f);
-            viewProjection = new ViewProjection(
-                Matrix4x4.CreateTranslation(0f, 0f, 0f),
-                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
-                );
             #endregion
         }
         private static void Draw(float deltaTime)
@@ -145,30 +154,68 @@ namespace Test
 
             commandBuffer.Begin();
 
+#if RENDERBUFFERS
+            float camWidth = 20f;
+            float camHeight = camWidth * (9f / 16f);
+            viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-1f, 1f, -1f, 1f, -1000f, 1000f)
+                );
+
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("matrices", viewProjection);
 
-#if RENDERBUFFERS
             Graphics.SetPipeline(state, Color.Transparent, renderBuffer);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
             state.End();
 
+            viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+                );
+
+            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("texSampler", renderBuffer.backendTexture);
+
             Graphics.SetPipeline(state, Color.CornflowerBlue, null);
-            
-            Graphics.SetVertexBuffer(vb, 0);
-            Graphics.SetIndexBuffer(indexBuffer);
+            Graphics.SetVertexBuffer(vb2, 0);
             Graphics.DrawIndexedPrimitives(6, 1);
             //Graphics.SetPipeline(state, Color.CornflowerBlue, null);
 #endif
 #if DRAWING
+            float camWidth = 20f;
+            float camHeight = camWidth * (9f / 16f);
+            viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+                );
+
+            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("matrices", viewProjection);
+
             Graphics.SetPipeline(state, Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
+
+            viewProjection.View = Matrix4x4.CreateTranslation(2f, 0f, 0f);
+            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("texSampler", texture);
+            Graphics.DrawIndexedPrimitives(6, 1);
 #endif
 #if INSTANCING
+            float camWidth = 20f;
+            float camHeight = camWidth * (9f / 16f);
+            viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+                );
+
+            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("matrices", viewProjection);
+
             Graphics.SetPipeline(state, Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
@@ -207,6 +254,7 @@ namespace Test
 #endif
 #if RENDERBUFFERS
             renderBuffer?.Dispose();
+            vb2?.Dispose();
 #endif
         }
     }
