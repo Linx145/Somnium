@@ -31,7 +31,7 @@ namespace Somnium.Framework
                         {
                             int clearCount = 2;
                             ClearAttachment* clearAttachments = stackalloc ClearAttachment[clearCount];
-                            clearAttachments[0] = new ClearAttachment(ImageAspectFlags.ColorBit, 0, new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f)));
+                            clearAttachments[0] = new ClearAttachment(ImageAspectFlags.ColorBit, 0, new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, clearColor.A / 255f)));
                             clearAttachments[1] = new ClearAttachment(ImageAspectFlags.DepthBit, 0, new ClearValue(null, new ClearDepthStencilValue(1f, 0)));
 
                             ClearRect* clearAreas = stackalloc ClearRect[clearCount];
@@ -49,7 +49,7 @@ namespace Somnium.Framework
                                 clearAreas[i] = new ClearRect(new Rect2D(default(Offset2D), extents), 0, 1);
                             }
 
-                            VkEngine.vk.CmdClearAttachments(new CommandBuffer(VkEngine.commandBuffer.handle), (uint)clearCount, clearAttachments, (uint)clearCount, clearAreas);
+                            VkEngine.vk.CmdClearAttachments(VkEngine.commandBuffer, (uint)clearCount, clearAttachments, (uint)clearCount, clearAreas);
                         }
                     }
                     break;

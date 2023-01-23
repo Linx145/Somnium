@@ -252,6 +252,17 @@ namespace Somnium.Framework
                 }
             }
         }
+        public void CheckUniformSet()
+        {
+            if (!uniformHasBeenSet)
+            {
+                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                {
+                    AddDescriptorSets();
+                }
+                uniformHasBeenSet = true;
+            }
+        }
         public unsafe void AddDescriptorSets()
         {
             DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
@@ -285,14 +296,7 @@ namespace Somnium.Framework
         /// <param name="shaderNumber">Which uniform buffer should the data be set into</param>
         public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
-            if (!uniformHasBeenSet)
-            {
-                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
-                {
-                    AddDescriptorSets();
-                }
-                uniformHasBeenSet = true;
-            }
+            CheckUniformSet();
 
             if (shaderNumber == SetNumber.Either)
             {
@@ -300,7 +304,7 @@ namespace Somnium.Framework
                 {
                     if (!shader2Params.Set(uniformName, uniform))
                     {
-                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
                     }
                 }
             }
@@ -312,14 +316,7 @@ namespace Somnium.Framework
         }
         public void SetUniforms<T>(string uniformName, T[] uniformArray, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
-            if (!uniformHasBeenSet)
-            {
-                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
-                {
-                    AddDescriptorSets();
-                }
-                uniformHasBeenSet = true;
-            }
+            CheckUniformSet();
 
             if (shaderNumber == SetNumber.Either)
             {
@@ -327,7 +324,7 @@ namespace Somnium.Framework
                 {
                     if (!shader2Params.Set(uniformName, uniformArray))
                     {
-                        throw new System.Collections.Generic.KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
                     }
                 }
             }
@@ -339,14 +336,27 @@ namespace Somnium.Framework
         }
         public void SetUniform(string uniformName, Texture2D uniform, SetNumber shaderNumber = SetNumber.Either)
         {
-            if (!uniformHasBeenSet)
+            CheckUniformSet();
+
+            if (shaderNumber == SetNumber.Either)
             {
-                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                if (!shader1Params.Set(uniformName, uniform))
                 {
-                    AddDescriptorSets();
+                    if (!shader2Params.Set(uniformName, uniform))
+                    {
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
                 }
-                uniformHasBeenSet = true;
             }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, uniform);
+            }
+            else shader2Params.Set(uniformName, uniform);
+        }
+        public void SetUniform(string uniformName, RenderBuffer uniform, SetNumber shaderNumber = SetNumber.Either)
+        {
+            CheckUniformSet();
 
             if (shaderNumber == SetNumber.Either)
             {

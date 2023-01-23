@@ -101,5 +101,10 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
+
+        public static implicit operator CommandBuffer(CommandCollection collection)
+        {
+            return new CommandBuffer(collection.handle);
+        }
     }
 }

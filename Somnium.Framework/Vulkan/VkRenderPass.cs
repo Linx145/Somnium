@@ -188,6 +188,7 @@ namespace Somnium.Framework.Vulkan
             }
             else
             {
+                VkEngine.TransitionImageLayout(new Image(renderTarget.backendTexture.imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
                 beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }

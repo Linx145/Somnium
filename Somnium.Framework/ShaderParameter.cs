@@ -2,10 +2,7 @@
 using Somnium.Framework.Vulkan;
 using System;
 using System.Collections.Generic;
-using Somnium.Framework.Windowing;
 using Buffer = Silk.NET.Vulkan.Buffer;
-using static System.Net.Mime.MediaTypeNames;
-using System.Xml.Linq;
 
 namespace Somnium.Framework
 {
@@ -91,6 +88,51 @@ namespace Somnium.Framework
                 return true;
             }
             return false;
+        }
+        public bool Set(string paramName, RenderBuffer renderTarget)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                Set(index, renderTarget);
+                return true;
+            }
+            return false;
+        }
+        public void Set(int paramIndex, RenderBuffer renderTarget)
+        {
+            var param = parameters[paramIndex];
+            if (param.type == UniformType.imageAndSampler)
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        unsafe
+                        {
+                            //we need this to ensure that the image is ready for reading by the shader instead of
+                            //being in PresentSrcKhr which it would have been when it was fresh out of the render call
+                            VkEngine.TransitionImageLayout(new Image(renderTarget.backendTexture.imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ShaderReadOnlyOptimal, VkEngine.commandBuffer);
+                            DescriptorImageInfo imageInfo = new DescriptorImageInfo();
+                            imageInfo.ImageLayout = ImageLayout.ShaderReadOnlyOptimal;
+                            imageInfo.ImageView = new ImageView(renderTarget.backendTexture.imageViewHandle);
+                            imageInfo.Sampler = new Sampler(renderTarget.backendTexture.samplerState.handle);
+
+                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                            descriptorWrite.DstSet = shader.descriptorSet;
+                            descriptorWrite.DstBinding = param.binding;
+                            descriptorWrite.DstArrayElement = 0;
+
+                            descriptorWrite.DescriptorType = DescriptorType.CombinedImageSampler;
+                            descriptorWrite.DescriptorCount = 1;
+                            descriptorWrite.PImageInfo = &imageInfo;
+
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                        }
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
         }
         public void Set(int paramIndex, Texture2D texture)
         {

@@ -62,10 +62,10 @@ namespace Test
             float height = 19f / 16f;
             vertices = new VertexPositionColorTexture[]
             {
-                new VertexPositionColorTexture(new Vector3(-width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(0, 0)),
-                new VertexPositionColorTexture(new Vector3(width * 0.5f, -height * 0.5f, 0f), Color.White, new Vector2(1, 0)),
-                new VertexPositionColorTexture(new Vector3(width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(1, 1)),
-                new VertexPositionColorTexture(new Vector3(-width * 0.5f, height * 0.5f, 0f), Color.White, new Vector2(0, 1))
+                new VertexPositionColorTexture(new Vector3(0f, 0f, 0f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(width, 0f, 0f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(width, height, 0f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(0f, height, 0f), Color.White, new Vector2(0, 1))
             };
             vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices.Length, false);
             vb.SetData(vertices, 0, vertices.Length);
@@ -84,12 +84,12 @@ namespace Test
             shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
-            //renderBuffer = new RenderBuffer(application, 16, 16, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
+            renderBuffer = new RenderBuffer(application, 64, 64, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
 
             state = new PipelineState(application, new Viewport(0, 0, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 
-            width = 2f;
-            height = 2f;
+            width = 10f;
+            height = 10f;
             vertices2 = new VertexPositionColorTexture[]
             {
                 new VertexPositionColorTexture(new Vector3(-width * 0.5f + 3f, -height * 0.5f, 0f), Color.White, new Vector2(0, 0)),
@@ -160,31 +160,37 @@ namespace Test
 #if RENDERBUFFERS
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
+
             viewProjection = new ViewProjection(
-                Matrix4x4.Identity,
-                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
-                );
+Matrix4x4.Identity,
+Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0f, camHeight * 2f, -1f, 1f)
+//Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
+);
 
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("matrices", viewProjection);
 
-            //Graphics.SetPipeline(state, Color.Transparent, renderBuffer);
-            Graphics.SetPipeline(state, null);
-            Graphics.Clear(Color.CornflowerBlue);
+            Graphics.SetPipeline(state, renderBuffer);
+            Graphics.Clear(Color.Transparent);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
             state.End();
 
-            /*shader.SetUniform("texSampler", renderBuffer.backendTexture);
+            viewProjection = new ViewProjection(
+Matrix4x4.Identity,
+Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+);
+
+            shader.SetUniform("texSampler", renderBuffer);
             shader.SetUniform("matrices", viewProjection);
 
             Graphics.SetPipeline(state, null);
-            //Graphics.Clear(Color.CornflowerBlue);
+            Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb2, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
-            state.End();*/
+            state.End();
 #endif
 #if DRAWING
             float camWidth = 20f;
@@ -229,6 +235,7 @@ namespace Test
 #endif
         }
 
+        private static float xTranslation;
         private static void Update(float deltaTime)
         {
             recordTime += deltaTime;
@@ -237,6 +244,7 @@ namespace Test
                 application.Window.Title = string.Concat("Test ", MathF.Round(1f / deltaTime).ToString());
                 recordTime -= 0.2f;
             }
+            xTranslation += deltaTime * 0.25f;
 #if INSTANCING
             Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif

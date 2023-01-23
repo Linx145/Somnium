@@ -102,7 +102,7 @@ namespace Somnium.Framework
                             ImageCreateInfo createInfo = new ImageCreateInfo();
                             createInfo.SType = StructureType.ImageCreateInfo;
                             createInfo.ImageType = ImageType.Type2D;
-                            createInfo.Extent = new Extent3D((uint)Width, (uint)Height, 1);
+                            createInfo.Extent = new Extent3D(Width, Height, 1);
                             createInfo.MipLevels = 1;
                             createInfo.ArrayLayers = 1;
                             createInfo.Format = Converters.ImageFormatToVkFormat[(int)imageFormat];//Format.R8G8B8A8Unorm;
@@ -115,8 +115,7 @@ namespace Somnium.Framework
                                 createInfo.Usage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
                             }
                             else createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
-                            //Though we must share it between the transfer queue and the graphics queue, we won't be
-                            //reading and writing to the image at the same time, hence set it to exclusive
+                            
                             createInfo.SharingMode = SharingMode.Exclusive;
                             createInfo.Samples = SampleCountFlags.Count1Bit;
                             createInfo.Flags = ImageCreateFlags.None;
@@ -153,6 +152,10 @@ namespace Somnium.Framework
                                 VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                                 stagingMemoryRegion.Free();
                             }
+                            /*else
+                            {
+                                VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
+                            }*/
                         }
                         else
                         {
