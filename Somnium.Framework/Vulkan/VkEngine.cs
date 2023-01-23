@@ -108,12 +108,12 @@ namespace Somnium.Framework.Vulkan
                 }
                 CreateSurface();
                 CreateLogicalDevice();
+                CreateCommandPool(window.application);
                 CreateSwapChain(); //also creates image views
                 CreateRenderPass();
                 //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
-                CreateCommandPool(window.application);
                 CreateFrames(window.application);
                 //CreateCommandBuffer(window.application);
                 //CreateSynchronizers();
@@ -135,9 +135,13 @@ namespace Somnium.Framework.Vulkan
             }
 
             commandBuffer.Reset();
+            commandBuffer.Begin();
+
+            TransitionImageLayout(swapChain.images[swapChain.currentImageIndex], ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(commandBuffer.handle));
         }
         public static void EndDraw()
         {
+
             //reset the parameters of all shaders in pipelines
             //since pipeline shader is shared identically between
             //pipelines and renderbufferPipelines, only need to clear once for pipelines (for now)
@@ -156,6 +160,7 @@ namespace Somnium.Framework.Vulkan
                 }
             }
 
+            commandBuffer.End();
             SubmitToGPU();
         }
         public static void SubmitToGPU()
@@ -511,8 +516,8 @@ namespace Somnium.Framework.Vulkan
 
         public static void CreateRenderPass()
         {
-            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Clear, AttachmentStoreOp.Store);
-            framebufferRenderPass = VkRenderPass.Create(Format.R8G8B8A8Unorm, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Clear, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.ShaderReadOnlyOptimal);
+            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store);
+            framebufferRenderPass = VkRenderPass.Create(Format.R8G8B8A8Unorm, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.ShaderReadOnlyOptimal);
         }
         #endregion
 
@@ -759,81 +764,149 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region images
-        public static void TransitionImageLayout(Texture2D texture, ImageLayout oldLayout, ImageLayout newLayout)
+        public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandBuffer bufferToUse)
         {
-            CommandBuffer transientBuffer;
-            if (oldLayout == ImageLayout.Undefined && newLayout == ImageLayout.TransferDstOptimal)
-            {
-                transientBuffer = CreateTransientCommandBuffer(true, false);
-            }
-            else if (oldLayout == ImageLayout.TransferDstOptimal && newLayout == ImageLayout.ShaderReadOnlyOptimal)
-            {
-                transientBuffer = CreateTransientCommandBuffer(true, true);
-            }
-            else
-            {
-                throw new ExecutionException("Unsupported Vulkan image layout transition!");
-            }
-            //var transientBuffer = CreateTransientCommandBuffer(true);
-
             ImageMemoryBarrier barrier = new ImageMemoryBarrier();
             barrier.SType = StructureType.ImageMemoryBarrier;
             barrier.OldLayout = oldLayout;
-            barrier.NewLayout= newLayout;
+            barrier.NewLayout = newLayout;
 
             //we are not using the barrier to transfer queue family ownership, so we set these to ignored
             barrier.SrcQueueFamilyIndex = 0;
             barrier.DstQueueFamilyIndex = 0;
 
-            barrier.Image = new Image(texture.imageHandle);
-            barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;
+            barrier.Image = image;
+            barrier.SubresourceRange.AspectMask = aspectFlags;// ImageAspectFlags.ColorBit;
             barrier.SubresourceRange.BaseMipLevel = 0;
             barrier.SubresourceRange.LevelCount = 1;
             barrier.SubresourceRange.BaseArrayLayer = 0;
             barrier.SubresourceRange.LayerCount = 1;
 
-            PipelineStageFlags sourceStage;
-            PipelineStageFlags destinationStage;
+            PipelineStageFlags sourceStage = PipelineStageFlags.TopOfPipeBit;
+            PipelineStageFlags destinationStage = PipelineStageFlags.BottomOfPipeBit;
 
             Queue queue;
-            CommandPool commandPool;
 
-            if (oldLayout == ImageLayout.Undefined && newLayout == ImageLayout.TransferDstOptimal)
+            queue = CurrentGPU.AllPurposeQueue;
+
+            CommandPool poolToUse = default;
+            bool usingTransientBuffer = false;
+            if (bufferToUse.Handle == 0)
             {
-                //transfer can write without needing to wait on anything
-                barrier.SrcAccessMask = 0;
-                barrier.DstAccessMask = AccessFlags.TransferWriteBit;
-
-                sourceStage = PipelineStageFlags.TopOfPipeBit;
-                destinationStage = PipelineStageFlags.TransferBit;
-
-                queue = CurrentGPU.DedicatedTransferQueue;
-                commandPool = new CommandPool(transientTransferCommandPool.handle);
+                poolToUse = new CommandPool(transientGraphicsCommandPool.handle);
+                bufferToUse = CreateTransientCommandBuffer(true, true);
+                usingTransientBuffer = true;
             }
-            else if (oldLayout == ImageLayout.TransferDstOptimal && newLayout == ImageLayout.ShaderReadOnlyOptimal)
+            //commandPool = new CommandPool(transientGraphicsCommandPool.handle);
+
+            PipelineStageFlags depthStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit | 0;
+
+            PipelineStageFlags sampledStageMask = PipelineStageFlags.VertexShaderBit | PipelineStageFlags.FragmentShaderBit | PipelineStageFlags.ComputeShaderBit;
+
+            //CREDIT: BGFX, because I actually have no clue how to map these
+            switch (oldLayout)
             {
-                //shader reads should wait on transfer writes
-                //(specifically the shader reads in the fragment shader,
-                //because that's where we're going to use the texture, at least until VTF)
-                barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
-                barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+                case ImageLayout.Undefined:
+                    break;
 
-                sourceStage = PipelineStageFlags.TransferBit;
-                destinationStage = PipelineStageFlags.FragmentShaderBit;
+                case ImageLayout.General:
+                    sourceStage = PipelineStageFlags.AllCommandsBit;
+                    barrier.SrcAccessMask = AccessFlags.MemoryWriteBit;
+                    break;
 
-                queue = CurrentGPU.AllPurposeQueue;
-                commandPool = new CommandPool(transientGraphicsCommandPool.handle);
+                case ImageLayout.ColorAttachmentOptimal:
+                    sourceStage = PipelineStageFlags.ColorAttachmentOutputBit;
+                    barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+                    break;
+
+                case ImageLayout.DepthStencilAttachmentOptimal:
+                    sourceStage = depthStageMask;
+                    barrier.SrcAccessMask = AccessFlags.DepthStencilAttachmentWriteBit;
+                    break;
+
+                case ImageLayout.DepthStencilReadOnlyOptimal:
+                    sourceStage = depthStageMask | sampledStageMask;
+                    break;
+
+                case ImageLayout.ShaderReadOnlyOptimal:
+                    sourceStage = sampledStageMask;
+                    break;
+
+                case ImageLayout.TransferSrcOptimal:
+                    sourceStage = PipelineStageFlags.TransferBit;
+                    break;
+
+                case ImageLayout.TransferDstOptimal:
+                    sourceStage = PipelineStageFlags.TransferBit;
+                    barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+                    break;
+
+                case ImageLayout.Preinitialized:
+                    sourceStage = PipelineStageFlags.HostBit;
+                    barrier.SrcAccessMask = AccessFlags.HostWriteBit;
+                    break;
+
+                case ImageLayout.PresentSrcKhr:
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Invalid source layout!");
             }
-            else
+
+            switch (newLayout)
             {
-                throw new ExecutionException("Unsupported Vulkan image layout transition!");
+                case ImageLayout.General:
+                    destinationStage = PipelineStageFlags.AllCommandsBit;
+                    barrier.DstAccessMask = AccessFlags.MemoryReadBit | AccessFlags.MemoryWriteBit;
+                    break;
+
+                case ImageLayout.ColorAttachmentOptimal:
+                    destinationStage = PipelineStageFlags.ColorAttachmentOutputBit;
+                    barrier.DstAccessMask = AccessFlags.ColorAttachmentReadBit | AccessFlags.ColorAttachmentWriteBit;
+                    break;
+
+                case ImageLayout.DepthStencilAttachmentOptimal:
+                    destinationStage = depthStageMask;
+                    barrier.DstAccessMask = AccessFlags.DepthStencilAttachmentReadBit | AccessFlags.DepthStencilAttachmentWriteBit;
+                    break;
+
+                case ImageLayout.DepthStencilReadOnlyOptimal:
+                    destinationStage = depthStageMask | sampledStageMask;
+                    barrier.DstAccessMask = AccessFlags.DepthStencilAttachmentReadBit | AccessFlags.ShaderReadBit | AccessFlags.InputAttachmentReadBit;
+                    break;
+
+                case ImageLayout.ShaderReadOnlyOptimal:
+                    destinationStage = PipelineStageFlags.FragmentShaderBit;
+                    barrier.DstAccessMask = AccessFlags.ShaderReadBit | AccessFlags.InputAttachmentReadBit;
+                    break;
+
+                case ImageLayout.TransferSrcOptimal:
+                    destinationStage = PipelineStageFlags.TransferBit;
+                    barrier.DstAccessMask = AccessFlags.TransferReadBit;
+                    break;
+
+                case ImageLayout.TransferDstOptimal:
+                    destinationStage = PipelineStageFlags.TransferBit;
+                    barrier.DstAccessMask = AccessFlags.TransferWriteBit;
+                    break;
+
+                case ImageLayout.PresentSrcKhr:
+                    // vkQueuePresentKHR performs automatic visibility operations
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Invalid destination layout!");
             }
 
             ReadOnlySpan<ImageMemoryBarrier> span = stackalloc ImageMemoryBarrier[1] { barrier };
 
-            vk.CmdPipelineBarrier(transientBuffer, sourceStage, destinationStage, DependencyFlags.None, null, null, span);
+            vk.CmdPipelineBarrier(bufferToUse, sourceStage, destinationStage, DependencyFlags.None, null, null, span);
 
-            EndTransientCommandBuffer(queue, transientBuffer, commandPool);
+            if (usingTransientBuffer)
+            {
+                EndTransientCommandBuffer(queue, bufferToUse, poolToUse);
+            }
+            //EndTransientCommandBuffer(queue, transientBuffer, commandPool);
         }
         public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
         {

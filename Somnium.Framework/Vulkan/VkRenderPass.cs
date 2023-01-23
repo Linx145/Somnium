@@ -27,7 +27,6 @@ namespace Somnium.Framework.Vulkan
         {
             return pass.handle;
         }
-        public RenderPassBeginInfo beginInfo;
         public bool begun { get; private set; }
         /// <summary>
         /// Creates a new renderpass for rendering into a framebuffer
@@ -60,9 +59,18 @@ namespace Somnium.Framework.Vulkan
             colorAttachment.Samples = SampleCountFlags.Count1Bit;
             colorAttachment.LoadOp = loadOperation;
             colorAttachment.StoreOp = storeOperation;
-            colorAttachment.InitialLayout = ImageLayout.Undefined;
-            colorAttachment.FinalLayout = finalLayout;
 
+            //expects an image to be in layout ColorAttachmentOptimal on entering the render pass.
+            //However, our images are in ShaderReadOnlyOptimal so they can be read by the shader.
+            //why are our images entering the render pass?
+            //The only image entering our render pass should be the swapchain image right?
+
+            //however, after rendering once, the swapchain image would have been in PresentSrcKhr
+            //so we will need to transition the image back
+            //into color attachment optimal since we are not (and cannot be) using Undefined
+            colorAttachment.InitialLayout = ImageLayout.ColorAttachmentOptimal;
+            colorAttachment.FinalLayout = finalLayout;//ImageLayout.ColorAttachmentOptimal;
+        
             attachments[0] = colorAttachment;
 
             description.ColorAttachmentCount = 1;
@@ -97,7 +105,7 @@ namespace Somnium.Framework.Vulkan
                 depthAttachment.Format = Converters.DepthFormatToVkFormat[(int)depthFormat];
                 depthAttachment.Flags = AttachmentDescriptionFlags.None;
                 depthAttachment.Samples = SampleCountFlags.Count1Bit;
-                depthAttachment.LoadOp = AttachmentLoadOp.Clear;
+                depthAttachment.LoadOp = loadOperation;//AttachmentLoadOp.Clear;
                 depthAttachment.StoreOp = AttachmentStoreOp.Store;
                 depthAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
                 if (Converters.DepthFormatHasStencil(depthFormat))
@@ -105,7 +113,11 @@ namespace Somnium.Framework.Vulkan
                     depthAttachment.StencilStoreOp = AttachmentStoreOp.Store;
                 }
                 else depthAttachment.StencilStoreOp = AttachmentStoreOp.DontCare;
-                depthAttachment.InitialLayout = ImageLayout.Undefined;
+                //if (loadOperation == AttachmentLoadOp.Load)
+                //{
+                    depthAttachment.InitialLayout = ImageLayout.DepthStencilAttachmentOptimal;
+                //}
+                //else depthAttachment.InitialLayout = ImageLayout.Undefined;
                 depthAttachment.FinalLayout = ImageLayout.DepthStencilAttachmentOptimal;
 
                 description.PDepthStencilAttachment = &depthAttachmentReference;
@@ -159,14 +171,14 @@ namespace Somnium.Framework.Vulkan
         /// <param name="swapchain"></param>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, Color? clearColor, RenderBuffer? renderTarget = null)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, RenderBuffer? renderTarget = null)
         {
             if (begun)
             {
                 throw new InvalidOperationException("Vulkan render pass already began!");
             }
 
-            beginInfo = new RenderPassBeginInfo();
+            RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
             beginInfo.SType = StructureType.RenderPassBeginInfo;
             beginInfo.RenderPass = handle;
             if (renderTarget == null)
@@ -179,7 +191,7 @@ namespace Somnium.Framework.Vulkan
                 beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }
-            ClearValue* clearValues = stackalloc ClearValue[2];
+            /*ClearValue* clearValues = stackalloc ClearValue[2];
             if (clearColor != null)
             {
                 ClearColorValue? clearColorValue = null;
@@ -196,9 +208,19 @@ namespace Somnium.Framework.Vulkan
                     clearValues[1] = new ClearValue(depthStencil: clearDepthStencilValue);
                 }
             }
-            else clearValues = null;
+            else
+            {
+                ClearColorValue? clearColorValue = null;
+                ClearDepthStencilValue? clearDepthStencilValue = null;
 
-            beginInfo.PClearValues = clearValues;
+                beginInfo.ClearValueCount++;
+                clearColorValue = new ClearColorValue();//new ClearColorValue(clearColor!.Value.R / 255f, clearColor!.Value.G / 255f, clearColor!.Value.B / 255f, 1f);
+                clearValues[0] = new ClearValue(color: clearColorValue);
+            }
+
+            beginInfo.PClearValues = clearValues;*/
+            beginInfo.ClearValueCount = 0;
+            beginInfo.PClearValues = null;
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
 

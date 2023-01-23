@@ -65,7 +65,7 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(Color? clearColor, RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        internal void Begin(RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
@@ -75,12 +75,12 @@ namespace Somnium.Framework
                     if (renderTarget == null)
                     {
                         pipeline = VkEngine.GetPipeline(handle);
-                        VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, clearColor, renderTarget);
+                        VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, renderTarget);
                     }
                     else
                     {
                         pipeline = VkEngine.GetRenderbufferPipeline(handle);
-                        VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, clearColor, renderTarget);
+                        VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
                     }
                     pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
                     Interlocked.Increment(ref VkEngine.begunPipelines);

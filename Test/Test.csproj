@@ -26,6 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Content\RedSlime.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Content\tbh.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

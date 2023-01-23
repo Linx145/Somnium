@@ -16,15 +16,57 @@ namespace Somnium.Framework
             this.application = application;
         }
 
+        public void Clear(Color clearColor)
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    unsafe
+                    {
+                        if (currentPipeline == null)
+                        {
+                            throw new NotImplementedException();
+                        }
+                        else
+                        {
+                            int clearCount = 2;
+                            ClearAttachment* clearAttachments = stackalloc ClearAttachment[clearCount];
+                            clearAttachments[0] = new ClearAttachment(ImageAspectFlags.ColorBit, 0, new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f)));
+                            clearAttachments[1] = new ClearAttachment(ImageAspectFlags.DepthBit, 0, new ClearValue(null, new ClearDepthStencilValue(1f, 0)));
+
+                            ClearRect* clearAreas = stackalloc ClearRect[clearCount];
+                            Extent2D extents;
+                            if (currentPipeline.currentRenderbuffer == null)
+                            {
+                                extents = VkEngine.swapChain.imageExtents;
+                            }
+                            else
+                            {
+                                extents = new Extent2D(currentPipeline.currentRenderbuffer.width, currentPipeline.currentRenderbuffer.height);
+                            }
+                            for (int i = 0; i < clearCount; i++)
+                            {
+                                clearAreas[i] = new ClearRect(new Rect2D(default(Offset2D), extents), 0, 1);
+                            }
+
+                            VkEngine.vk.CmdClearAttachments(new CommandBuffer(VkEngine.commandBuffer.handle), (uint)clearCount, clearAttachments, (uint)clearCount, clearAreas);
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
         /// <summary>
-        /// Alternate way to call <paramref name="pipelineState"/>.Begin().
+        /// Sets and begins a render pipeline state containing the shader to use.
         /// </summary>
         /// <param name="pipelineState"></param>
         /// <param name="clearColor"></param>
         /// <param name="renderTarget"></param>
-        public void SetPipeline(PipelineState pipelineState, Color? clearColor, RenderBuffer? renderTarget = null)
+        public void SetPipeline(PipelineState pipelineState, RenderBuffer? renderTarget = null)
         {
-            pipelineState.Begin(clearColor, renderTarget);
+            pipelineState.Begin(renderTarget);
             currentPipeline = pipelineState;
         }
         /// <summary>

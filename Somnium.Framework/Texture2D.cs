@@ -108,13 +108,13 @@ namespace Somnium.Framework
                             createInfo.Format = Converters.ImageFormatToVkFormat[(int)imageFormat];//Format.R8G8B8A8Unorm;
                             createInfo.Tiling = ImageTiling.Optimal;
                             //Undefined: transitioning to this image discards the pixels
-                            //LayoutPreinitialized: transitioning to this image preserves the current pixels
+                            //Preinitialized: transitioning to this image preserves the current pixels
                             createInfo.InitialLayout = ImageLayout.Undefined;
-                            createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
                             if (usedForRenderTarget)
                             {
                                 createInfo.Usage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
                             }
+                            else createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
                             //Though we must share it between the transfer queue and the graphics queue, we won't be
                             //reading and writing to the image at the same time, hence set it to exclusive
                             createInfo.SharingMode = SharingMode.Exclusive;
@@ -145,14 +145,18 @@ namespace Somnium.Framework
                                 data.AsSpan().CopyTo(new Span<byte>(stagingData, data.Length));
                                 stagingMemoryRegion.Unbind();
 
-                                VkEngine.TransitionImageLayout(this, ImageLayout.Undefined, ImageLayout.TransferDstOptimal);
+                                VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, new CommandBuffer(null));
                                 VkEngine.StaticCopyBufferToImage(stagingBuffer, this);
 
-                                VkEngine.TransitionImageLayout(this, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
+                                VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
 
                                 VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                                 stagingMemoryRegion.Free();
                             }
+                        }
+                        else
+                        {
+                            VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(null));
                         }
 
                         //create image view

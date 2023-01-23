@@ -42,7 +42,7 @@ namespace Somnium.Framework
                         createInfo.Format = Converters.DepthFormatToVkFormat[(int)depthFormat];//Format.R8G8B8A8Unorm;
                         createInfo.Tiling = ImageTiling.Optimal;
                         //Undefined: transitioning to this image discards the pixels
-                        //LayoutPreinitialized: transitioning to this image preserves the current pixels
+                        //Preinitialized: transitioning to this image preserves the current pixels
                         createInfo.InitialLayout = ImageLayout.Undefined;
                         createInfo.Usage = ImageUsageFlags.DepthStencilAttachmentBit;
                         /*if (usedForRenderTarget)
@@ -63,6 +63,8 @@ namespace Somnium.Framework
                         handle = image.Handle;
 
                         memoryRegion = VkMemory.malloc(image, MemoryPropertyFlags.DeviceLocalBit);
+
+                        VkEngine.TransitionImageLayout(image, ImageAspectFlags.DepthBit, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal, new CommandBuffer(null));
 
                         ImageViewCreateInfo viewInfo = new ImageViewCreateInfo();
                         viewInfo.SType = StructureType.ImageViewCreateInfo;
