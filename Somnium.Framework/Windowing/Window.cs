@@ -1,5 +1,4 @@
 ﻿using Silk.NET.Core.Contexts;
-using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 using System;
 
@@ -68,15 +67,33 @@ namespace Somnium.Framework.Windowing
         /// <summary>
         /// Called when the window is resized, with arguments being 1)the resized window, 2)the new window width, 3)the new window height
         /// </summary>
-        public event Action<Window, int, int> OnResized;
-        public unsafe void OnResizedCallback(WindowHandle* handle, int width, int height)
-        {
-            OnResized?.Invoke(this, width, height);
-        }
+        public event Action<Window, int, int> onResized;
+        /// <summary>
+        /// Called when the window is moved, with arguments being 1)the moved window, 2)the new X position, 3)the new Y position
+        /// </summary>
+        public event Action<Window, int, int> onMoved;
+        /// <summary>
+        /// Called when the window is minimized/restored
+        /// </summary>
+        public event Action<Window, bool> onMinimizationChanged;
+        public Action<Keys, int, KeyState> onKeyPressed;
         /// <summary>
         /// Whether VSync should be turned on, thus limiting max FPS to your monitor's refresh rate but preventing screen tearing. Only applicable in high-level Graphics API such as OpenGL as DX11
         /// </summary>
         public abstract bool VSync { get; set; }
+
+        protected void OnResized(Window window, int width, int height)
+        {
+            onResized?.Invoke(window, width, height);
+        }
+        protected void OnMoved(Window window, int X, int Y)
+        {
+            onMoved?.Invoke(window, X, Y);
+        }
+        protected void OnMinimizationChanged(Window window, bool isMinimized)
+        {
+            onMinimizationChanged?.Invoke(window, isMinimized);
+        }
 
         #region OpenGL
         public abstract IGLContext GetGLContext();

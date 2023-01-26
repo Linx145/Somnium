@@ -1,6 +1,8 @@
 ﻿using Somnium.Framework;
 using System.Numerics;
 
+using System.Linq;
+
 namespace Test
 {
     public static class Program
@@ -30,7 +32,7 @@ namespace Test
         private static InstanceBuffer instanceBuffer;
         private static VertexDeclaration instanceDataDeclaration;
 
-        const int instanceCount = 1000;
+        const int instanceCount = 10000;
 #endif
 
 #if RENDERBUFFERS
@@ -45,7 +47,7 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan, 1))
+            using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan, 2))
             {
                 application.OnLoad = OnLoad;
                 application.Update = Update;
@@ -58,8 +60,8 @@ namespace Test
 
         private static void OnLoad()
         {
-            float width = 26f / 16f;
-            float height = 19f / 16f;
+            float width = 26f / 16f;// 16f;
+            float height = 19f / 16f;// 16f;
             vertices = new VertexPositionColorTexture[]
             {
                 new VertexPositionColorTexture(new Vector3(0f, 0f, 0f), Color.White, new Vector2(0, 0)),
@@ -67,7 +69,7 @@ namespace Test
                 new VertexPositionColorTexture(new Vector3(width, height, 0f), Color.White, new Vector2(1, 1)),
                 new VertexPositionColorTexture(new Vector3(0f, height, 0f), Color.White, new Vector2(0, 1))
             };
-            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices.Length, false);
+            vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices.Length, true);
             vb.SetData(vertices, 0, vertices.Length);
 
             indices = new ushort[]
@@ -84,12 +86,12 @@ namespace Test
             shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
-            renderBuffer = new RenderBuffer(application, 64, 64, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
+            renderBuffer = new RenderBuffer(application, 26, 38, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
 
             state = new PipelineState(application, new Viewport(0, 0, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 
-            width = 10f;
-            height = 10f;
+            width = 5f; //= 13
+            height = 5f * (19f / 13f); //=19
             vertices2 = new VertexPositionColorTexture[]
             {
                 new VertexPositionColorTexture(new Vector3(-width * 0.5f + 3f, -height * 0.5f, 0f), Color.White, new Vector2(0, 0)),
@@ -163,7 +165,7 @@ namespace Test
 
             viewProjection = new ViewProjection(
 Matrix4x4.Identity,
-Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0f, camHeight * 2f, -1f, 1f)
+Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f, 1f)
 //Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
 );
 
@@ -171,7 +173,7 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0f, camHeight * 2f, -1f
             shader.SetUniform("matrices", viewProjection);
 
             Graphics.SetPipeline(state, renderBuffer);
-            Graphics.Clear(Color.Transparent);
+            Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
@@ -186,7 +188,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("matrices", viewProjection);
 
             Graphics.SetPipeline(state, null);
-            Graphics.Clear(Color.CornflowerBlue);
+            Graphics.Clear(Color.Black);
             Graphics.SetVertexBuffer(vb2, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
@@ -203,7 +205,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("matrices", viewProjection);
 
-            Graphics.SetPipeline(state, Color.CornflowerBlue);
+            Graphics.SetPipeline(state);
+            Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
@@ -225,7 +228,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("matrices", viewProjection);
 
-            Graphics.SetPipeline(state, Color.CornflowerBlue);
+            Graphics.SetPipeline(state);
+            Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.SetInstanceBuffer(instanceBuffer, 1);
@@ -245,9 +249,45 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
                 recordTime -= 0.2f;
             }
             xTranslation += deltaTime * 0.25f;
+
+#if RENDERBUFFERS
+            if (Input.IsKeyDown(Keys.D))
+            {
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    vertices[i].Position.X += deltaTime;
+                }
+                vb.SetData(vertices, 0, vertices.Length);
+            }
+            else if (Input.IsKeyDown(Keys.A))
+            {
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    vertices[i].Position.X -= deltaTime;
+                }
+                vb.SetData(vertices, 0, vertices.Length);
+            }
+#endif
+
 #if INSTANCING
             Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif
+
+
+            string[] strings;
+            Func<string, bool> func; //func is a type of delegate
+            Func<string, int, bool> func2 = DoStuff;
+
+            
+        }
+
+        static Action action;
+
+        //
+        public static bool DoStuff(string str, int integer)
+        {
+            
+            return true;
         }
 
         private static void Unload()

@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>$(DefineConstants);RENDERBUFFERS</DefineConstants>
+    <DefineConstants>$(DefineConstants);INSTANCING</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DefineConstants>$(DefineConstants);RENDERBUFFERS</DefineConstants>
+    <DefineConstants>$(DefineConstants);INSTANCING</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,6 +32,10 @@
     <None Update="Content\tbh.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ImGUI\" />
   </ItemGroup>
 
 </Project>

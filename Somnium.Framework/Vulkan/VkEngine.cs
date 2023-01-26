@@ -94,7 +94,7 @@ namespace Somnium.Framework.Vulkan
             window = forWindow;
             if (!initialized)
             {
-                window.OnResized += OnResized;
+                window.onResized += OnResized;
 
                 initialized = true;
                 appName = AppName;

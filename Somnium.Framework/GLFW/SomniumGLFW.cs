@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Somnium.Framework.Windowing
+namespace Somnium.Framework.GLFW
 {
     public static class SomniumGLFW
     {

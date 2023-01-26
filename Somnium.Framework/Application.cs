@@ -1,4 +1,5 @@
 ﻿using Somnium.Framework.Vulkan;
+using Somnium.Framework.GLFW;
 using Somnium.Framework.Windowing;
 using System.Diagnostics;
 using System;
@@ -7,6 +8,9 @@ using Silk.NET.Vulkan;
 
 namespace Somnium.Framework
 {
+    /// <summary>
+    /// The entry point for your app. Every app should only have one Application instance, but (in the future) can have multiple windows.
+    /// </summary>
     public sealed class Application : IDisposable
     {
         public string AppName { get; private set; }
@@ -16,16 +20,17 @@ namespace Somnium.Framework
         public Stopwatch updateStopwatch;
         public Stopwatch drawStopwatch;
 
+        //TODO: Allow applications to have multiple windows
         public Window Window;
 
         /// <summary>
         /// The amount that should be allocated at the start for buffers(EG: Vertex buffers, index buffers, etc) in your app.
-        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use. Not applicable in previous generation APIs like OpenGL</br>
+        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use as memory reserved will dynamically grow. Not applicable in previous generation APIs like OpenGL</br>
         /// </summary>
         public static double memoryForBuffersInMiB = 2;
         /// <summary>
         /// The amount that should be allocated at the start for images in your app.
-        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use. Not applicable in previous generation APIs like OpenGL</br>
+        /// <br>Done for optimisation reasons. Is not a hard limit to how much memory you can use as memory reserved will dynamically grow. Not applicable in previous generation APIs like OpenGL</br>
         /// </summary>
         public static double memoryForImagesInMiB = 64;
 
@@ -47,14 +52,24 @@ namespace Somnium.Framework
 
         public Backends runningBackend { get; private set; }
 
+        /// <summary>
+        /// Creates the program's Application instance.
+        /// </summary>
+        /// <param name="AppName">The internal name of the app. Used as an identifier by external programs/drivers</param>
+        /// <param name="windowSize">The initial size of the window to be created</param>
+        /// <param name="title">The window title</param>
+        /// <param name="preferredBackend">The preferred backend. (In the future) should the backend not be available, Somnium will automatically choose the next best backend for the app.</param>
+        /// <param name="maxSimultaneousFrames">The maximum rendering frames to be processed at a time, for use in the Double Buffering technique to boost FPS in Vulkan, DX12 and Metal</param>
+        /// <returns></returns>
         public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend, int maxSimultaneousFrames = 2)
         {
             Application app = new Application();
             app.AppName = AppName;
 
-            //check for preferredBackend compatibility
+            //TODO: check for preferredBackend compatibility
             app.runningBackend = preferredBackend;
 
+            Input.instance = new InputStateGLFW();
             app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend, maxSimultaneousFrames);
 
             app.Graphics = new Graphics(app);
@@ -92,9 +107,9 @@ namespace Somnium.Framework
                     Update?.Invoke((float)delta);
                 }
 
+                delta = drawStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalRenderPeriod)
                 {
-                    delta = drawStopwatch.Elapsed.TotalSeconds;
                     drawStopwatch.Restart();
                     if (runningBackend == Backends.OpenGL)
                     {

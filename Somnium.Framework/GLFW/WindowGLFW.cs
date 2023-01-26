@@ -3,9 +3,10 @@ using Silk.NET.Core.Native;
 using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+using Somnium.Framework.Windowing;
 using System;
 
-namespace Somnium.Framework.Windowing
+namespace Somnium.Framework.GLFW
 {
     public unsafe class WindowGLFW : Window
     {
@@ -164,25 +165,60 @@ namespace Somnium.Framework.Windowing
                 window.GLContext = new GlfwContext(Glfw, window.handle);
             }
 
-            Glfw.SetFramebufferSizeCallback(window.handle, new GlfwCallbacks.FramebufferSizeCallback(window.OnResizedCallback));
+            Glfw.SetFramebufferSizeCallback(window.handle, new GlfwCallbacks.FramebufferSizeCallback(window.OnResizedGLFW));
+            Glfw.SetWindowPosCallback(window.handle, new GlfwCallbacks.WindowPosCallback(window.OnMovedGLFW));
+            Glfw.SetWindowIconifyCallback(window.handle, new GlfwCallbacks.WindowIconifyCallback(window.OnMinimizationChangedGLFW));
 
             activeWindows++;
+            //set the key press event for this window
+            Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
             window.initialized = true;
             return window;
+        }
+        public unsafe void OnMinimizationChangedGLFW(WindowHandle* handle, bool status)
+        {
+            if (status) //if is minimized, wipe the input
+            {
+                InputStateGLFW.ClearAllKeyStates();
+            }
+            base.OnMinimizationChanged(this, status);
+        }
+        public unsafe void OnResizedGLFW(WindowHandle* handle, int width, int height)
+        {
+            internalSize.X = width;
+            internalSize.Y = height;
+
+            base.OnResized(this, width, height);
+        }
+        public unsafe void OnMovedGLFW(WindowHandle* handle, int X, int Y)
+        {
+            internalSize.X = X;
+            internalSize.Y = Y;
+
+            base.OnMoved(this, X, Y);
         }
         public void Close()
         {
             Glfw.SetWindowShouldClose(handle, true);
         }
-        public override void Update()
+
+        public unsafe void OnKeyPressed(WindowHandle* handle, Silk.NET.GLFW.Keys key, int scanCode, InputAction inputAction, KeyModifiers modifiers)
         {
-            if (!Glfw.GetWindowAttrib(handle, WindowAttributeGetter.Iconified))
+            if (inputAction == InputAction.Press)
             {
-                // Window
-                Glfw.GetWindowSize(handle, out internalSize.X, out internalSize.Y);
-                Glfw.GetWindowPos(handle, out internalPosition.X, out internalPosition.Y);
+                InputStateGLFW.keysDown.Insert((uint)key, true);
+                InputStateGLFW.perFrameKeyStates.Insert((uint)key, KeyState.Pressed);
+            }
+            else if (inputAction == InputAction.Release)
+            {
+                InputStateGLFW.keysDown.Insert((uint)key, false);
+                InputStateGLFW.perFrameKeyStates.Insert((uint)key, KeyState.Released);
             }
 
+            onKeyPressed?.Invoke((Keys)(int)key, scanCode, (KeyState)(int)inputAction);
+        }
+        public override void Update()
+        {
             if (GLContext != null)
             {
                 if (VSyncChanged)
@@ -199,6 +235,10 @@ namespace Somnium.Framework.Windowing
                     Glfw.SwapBuffers(handle);
                 }
             }
+
+            //finally, reset per state key frames
+            InputStateGLFW.ResetPerFrameKeyStates();
+            //and poll events such as clicking window close/minimize buttons, etc
             Glfw.PollEvents();
         }
         public override IGLContext GetGLContext() => GLContext;

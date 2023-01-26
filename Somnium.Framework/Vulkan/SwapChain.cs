@@ -59,8 +59,6 @@ namespace Somnium.Framework.Vulkan
         public uint currentImageIndex;
         public RenderBuffer[] renderTargets;
         public Image[] images;
-        //public ImageData[] imageDatas;
-        //public VkFramebuffer[] imageFrameBuffers;
 
         public uint ImageCount
         {
