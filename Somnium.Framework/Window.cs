@@ -2,7 +2,7 @@
 using Silk.NET.Vulkan;
 using System;
 
-namespace Somnium.Framework.Windowing
+namespace Somnium.Framework
 {
     public abstract unsafe class Window : IDisposable
     {

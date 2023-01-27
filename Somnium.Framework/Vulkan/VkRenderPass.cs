@@ -1,6 +1,5 @@
 ﻿using Silk.NET.Vulkan;
 using System;
-using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {

@@ -1,7 +1,6 @@
 ﻿using Silk.NET.Core;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
-using Somnium.Framework.Windowing;
 using System;
 
 namespace Somnium.Framework.Vulkan

@@ -4,7 +4,6 @@ using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
-using Somnium.Framework.Windowing;
 using System;
 using System.Linq;
 using Buffer = Silk.NET.Vulkan.Buffer;

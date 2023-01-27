@@ -1,10 +1,10 @@
 ﻿using Somnium.Framework.Vulkan;
 using Somnium.Framework.GLFW;
-using Somnium.Framework.Windowing;
 using System.Diagnostics;
 using System;
 using Silk.NET.Core;
 using Silk.NET.Vulkan;
+using Somnium.Framework.Audio;
 
 namespace Somnium.Framework
 {
@@ -46,7 +46,7 @@ namespace Somnium.Framework
             set => internalUpdatePeriod = value <= float.Epsilon ? 0 : 1f / value;
         }
 
-        private bool loaded;
+        public bool loaded { get; private set; }
         private double internalUpdatePeriod;
         private double internalRenderPeriod;
 

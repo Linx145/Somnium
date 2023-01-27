@@ -3,7 +3,6 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using System.Runtime.InteropServices;
 using System;
-using Somnium.Framework.Windowing;
 
 namespace Somnium.Framework.Vulkan
 {

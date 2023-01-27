@@ -1,7 +1,7 @@
 ﻿using Somnium.Framework;
 using System.Numerics;
 
-using System.Linq;
+using Somnium.Framework.Audio;
 
 namespace Test
 {
@@ -40,6 +40,9 @@ namespace Test
 
         private static VertexPositionColorTexture[] vertices2;
         private static VertexBuffer vb2;
+
+        //private static SoundEffect wav;
+        //private static SoundEffect ogg;
 #endif
 
         private static ViewProjection viewProjection;
@@ -101,6 +104,8 @@ namespace Test
             };
             vb2 = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices2.Length, false);
             vb2.SetData(vertices2, 0, vertices2.Length);
+
+            //wav = SoundEffect.FromFile("Content/Yippee.wav", AudioFormat.Wav);
 #endif
             #endregion
 
@@ -303,6 +308,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             instanceBuffer?.Dispose();
 #endif
 #if RENDERBUFFERS
+            //wav?.Dispose();
             renderBuffer?.Dispose();
             vb2?.Dispose();
 #endif
