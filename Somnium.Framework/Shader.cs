@@ -392,12 +392,76 @@ namespace Somnium.Framework
                 mainPtr = IntPtr.Zero;
             }
         }
-        public static Shader FromFile(Application application, string filePath, ShaderType type)
+        /// <summary>
+        /// Loads a shader from a Somnium Engine .shader file, which can contain the bytecode for a single 
+        /// shader of any type, or a pair of Vertex+Fragment or Tessellation Control+Evaluation shaders.
+        /// </summary>
+        /// <param name="application"></param>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        public static Shader FromFile(Application application, string filePath)
         {
-            byte[] bytes = File.ReadAllBytes(filePath);
-            return new Shader(application, type, bytes);
+            using (BinaryReader reader = new BinaryReader(File.OpenRead(filePath)))
+            {
+                uint version = reader.ReadUInt32();
+                if (version == 1)
+                {
+                    List<byte[]> shaderBytecode = new List<byte[]>();
+                    ulong maxShaders = reader.ReadUInt64();
+
+                    if (maxShaders > 2)
+                    {
+                        throw new ArgumentOutOfRangeException("Invalid shader file! Shader file has more than 2 shader source bytecodes.");
+                    }
+
+                    ShaderTypeFlags flag1 = ShaderTypeFlags.None;
+                    ShaderTypeFlags flag2 = ShaderTypeFlags.None;
+                    for (ulong i = 0; i < maxShaders; i++)
+                    {
+                        ShaderTypeFlags type = (ShaderTypeFlags)reader.ReadUInt32();
+                        Console.WriteLine("Shader type: " + type);
+
+                        ulong size = reader.ReadUInt64();
+
+                        if (i == 0)
+                        {
+                            flag1 = type;
+                        }
+                        else flag2 = type;
+
+                        //size is the count of ints
+                        shaderBytecode.Add(reader.ReadBytes((int)size * sizeof(uint)));
+                    }
+
+                    Shader result;
+
+                    //fragment code comes first, but Shader constructor accepts vertex code first, so we flip them when inputting
+                    if (flag1 == ShaderTypeFlags.Vertex && flag2 == ShaderTypeFlags.Fragment)
+                    {
+                        result = new Shader(application, shaderBytecode[0], shaderBytecode[1], ShaderType.VertexAndFragment);
+                    }
+                    else if (flag1 == ShaderTypeFlags.Fragment && flag2 == ShaderTypeFlags.Vertex)
+                    {
+                        result = new Shader(application, shaderBytecode[1], shaderBytecode[0], ShaderType.VertexAndFragment);
+                    }
+                    else if (flag1 == ShaderTypeFlags.Vertex)
+                    {
+                        result = new Shader(application, ShaderType.Vertex, shaderBytecode[0]);
+                    }
+                    else if (flag1 == ShaderTypeFlags.Fragment)
+                    {
+                        result = new Shader(application, ShaderType.Fragment, shaderBytecode[0]);
+                    }
+                    else throw new NotSupportedException("Unsupported shader type combination: " + flag1.ToString() + " and " + flag2.ToString());
+
+                    return result;
+                }
+                else throw new NotSupportedException(".shader file version not supported: " + version);
+            }
+            /*byte[] bytes = File.ReadAllBytes(filePath);
+            return new Shader(application, type, bytes);*/
         }
-        public static Shader FromFiles(Application application, string vertexShaderFile, string fragmentShaderFile)
+        public static Shader FromSpvFiles(Application application, string vertexShaderFile, string fragmentShaderFile)
         {
             byte[] vertex = File.ReadAllBytes(vertexShaderFile);
             byte[] fragment = File.ReadAllBytes(fragmentShaderFile);

@@ -77,6 +77,7 @@ namespace Somnium.Framework.Vulkan
         /// <exception cref="ExecutionException"></exception>
         public unsafe T* Bind<T>() where T : unmanaged
         {
+            
             if (memory.memoryPtr == null)
             {
                 lock (memory.memoryPtrLock)

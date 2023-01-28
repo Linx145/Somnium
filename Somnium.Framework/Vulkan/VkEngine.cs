@@ -260,7 +260,7 @@ namespace Somnium.Framework.Vulkan
             vkApplicationInfo.PEngineName = Utils.StringToBytePtr(EngineName, out engineNamePtr);
             vkApplicationInfo.ApplicationVersion = new Version32(1, 0, 0);
             vkApplicationInfo.EngineVersion = new Version32(0, 1, 0);
-            vkApplicationInfo.ApiVersion = Vk.Version11;
+            vkApplicationInfo.ApiVersion = Vk.Version12;
 
             InstanceCreateInfo vkInstanceCreateInfo = new InstanceCreateInfo();
             vkInstanceCreateInfo.SType = StructureType.InstanceCreateInfo;
@@ -995,3 +995,5 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+
+

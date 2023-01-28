@@ -41,8 +41,8 @@ namespace Test
         private static VertexPositionColorTexture[] vertices2;
         private static VertexBuffer vb2;
 
-        //private static SoundEffect wav;
-        //private static SoundEffect ogg;
+        private static SoundEffect wav;
+        private static SoundEffect ogg;
 #endif
 
         private static ViewProjection viewProjection;
@@ -84,7 +84,8 @@ namespace Test
 
             #region test: render buffers
 #if RENDERBUFFERS
-            shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
+            shader = Shader.FromFile(application, "Content/Shader.shader");
+            //shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
             shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
             shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
@@ -105,6 +106,8 @@ namespace Test
             vb2 = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices2.Length, false);
             vb2.SetData(vertices2, 0, vertices2.Length);
 
+            wav = new SoundEffect("Content/Yippee.wav");
+            ogg = new SoundEffect("Content/Yippee.ogg");
             //wav = SoundEffect.FromFile("Content/Yippee.wav", AudioFormat.Wav);
 #endif
             #endregion
@@ -123,7 +126,7 @@ namespace Test
             #region test: instancing
 #if INSTANCING
             rand = new ExtendedRandom();
-            shader = Shader.FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
+            shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");//FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
             shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
             shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
@@ -247,6 +250,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
         private static float xTranslation;
         private static void Update(float deltaTime)
         {
+
             recordTime += deltaTime;
             if (recordTime >= 0.2f)
             {
@@ -272,18 +276,19 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
                 }
                 vb.SetData(vertices, 0, vertices.Length);
             }
+            if (Input.IsKeyPressed(Keys.Space))
+            {
+                ogg.Play(1f, 1f);
+            }
 #endif
 
 #if INSTANCING
             Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif
 
-
             string[] strings;
             Func<string, bool> func; //func is a type of delegate
             Func<string, int, bool> func2 = DoStuff;
-
-            
         }
 
         static Action action;
@@ -308,7 +313,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             instanceBuffer?.Dispose();
 #endif
 #if RENDERBUFFERS
-            //wav?.Dispose();
+            wav?.Dispose();
+            ogg?.Dispose();
             renderBuffer?.Dispose();
             vb2?.Dispose();
 #endif

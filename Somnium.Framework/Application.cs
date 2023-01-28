@@ -84,6 +84,7 @@ namespace Somnium.Framework
                     VkEngine.Initialize(Window, AppName);
                     break;
             }
+            AudioEngine.Initialize();
             SamplerState.AddDefaultSamplerStates(this);
             VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
 
@@ -104,6 +105,7 @@ namespace Somnium.Framework
                 if (delta >= internalUpdatePeriod)
                 {
                     updateStopwatch.Restart();
+                    AudioEngine.Update();
                     Update?.Invoke((float)delta);
                 }
 
@@ -155,6 +157,7 @@ namespace Somnium.Framework
                     break;
             }
             Unload?.Invoke();
+            AudioEngine.Shutdown();
             switch (runningBackend)
             {
                 case Backends.Vulkan:
