@@ -4,6 +4,8 @@ using System.IO;
 using Somnium.Framework.Vulkan;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
+using System.Text;
+using FMOD;
 
 namespace Somnium.Framework
 {
@@ -401,12 +403,36 @@ namespace Somnium.Framework
         /// <returns></returns>
         public static Shader FromFile(Application application, string filePath)
         {
+            void AddUniforms(ShaderParameterCollection collection, List<ShaderParamUniformData> uniforms)
+            {
+                for (int i = 0; i < uniforms.Count; i++)
+                {
+                    var uniform = uniforms[i];
+                    collection.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
+                }
+            }
+            void AddImageSamplers(ShaderParameterCollection collection, List<ShaderParamImageSamplerData> samplerImages)
+            {
+                for (int i = 0; i < samplerImages.Count; i++)
+                {
+                    var samplerImage = samplerImages[i];
+                    collection.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
+                }
+            }
+            
             using (BinaryReader reader = new BinaryReader(File.OpenRead(filePath)))
             {
                 uint version = reader.ReadUInt32();
                 if (version == 1)
                 {
                     List<byte[]> shaderBytecode = new List<byte[]>();
+
+                    var uniforms1 = new List<ShaderParamUniformData>();
+                    var uniforms2 = new List<ShaderParamUniformData>();
+
+                    var imageSamplers1 = new List<ShaderParamImageSamplerData>();
+                    var imageSamplers2 = new List<ShaderParamImageSamplerData>();
+
                     ulong maxShaders = reader.ReadUInt64();
 
                     if (maxShaders > 2)
@@ -419,7 +445,43 @@ namespace Somnium.Framework
                     for (ulong i = 0; i < maxShaders; i++)
                     {
                         ShaderTypeFlags type = (ShaderTypeFlags)reader.ReadUInt32();
-                        Console.WriteLine("Shader type: " + type);
+
+                        uint uniformsCount = reader.ReadUInt32();
+                        for (int c = 0; c < uniformsCount; c++)
+                        {
+                            uint stringSize = reader.ReadUInt32();
+                            byte[] bytes = reader.ReadBytes((int)stringSize);
+                            string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                            uint set = reader.ReadUInt32();
+                            uint binding = reader.ReadUInt32();
+                            uint stride = reader.ReadUInt32();
+                            uint arrayLength = reader.ReadUInt32();
+
+                            if (i == 0)
+                            {
+                                uniforms1.Add(new ShaderParamUniformData(name, set, binding, stride, arrayLength));
+                            }
+                            else uniforms2.Add(new ShaderParamUniformData(name, set, binding, stride, arrayLength));
+                        }
+
+                        uint samplerImagesCount = reader.ReadUInt32();
+                        for (int c = 0; c < samplerImagesCount; c++)
+                        {
+                            uint stringSize = reader.ReadUInt32();
+                            //Console.WriteLine("samplerImage name size: " + stringSize);
+                            byte[] bytes = reader.ReadBytes((int)stringSize);
+                            string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                            uint set = reader.ReadUInt32();
+                            uint binding = reader.ReadUInt32();
+                            uint arrayLength = reader.ReadUInt32();
+
+                            //Console.WriteLine(Encoding.UTF8.GetString(bytes, 0, bytes.Length));
+                            if (i == 0)
+                            {
+                                imageSamplers1.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
+                            }
+                            else imageSamplers2.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
+                        }
 
                         ulong size = reader.ReadUInt64();
 
@@ -439,10 +501,20 @@ namespace Somnium.Framework
                     if (flag1 == ShaderTypeFlags.Vertex && flag2 == ShaderTypeFlags.Fragment)
                     {
                         result = new Shader(application, shaderBytecode[0], shaderBytecode[1], ShaderType.VertexAndFragment);
+                        AddUniforms(result.shader1Params, uniforms1);
+                        AddUniforms(result.shader2Params, uniforms2);
+
+                        AddImageSamplers(result.shader1Params, imageSamplers1);
+                        AddImageSamplers(result.shader2Params, imageSamplers2);
                     }
                     else if (flag1 == ShaderTypeFlags.Fragment && flag2 == ShaderTypeFlags.Vertex)
                     {
                         result = new Shader(application, shaderBytecode[1], shaderBytecode[0], ShaderType.VertexAndFragment);
+                        AddUniforms(result.shader1Params, uniforms2);
+                        AddUniforms(result.shader2Params, uniforms1);
+
+                        AddImageSamplers(result.shader1Params, imageSamplers2);
+                        AddImageSamplers(result.shader2Params, imageSamplers1);
                     }
                     else if (flag1 == ShaderTypeFlags.Vertex)
                     {
@@ -453,6 +525,40 @@ namespace Somnium.Framework
                         result = new Shader(application, ShaderType.Fragment, shaderBytecode[0]);
                     }
                     else throw new NotSupportedException("Unsupported shader type combination: " + flag1.ToString() + " and " + flag2.ToString());
+
+                    if (flag2 == ShaderTypeFlags.None)
+                    {
+                        AddUniforms(result.shader1Params, uniforms1);
+                        AddImageSamplers(result.shader1Params, imageSamplers1);
+                    }
+
+                    //add uniforms
+                    /*for (int i = 0; i < uniforms1.Count; i++)
+                    {
+                        var uniform = uniforms1[i];
+                        Console.WriteLine("Added parameter to param collection 1: " + uniform.name);
+                        result.shader1Params.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
+                    }
+                    for (int i = 0; i < uniforms2.Count; i++)
+                    {
+                        var uniform = uniforms2[i];
+                        Console.WriteLine("Added parameter to param collection 2: " + uniform.name);
+                        result.shader2Params.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
+                    }
+
+                    //add imageAndSamplers
+                    for (int i = 0; i < samplerImages1.Count; i++)
+                    {
+                        var samplerImage = samplerImages1[i];
+                        Console.WriteLine("Added sampler image to param collection 1: " + samplerImage.name);
+                        result.shader1Params.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
+                    }
+                    for (int i = 0; i < samplerImages2.Count; i++)
+                    {
+                        var samplerImage = samplerImages2[i];
+                        Console.WriteLine("Added sampler image to param collection 2: " + samplerImage.name);
+                        result.shader2Params.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
+                    }*/
 
                     return result;
                 }

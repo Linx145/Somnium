@@ -6,6 +6,24 @@
 
 namespace Somnium
 {
+    struct ShaderUniformData
+    {
+    public:
+        std::string name;
+        uint32_t stride;
+        uint32_t binding;
+        uint32_t set;
+        uint32_t arrayLength;
+    };
+    struct ShaderImageSamplerData
+    {
+    public:
+        std::string name;
+        uint32_t binding;
+        uint32_t set;
+        uint32_t arrayLength;
+    };
+
     typedef enum
     {
         None = 0,
@@ -17,6 +35,15 @@ namespace Somnium
         Compute = 32
     } ShaderType;
 
+    struct ShaderCompileResult
+    {
+    public:
+        std::vector<uint32_t> byteCode;
+        std::vector<ShaderUniformData> uniforms;
+        std::vector<ShaderImageSamplerData> samplerImages;
+        ShaderType type;
+    };
+
 	inline constexpr uint32_t shaderFileVersion = 1;
 
     std::vector<uint32_t> CompileSpirvBinary(const shaderc::Compiler& compiler, const std::string& source_name,
@@ -26,10 +53,5 @@ namespace Somnium
 
     std::string file_ReadAllLines(const std::filesystem::path input);
 
-    struct ShaderCompileResult
-    {
-    public:
-        std::vector<uint32_t> byteCode;
-        ShaderType type;
-    };
+    void GetSpirvUniforms(ShaderCompileResult& compileResult);
 }

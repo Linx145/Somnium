@@ -63,6 +63,8 @@ int main()
             compileResult.byteCode = Somnium::CompileSpirvBinary(compiler, inputFilePath.filename().string().c_str(), GLShaderType, allLines);
             compileResult.type = somniumShaderType;
 
+            Somnium::GetSpirvUniforms(compileResult);
+
             allShaderData.push_back(compileResult);
         }
 
@@ -80,9 +82,34 @@ int main()
         for (size_t i = 0; i < allShaderData.size(); i++)
         {
             uint32_t type = (uint32_t)allShaderData[i].type;
-            uint64_t size = (uint64_t)allShaderData[i].byteCode.size();
-
             outputFile.write((char*)&type, sizeof(uint32_t));
+
+            uint32_t uniformsCount = (uint32_t)allShaderData[i].uniforms.size();
+            outputFile.write((char*)&uniformsCount, sizeof(uint32_t));
+            for (const auto& uniform : allShaderData[i].uniforms)
+            {
+                uint32_t stringSize = (uint32_t)uniform.name.size();
+                outputFile.write((char*)&stringSize, sizeof(uint32_t));
+                outputFile.write(uniform.name.c_str(), stringSize);
+                outputFile.write((char*)&uniform.set, sizeof(uint32_t));
+                outputFile.write((char*)&uniform.binding, sizeof(uint32_t));
+                outputFile.write((char*)&uniform.stride, sizeof(uint32_t));
+                outputFile.write((char*)&uniform.arrayLength, sizeof(uint32_t));
+            }
+
+            uint32_t samplerImageCount = (uint32_t)allShaderData[i].samplerImages.size();
+            outputFile.write((char*)&samplerImageCount, sizeof(uint32_t));
+            for (const auto& samplerImage : allShaderData[i].samplerImages)
+            {
+                uint32_t stringSize = (uint32_t)samplerImage.name.size();
+                outputFile.write((char*)&stringSize, sizeof(uint32_t));
+                outputFile.write(samplerImage.name.c_str(), stringSize);
+                outputFile.write((char*)&samplerImage.set, sizeof(uint32_t));
+                outputFile.write((char*)&samplerImage.binding, sizeof(uint32_t));
+                outputFile.write((char*)&samplerImage.arrayLength, sizeof(uint32_t));
+            }
+
+            uint64_t size = (uint64_t)allShaderData[i].byteCode.size();
             outputFile.write((char*)&size, sizeof(uint64_t));
             outputFile.write((char*)allShaderData[i].byteCode.data(), sizeof(uint32_t) * allShaderData[i].byteCode.size());
         }

@@ -371,4 +371,36 @@ namespace Somnium.Framework
             }
         }
     }
+    public readonly struct ShaderParamUniformData
+    {
+        public readonly string name;
+        public readonly uint set;
+        public readonly uint binding;
+        public readonly uint stride;
+        public readonly uint arrayLength;
+
+        public ShaderParamUniformData(string name, uint set, uint binding, uint stride, uint arrayLength)
+        {
+            this.name = name;
+            this.set = set;
+            this.binding = binding;
+            this.stride = stride;
+            this.arrayLength = arrayLength;
+        }
+    }
+    public readonly struct ShaderParamImageSamplerData
+    {
+        public readonly string name;
+        public readonly uint set;
+        public readonly uint binding;
+        public readonly uint arrayLength;
+
+        public ShaderParamImageSamplerData(string name, uint set, uint binding, uint arrayLength)
+        {
+            this.name = name;
+            this.set = set;
+            this.binding = binding;
+            this.arrayLength = arrayLength;
+        }
+    }
 }

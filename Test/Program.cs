@@ -85,9 +85,8 @@ namespace Test
             #region test: render buffers
 #if RENDERBUFFERS
             shader = Shader.FromFile(application, "Content/Shader.shader");
-            //shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
-            shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
-            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
+            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
             renderBuffer = new RenderBuffer(application, 26, 38, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
@@ -114,9 +113,9 @@ namespace Test
 
             #region test: regular drawing
 #if DRAWING
-            shader = Shader.FromFiles(application, "Content/Shader.vert.spv", "Content/Shader.frag.spv");
-            shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
-            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            shader = Shader.FromFile(application, "Content/Shader.shader");
+            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
+            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
             state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
@@ -127,8 +126,8 @@ namespace Test
 #if INSTANCING
             rand = new ExtendedRandom();
             shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");//FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
-            shader.shader1Params.AddParameter<ViewProjection>("matrices", 0);
-            shader.shader2Params.AddTexture2DParameter("texSampler", 1);
+            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
+            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
             shader.ConstructParams();
 
             instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration<Vector4>(Backends.Vulkan, VertexElementInputRate.Instance);
@@ -178,7 +177,7 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
 );
 
             shader.SetUniform("texSampler", texture);
-            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state, renderBuffer);
             Graphics.Clear(Color.CornflowerBlue);
@@ -193,7 +192,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 );
 
             shader.SetUniform("texSampler", renderBuffer);
-            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state, null);
             Graphics.Clear(Color.Black);
@@ -211,7 +210,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
                 );
 
             shader.SetUniform("texSampler", texture);
-            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
@@ -220,7 +219,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, 1);
 
             viewProjection.View = Matrix4x4.CreateTranslation(2f, 0f, 0f);
-            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("wvpBlock", viewProjection);
             shader.SetUniform("texSampler", texture);
             Graphics.DrawIndexedPrimitives(6, 1);
             state.End();
@@ -234,7 +233,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
                 );
 
             shader.SetUniform("texSampler", texture);
-            shader.SetUniform("matrices", viewProjection);
+            shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
