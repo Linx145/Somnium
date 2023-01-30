@@ -1,6 +1,5 @@
 ﻿using Somnium.Framework;
 using System.Numerics;
-
 using Somnium.Framework.Audio;
 
 namespace Test
@@ -85,13 +84,10 @@ namespace Test
             #region test: render buffers
 #if RENDERBUFFERS
             shader = Shader.FromFile(application, "Content/Shader.shader");
-            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
-            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
-            shader.ConstructParams();
 
             renderBuffer = new RenderBuffer(application, 26, 38, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
 
-            state = new PipelineState(application, new Viewport(0, 0, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 
             width = 5f; //= 13
             height = 5f * (19f / 13f); //=19
@@ -114,11 +110,8 @@ namespace Test
             #region test: regular drawing
 #if DRAWING
             shader = Shader.FromFile(application, "Content/Shader.shader");
-            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
-            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
-            shader.ConstructParams();
 
-            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 #endif
             #endregion
 
@@ -128,12 +121,11 @@ namespace Test
             shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");//FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
             //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
             //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
-            shader.ConstructParams();
 
             instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration<Vector4>(Backends.Vulkan, VertexElementInputRate.Instance);
             instanceDataDeclaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 0));
             
-            state = new PipelineState(application, new Viewport(0f, 0f, 1920, 1080, 0, 1), CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
             instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
 
             positions = new Vector4[instanceCount];

@@ -20,18 +20,18 @@ namespace Somnium.Framework.Vulkan
 
         public Shader[] shaders;
         public PipelineShaderStageCreateInfo[] shaderStages;
-        public Silk.NET.Vulkan.Viewport viewport;
-        public Rect2D scissor;
         public BlendState blendState;
         public PrimitiveTopology topology;
         public PolygonMode polygonMode;
         public VkRenderPass renderPass;
         public PipelineLayout pipelineLayout;
         public VkVertex[] vertices;
+        public DynamicState[] dynamicStates;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
         CullModeFlags cullMode = CullModeFlags.None;
 
+        public PipelineDynamicStateCreateInfo dynamicStatesInfo;
         public PipelineColorBlendAttachmentState colorBlendAttachment;
         public PipelineVertexInputStateCreateInfo vertexInput;
         public PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -46,7 +46,6 @@ namespace Somnium.Framework.Vulkan
 
         public VkGraphicsPipeline(
             Application application,
-            Silk.NET.Vulkan.Viewport viewport,
             CullMode cullMode,
             BlendState blendState,
             PrimitiveType primitiveType,
@@ -60,8 +59,6 @@ namespace Somnium.Framework.Vulkan
             {
                 vertices[i] = new VkVertex(vertexTypes[i]);
             }
-            this.viewport = viewport;
-            this.scissor = new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height));
             this.cullMode = Converters.CullModeToFlags[(int)cullMode];
             this.frontFaceMode = FrontFace.Clockwise;
             this.blendState = blendState;
@@ -272,7 +269,23 @@ namespace Somnium.Framework.Vulkan
         internal unsafe GraphicsPipelineCreateInfo CreateInfo()
         {
             #region create viewport info
+            dynamicStates = new DynamicState[2];
+            dynamicStates[0] = DynamicState.Viewport;
+            dynamicStates[1] = DynamicState.Scissor;
+
+            dynamicStatesInfo = new PipelineDynamicStateCreateInfo();
+            dynamicStatesInfo.SType = StructureType.PipelineDynamicStateCreateInfo;
+            dynamicStatesInfo.DynamicStateCount = (uint)dynamicStates.Length;
+            fixed (DynamicState* ptr = dynamicStates)
+            {
+                dynamicStatesInfo.PDynamicStates = ptr;
+            }
+
             viewportInfo = new PipelineViewportStateCreateInfo();
+            viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
+            viewportInfo.ViewportCount = 1;
+            viewportInfo.ScissorCount = 1;
+            /*viewportInfo = new PipelineViewportStateCreateInfo();
             viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
 
             viewportInfo.ViewportCount = 1;
@@ -284,7 +297,7 @@ namespace Somnium.Framework.Vulkan
             fixed (Rect2D* ptr = &scissor)
             {
                 viewportInfo.PScissors = ptr;
-            }
+            }*/
             #endregion
 
             #region create color blending info
@@ -360,8 +373,12 @@ namespace Somnium.Framework.Vulkan
                 pipelineInfo.PDepthStencilState = ptr;
             }
 
-            pipelineInfo.Layout = pipelineLayout;
+            fixed (PipelineDynamicStateCreateInfo* ptr = &dynamicStatesInfo)
+            {
+                pipelineInfo.PDynamicState = ptr;
+            }
 
+            pipelineInfo.Layout = pipelineLayout;
             pipelineInfo.RenderPass = renderPass;
             pipelineInfo.Subpass = 0;
 
@@ -370,7 +387,11 @@ namespace Somnium.Framework.Vulkan
 
         public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
         {
-            vk.CmdBindPipeline(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], handle);
+            var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
+            vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
+            Viewport viewport = new Viewport(0, 0, application.Window.Size.X, application.Window.Size.Y, 0, 1);
+            vk.CmdSetViewport(vkCmdBuffer, 0, 1, viewport.ToVulkanViewport());
+            vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
 
             PushUniformUpdates(commandBuffer, bindType);
             //for (int i = )

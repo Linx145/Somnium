@@ -559,6 +559,7 @@ namespace Somnium.Framework
                         Console.WriteLine("Added sampler image to param collection 2: " + samplerImage.name);
                         result.shader2Params.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
                     }*/
+                    result.ConstructParams();
 
                     return result;
                 }

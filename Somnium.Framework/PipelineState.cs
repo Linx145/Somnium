@@ -12,7 +12,6 @@ namespace Somnium.Framework
     {
         readonly Application application;
         public readonly VertexDeclaration[] vertices;
-        public readonly Viewport viewport;
         public readonly CullMode cullMode;
         public readonly PrimitiveType primitiveType;
         public readonly BlendState blendState;
@@ -23,8 +22,7 @@ namespace Somnium.Framework
         public RenderBuffer? currentRenderbuffer { get; private set; }
 
         public PipelineState(
-            Application application, 
-            Somnium.Framework.Viewport viewport, 
+            Application application,
             CullMode cullMode,
             PrimitiveType primitiveType,
             BlendState blendState,
@@ -32,7 +30,6 @@ namespace Somnium.Framework
             params VertexDeclaration[] vertices)
         {
             this.application = application;
-            this.viewport = viewport;
             this.cullMode = cullMode;
             this.primitiveType = primitiveType;
             this.blendState = blendState;
@@ -48,10 +45,10 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     if (shaders.Length != 1) throw new NotImplementedException();
 
-                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertices);
+                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertices);
                     handle = VkEngine.AddPipeline(pipeline);
 
-                    pipeline = new VkGraphicsPipeline(application, viewport.ToVulkanViewport(), cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], vertices);
+                    pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], vertices);
                     VkEngine.AddRenderbufferPipeline(pipeline);
                     break;
                 default:
@@ -65,7 +62,7 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderBuffer? renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        internal void Begin(RenderBuffer renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {

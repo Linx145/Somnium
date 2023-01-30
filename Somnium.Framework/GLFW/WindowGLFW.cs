@@ -167,12 +167,22 @@ namespace Somnium.Framework.GLFW
             Glfw.SetFramebufferSizeCallback(window.handle, new GlfwCallbacks.FramebufferSizeCallback(window.OnResizedGLFW));
             Glfw.SetWindowPosCallback(window.handle, new GlfwCallbacks.WindowPosCallback(window.OnMovedGLFW));
             Glfw.SetWindowIconifyCallback(window.handle, new GlfwCallbacks.WindowIconifyCallback(window.OnMinimizationChangedGLFW));
+            Glfw.SetWindowMaximizeCallback(window.handle, new GlfwCallbacks.WindowMaximizeCallback(window.OnMaximizeGLFW));
 
             activeWindows++;
             //set the key press event for this window
             Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
             window.initialized = true;
             return window;
+        }
+        public unsafe void OnMaximizeGLFW(WindowHandle* handle, bool maximized)
+        {
+            if (maximized)
+            {
+                Glfw.GetWindowSize(handle, out int width, out int height);
+                //OnResized(this, width, height);
+                OnMaximize(this, width, height);
+            }
         }
         public unsafe void OnMinimizationChangedGLFW(WindowHandle* handle, bool status)
         {
@@ -186,6 +196,8 @@ namespace Somnium.Framework.GLFW
         {
             internalSize.X = width;
             internalSize.Y = height;
+
+            Console.WriteLine("Window resized. New size: " + internalSize);
 
             base.OnResized(this, width, height);
         }
