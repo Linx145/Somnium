@@ -168,9 +168,8 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="cmdBuffer"></param>
         /// <param name="swapchain"></param>
-        /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, RenderBuffer? renderTarget = null)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, RenderBuffer renderTarget = null)
         {
             if (begun)
             {
@@ -180,6 +179,10 @@ namespace Somnium.Framework.Vulkan
             RenderPassBeginInfo beginInfo = new RenderPassBeginInfo();
             beginInfo.SType = StructureType.RenderPassBeginInfo;
             beginInfo.RenderPass = handle;
+            //we need to do this for every time we begin the command buffer as the
+            //image that we output (and thus the next call's input) will be in the wrong format
+            var imageToTransition = renderTarget == null ? swapchain.images[swapchain.currentImageIndex] : new Image(renderTarget.backendTexture.imageHandle);
+            VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
             if (renderTarget == null)
             {
                 beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
@@ -187,7 +190,6 @@ namespace Somnium.Framework.Vulkan
             }
             else
             {
-                VkEngine.TransitionImageLayout(new Image(renderTarget.backendTexture.imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
                 beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }

@@ -140,10 +140,10 @@ namespace Somnium.Framework.Vulkan
             //because we presented last frame/this is the first frame, the swapchain image would
             //either be in layouts undefined or present_src_khr, so we now need to transition it back
             //into color attachment optimal for use in drawing again.
-            TransitionImageLayout(swapChain.images[swapChain.currentImageIndex], ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(commandBuffer.handle));
+            //UPDATE: This is now handled by the renderpass setting
 
             //pre-emptively begin the backbuffer render pass
-            //SetRenderPass(renderPass, null);
+            SetRenderPass(renderPass, null);
         }
         internal static void EndDraw(Application application)
         {
