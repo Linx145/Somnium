@@ -345,7 +345,7 @@ namespace Somnium.Framework
 
             if (type == UniformType.uniformBuffer && !shader.useDynamicUniformBuffer)
             {
-                uniformBuffersPerFrame = new List<UniformBuffer>[application.Window.maxSimultaneousFrames];
+                uniformBuffersPerFrame = new List<UniformBuffer>[Application.Config.maxSimultaneousFrames];
                 for (int i = 0;i  < uniformBuffersPerFrame.Length; i++)
                 {
                     uniformBuffersPerFrame[i] = new List<UniformBuffer>();

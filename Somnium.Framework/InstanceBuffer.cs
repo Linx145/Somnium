@@ -41,8 +41,8 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        handles = new ulong[application.Window.maxSimultaneousFrames];
-                        memoryRegions = new AllocatedMemoryRegion[application.Window.maxSimultaneousFrames];
+                        handles = new ulong[Application.Config.maxSimultaneousFrames];
+                        memoryRegions = new AllocatedMemoryRegion[Application.Config.maxSimultaneousFrames];
                         for (int i = 0; i < handles.Length; i++)
                         {
                             Buffer buffer = VkEngine.CreateResourceBuffer(instanceDataSize * instanceCount, BufferUsageFlags.VertexBufferBit);

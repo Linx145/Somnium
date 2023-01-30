@@ -22,16 +22,20 @@ namespace Test
         private static ushort[] indices;
         private static IndexBuffer indexBuffer;
 
-#if INSTANCING
+#if INSTANCING || MULTIDRAW
         private static Vector4[] positions;
         private static Vector3[] velocities;
 
         private static ExtendedRandom rand;
-
+#endif
+#if INSTANCING
         private static InstanceBuffer instanceBuffer;
         private static VertexDeclaration instanceDataDeclaration;
 
         const int instanceCount = 10000;
+#endif
+#if MULTIDRAW
+        const int instanceCount = 256;
 #endif
 
 #if RENDERBUFFERS
@@ -81,7 +85,7 @@ namespace Test
             indexBuffer = new IndexBuffer(application, IndexSize.Uint16, indices.Length, false);
             indexBuffer.SetData(indices, 0, indices.Length);
 
-            #region test: render buffers
+#region test: render buffers
 #if RENDERBUFFERS
             shader = Shader.FromFile(application, "Content/Shader.shader");
 
@@ -105,29 +109,26 @@ namespace Test
             ogg = new SoundEffect("Content/Yippee.ogg");
             //wav = SoundEffect.FromFile("Content/Yippee.wav", AudioFormat.Wav);
 #endif
-            #endregion
+#endregion
 
-            #region test: regular drawing
+#region test: regular drawing
 #if DRAWING
+            shader = Shader.FromFile(application, "Content/Shader.shader");
+
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+#endif
+#endregion
+
+#region test: multi-drawing descriptor stress test
+#if MULTIDRAW
             shader = Shader.FromFile(application, "Content/Shader.shader");
 
             state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 #endif
             #endregion
 
-            #region test: instancing
-#if INSTANCING
+#if INSTANCING || MULTIDRAW
             rand = new ExtendedRandom();
-            shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");//FromFiles(application, "Content/ShaderInstanced.vert.spv", "Content/ShaderInstanced.frag.spv");
-            //shader.shader1Params.AddParameter<ViewProjection>("wvpBlock", 0);
-            //shader.shader2Params.AddTexture2DParameter("texSampler", 1);
-
-            instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration<Vector4>(Backends.Vulkan, VertexElementInputRate.Instance);
-            instanceDataDeclaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 0));
-            
-            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
-            instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
-
             positions = new Vector4[instanceCount];
             velocities = new Vector3[instanceCount];
 
@@ -136,6 +137,18 @@ namespace Test
                 velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
                 positions[i] = new Vector4(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f, 0f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
+#endif
+
+            #region test: instancing
+
+#if INSTANCING
+            shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");
+
+            instanceDataDeclaration = VertexDeclaration.NewVertexDeclaration<Vector4>(Backends.Vulkan, VertexElementInputRate.Instance);
+            instanceDataDeclaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 0));
+            
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
+            instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
 #endif
             #endregion
 
@@ -148,7 +161,7 @@ namespace Test
             {
                 texture2 = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
             }
-            #endregion
+#endregion
         }
         private static void Draw(float deltaTime)
         {
@@ -158,6 +171,7 @@ namespace Test
 
             var commandBuffer = application.Window.GetDefaultCommandCollection();
 
+#region renderbuffered drawing
 #if RENDERBUFFERS
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -171,12 +185,13 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
             shader.SetUniform("texSampler", texture);
             shader.SetUniform("wvpBlock", viewProjection);
 
-            Graphics.SetPipeline(state, renderBuffer);
+            Graphics.SetRenderbuffer(renderBuffer);
+            Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
-            state.End();
+            Graphics.EndPipeline();
 
             viewProjection = new ViewProjection(
 Matrix4x4.Identity,
@@ -186,13 +201,19 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("texSampler", renderBuffer);
             shader.SetUniform("wvpBlock", viewProjection);
 
-            Graphics.SetPipeline(state, null);
+            //causing error, since we begun the render pass earlier this frame and ended it,
+            //resulting in it's backbuffer image becoming present_src_khr
+            //while we are expecting color_attachment_optimal
+            Graphics.SetRenderbuffer(null);
+            Graphics.SetPipeline(state);
             Graphics.Clear(Color.Black);
             Graphics.SetVertexBuffer(vb2, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
-            state.End();
+            Graphics.EndPipeline();
 #endif
+#endregion
+#region basic drawing
 #if DRAWING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -209,13 +230,35 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
-
-            viewProjection.View = Matrix4x4.CreateTranslation(2f, 0f, 0f);
-            shader.SetUniform("wvpBlock", viewProjection);
-            shader.SetUniform("texSampler", texture);
-            Graphics.DrawIndexedPrimitives(6, 1);
             state.End();
 #endif
+#endregion
+#region multi draw stress test
+#if MULTIDRAW
+            float camWidth = 20f;
+            float camHeight = camWidth * (9f / 16f);
+            viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+                );
+
+            Graphics.SetVertexBuffer(vb, 0);
+            Graphics.SetIndexBuffer(indexBuffer);
+
+            Graphics.Clear(Color.CornflowerBlue);
+            for (int i = 0; i < instanceCount; i++)
+            {
+                viewProjection.View = Matrix4x4.CreateTranslation(new Vector3(positions[i].X, positions[i].Y, positions[i].Z));
+                shader.SetUniform("texSampler", texture);
+                shader.SetUniform("wvpBlock", viewProjection);
+
+                Graphics.SetPipeline(state);
+                Graphics.DrawIndexedPrimitives(6, 1);
+                state.End();
+            }
+#endif
+#endregion
+#region instanced drawing
 #if INSTANCING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -236,19 +279,17 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, instanceCount);
             state.End();
 #endif
+#endregion
         }
 
-        private static float xTranslation;
         private static void Update(float deltaTime)
         {
-
             recordTime += deltaTime;
             if (recordTime >= 0.2f)
             {
                 application.Window.Title = string.Concat("Test ", MathF.Round(1f / deltaTime).ToString());
                 recordTime -= 0.2f;
             }
-            xTranslation += deltaTime * 0.25f;
 
 #if RENDERBUFFERS
             if (Input.IsKeyDown(Keys.D))
@@ -273,24 +314,10 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             }
 #endif
 
-#if INSTANCING
+#if INSTANCING || MULTIDRAW
             Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif
-
-            string[] strings;
-            Func<string, bool> func; //func is a type of delegate
-            Func<string, int, bool> func2 = DoStuff;
         }
-
-        static Action action;
-
-        //
-        public static bool DoStuff(string str, int integer)
-        {
-            
-            return true;
-        }
-
         private static void Unload()
         {
             texture.Dispose();

@@ -135,8 +135,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)Dependencies\shaderc;$(ProjectDir)Dependencies\nfd</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)Dependencies\shaderc;$(ProjectDir)Dependencies\nfd;$(ProjectDir)Dependencies\spirv_cross</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);shaderc_combined.lib;nfd.lib;spirv-cross-c.lib;spirv-cross-glsl.lib;spirv-cross-core.lib;spirv-cross-reflect.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

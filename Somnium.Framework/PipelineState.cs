@@ -10,6 +10,8 @@ namespace Somnium.Framework
     /// </summary>
     public class PipelineState : IDisposable
     {
+        public bool begun { get; private set; }
+
         readonly Application application;
         public readonly VertexDeclaration[] vertices;
         public readonly CullMode cullMode;
@@ -18,8 +20,6 @@ namespace Somnium.Framework
         public readonly Shader[] shaders;
 
         public GenerationalIndex handle;
-
-        public RenderBuffer? currentRenderbuffer { get; private set; }
 
         public PipelineState(
             Application application,
@@ -62,22 +62,21 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderBuffer renderTarget = null, RenderStage renderStageToBindTo = RenderStage.Graphics)
+        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    this.currentRenderbuffer = renderTarget;
                     VkGraphicsPipeline pipeline;
-                    if (renderTarget == null)
+                    if (application.Graphics.currentRenderbuffer == null)
                     {
                         pipeline = VkEngine.GetPipeline(handle);
-                        VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, renderTarget);
+                        //VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, renderTarget);
                     }
                     else
                     {
                         pipeline = VkEngine.GetRenderbufferPipeline(handle);
-                        VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
+                        //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
                     }
                     pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
@@ -85,6 +84,7 @@ namespace Somnium.Framework
                 default:
                     throw new NotImplementedException();
             }
+            begun = true;
             //vk.CmdBindPipeline(commandBuffer.handle, PipelineBindPoint.Graphics, handle);
         }
         internal void ForceUpdateUniforms(RenderStage bindType)
@@ -101,22 +101,25 @@ namespace Somnium.Framework
                     break;
             }
         }
-        public void End()
+        internal void End()
         {
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    if (currentRenderbuffer == null)
+                    if (application.Graphics.currentRenderbuffer == null)
                     {
                         VkEngine.renderPass.End(VkEngine.commandBuffer);
                     }
                     else VkEngine.framebufferRenderPass.End(VkEngine.commandBuffer);
+                    VkEngine.currentRenderPass = null;
+                    
                     VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
                     break;
                 default:
                     throw new NotImplementedException();
             }
+            begun = false;
         }
         public void Dispose()
         {

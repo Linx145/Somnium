@@ -11,28 +11,10 @@ namespace Somnium.Framework
         /// </summary>
         public bool initialized { get; internal set; } = false;
         /// <summary>
-        /// If you are using low-level Graphics API such as Vulkan, Metal or DX12, refers to the index of the current frame within the array as specified by maxSimultaneousFrames
+        /// If you are using low-level Graphics API such as Vulkan, Metal or DX12, refers to the index of the current frame within the array as specified by Application.Config.maxSimultaneousFrames
         /// </summary>
         public int frameNumber { get; internal set; }
-        /// <summary>
-        /// If you are using low-level Graphics API such as Vulkan, Metal or DX12, specifies the amount of frames that can be drawn at the same time. Defaults to 2
-        /// </summary>
-        public int maxSimultaneousFrames
-        {
-            get
-            {
-                return internalMaxSimultaneousFrames;
-            }
-            set
-            {
-                if (initialized)
-                {
-                    throw new InvalidOperationException("Cannot change the max simultaneous frames of a window during runtime!");
-                }
-                internalMaxSimultaneousFrames = value;
-            }
-        }
-        private int internalMaxSimultaneousFrames;
+
         public Application application;
         /// <summary>
         /// The window title

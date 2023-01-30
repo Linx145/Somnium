@@ -241,7 +241,7 @@ namespace Somnium.Framework
                             # region create descriptor sets
                             //we need this so we can fill in the allocate info
 
-                            descriptorSetsPerFrame = new List<DescriptorSet>[application.Window.maxSimultaneousFrames];
+                            descriptorSetsPerFrame = new List<DescriptorSet>[Application.Config.maxSimultaneousFrames];
                             for (int i = 0; i < descriptorSetsPerFrame.Length; i++)
                             {
                                 descriptorSetsPerFrame[i] = new List<DescriptorSet>();
@@ -519,10 +519,14 @@ namespace Somnium.Framework
                     else if (flag1 == ShaderTypeFlags.Vertex)
                     {
                         result = new Shader(application, ShaderType.Vertex, shaderBytecode[0]);
+                        AddUniforms(result.shader1Params, uniforms1);
+                        AddImageSamplers(result.shader1Params, imageSamplers1);
                     }
                     else if (flag1 == ShaderTypeFlags.Fragment)
                     {
                         result = new Shader(application, ShaderType.Fragment, shaderBytecode[0]);
+                        AddUniforms(result.shader1Params, uniforms1);
+                        AddImageSamplers(result.shader1Params, imageSamplers1);
                     }
                     else throw new NotSupportedException("Unsupported shader type combination: " + flag1.ToString() + " and " + flag2.ToString());
 
@@ -531,34 +535,6 @@ namespace Somnium.Framework
                         AddUniforms(result.shader1Params, uniforms1);
                         AddImageSamplers(result.shader1Params, imageSamplers1);
                     }
-
-                    //add uniforms
-                    /*for (int i = 0; i < uniforms1.Count; i++)
-                    {
-                        var uniform = uniforms1[i];
-                        Console.WriteLine("Added parameter to param collection 1: " + uniform.name);
-                        result.shader1Params.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
-                    }
-                    for (int i = 0; i < uniforms2.Count; i++)
-                    {
-                        var uniform = uniforms2[i];
-                        Console.WriteLine("Added parameter to param collection 2: " + uniform.name);
-                        result.shader2Params.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
-                    }
-
-                    //add imageAndSamplers
-                    for (int i = 0; i < samplerImages1.Count; i++)
-                    {
-                        var samplerImage = samplerImages1[i];
-                        Console.WriteLine("Added sampler image to param collection 1: " + samplerImage.name);
-                        result.shader1Params.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
-                    }
-                    for (int i = 0; i < samplerImages2.Count; i++)
-                    {
-                        var samplerImage = samplerImages2[i];
-                        Console.WriteLine("Added sampler image to param collection 2: " + samplerImage.name);
-                        result.shader2Params.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
-                    }*/
                     result.ConstructParams();
 
                     return result;

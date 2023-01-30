@@ -123,7 +123,7 @@ namespace Somnium.Framework.GLFW
 
         public GlfwContext GLContext { get; private set; }
 
-        public static WindowGLFW New(Application application, Point windowSize, string title, Backends backend, int maxSimultaneousFrames = 2)
+        public static WindowGLFW New(Application application, Point windowSize, string title, Backends backend)
         {
             if (!SomniumGLFW.initialized)
             {
@@ -147,7 +147,6 @@ namespace Somnium.Framework.GLFW
                     break;
                 case Backends.Vulkan:
                     Glfw.WindowHint(WindowHintClientApi.ClientApi, ClientApi.NoApi);
-                    window.maxSimultaneousFrames = maxSimultaneousFrames;
                     break;
                 default:
                     throw new NotImplementedException();

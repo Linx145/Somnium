@@ -14,6 +14,7 @@ namespace Somnium.Framework.Vulkan
     {
         public static int begunPipelines = 0;
 
+        public const uint maxDescriptorSets = 1024;
         public const string EngineName = "Somnium";
         private static string appName;
 
@@ -109,7 +110,7 @@ namespace Somnium.Framework.Vulkan
                 CreateLogicalDevice();
                 CreateCommandPool(window.application);
                 CreateSwapChain(); //also creates image views
-                CreateRenderPass();
+                CreateRenderPasses();
                 //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
                 swapChain.RecreateFramebuffers(renderPass);
@@ -136,11 +137,29 @@ namespace Somnium.Framework.Vulkan
             commandBuffer.Reset();
             commandBuffer.Begin();
 
+            //because we presented last frame/this is the first frame, the swapchain image would
+            //either be in layouts undefined or present_src_khr, so we now need to transition it back
+            //into color attachment optimal for use in drawing again.
             TransitionImageLayout(swapChain.images[swapChain.currentImageIndex], ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(commandBuffer.handle));
-        }
-        public static void EndDraw()
-        {
 
+            //pre-emptively begin the backbuffer render pass
+            //SetRenderPass(renderPass, null);
+        }
+        internal static void EndDraw(Application application)
+        {
+            if (application.Graphics.currentPipeline != null)
+            {
+                throw new ExecutionException("Draw ended while a pipeline is still active!");
+            }
+            if (currentRenderPass != null)
+            {
+                if (currentRenderPass.begun)
+                {
+                    currentRenderPass.End(commandBuffer);
+                }
+                currentRenderPass = null;
+            }
+            application.Graphics.currentRenderbuffer = null;
             //reset the parameters of all shaders in pipelines
             //since pipeline shader is shared identically between
             //pipelines and renderbufferPipelines, only need to clear once for pipelines (for now)
@@ -510,13 +529,20 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region render pass
+        public static VkRenderPass currentRenderPass = null;
+
         public static VkRenderPass renderPass;
         public static VkRenderPass framebufferRenderPass;
 
-        public static void CreateRenderPass()
+        public static void CreateRenderPasses()
         {
             renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store);
             framebufferRenderPass = VkRenderPass.Create(Format.R8G8B8A8Unorm, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.ShaderReadOnlyOptimal);
+        }
+        public static void SetRenderPass(VkRenderPass renderPass, RenderBuffer renderBuffer)
+        {
+            currentRenderPass = renderPass;
+            renderPass.Begin(commandBuffer, swapChain, renderBuffer);
         }
         #endregion
 
@@ -605,8 +631,8 @@ namespace Somnium.Framework.Vulkan
         #region simultaneous frames
         public static void CreateFrames(Application application)
         {
-            frames = new FrameData[window.maxSimultaneousFrames];
-            for (int i = 0; i < window.maxSimultaneousFrames; i++)
+            frames = new FrameData[Application.Config.maxSimultaneousFrames];
+            for (int i = 0; i < Application.Config.maxSimultaneousFrames; i++)
             {
                 frames[i] = new FrameData(application);
             }
@@ -646,7 +672,7 @@ namespace Somnium.Framework.Vulkan
 
             EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
-        public static ulong GetSafeUniformBufferSize(ulong originalSize)
+        /*public static ulong GetSafeUniformBufferSize(ulong originalSize)
         {
             var minUniformBufferAlignment = CurrentGPU.limits.minUniformBufferOffsetAlignment;
             var alignedSize = originalSize;
@@ -655,8 +681,7 @@ namespace Somnium.Framework.Vulkan
                 alignedSize = (alignedSize + minUniformBufferAlignment - 1) & ~(minUniformBufferAlignment - 1);
             }
             return alignedSize;
-
-        }
+        }*/
         #endregion
 
         #region synchronization
@@ -704,18 +729,21 @@ namespace Somnium.Framework.Vulkan
 
         public static DescriptorPool GetOrCreateDescriptorPool()
         {
+            uint maxUniformDescriptors = (uint)(VkEngine.maxDescriptorSets * Application.Config.maxSimultaneousFrames);
+            uint maxImageDescriptors = (uint)(16 * Application.Config.maxSimultaneousFrames);
+
             if (descriptorPool.Handle != 0) return descriptorPool;
             DescriptorPoolSize* poolSizes = stackalloc DescriptorPoolSize[]
             {
                 new DescriptorPoolSize()
                 {
                     Type = DescriptorType.UniformBuffer,
-                    DescriptorCount = 36
+                    DescriptorCount = maxUniformDescriptors
                 },
                 new DescriptorPoolSize()
                 {
                     Type = DescriptorType.CombinedImageSampler,
-                    DescriptorCount = 4
+                    DescriptorCount = maxImageDescriptors
                 }
             };
             
@@ -723,7 +751,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.SType = StructureType.DescriptorPoolCreateInfo;
             createInfo.PoolSizeCount = 2; //the amount of areas in the descriptor to allocate and their respective descriptor counts
             createInfo.PPoolSizes = poolSizes;
-            createInfo.MaxSets = 40; //the maximum number of descriptor sets that can be allocated from the pool.
+            createInfo.MaxSets = maxUniformDescriptors; //the maximum number of descriptor sets that can be allocated from the pool.
 
             DescriptorPool newPool;
             //create descriptor pool(s)
@@ -734,32 +762,6 @@ namespace Somnium.Framework.Vulkan
             descriptorPool = newPool;
             return descriptorPool;
         }
-        /*public static SparseArray<DescriptorPool> descriptorPools = new SparseArray<DescriptorPool>(default);
-        public static DescriptorPool GetOrCreateDescriptorPool(UniformType poolType)
-        {
-            if (descriptorPools.WithinLength((uint)poolType) && descriptorPools[(uint)poolType].Handle != 0)
-            {
-                return descriptorPools[(uint)poolType];
-            }
-            DescriptorPoolSize poolSize = new DescriptorPoolSize();
-            poolSize.Type = ShaderParameter.UniformTypeToVkDescriptorType[(int)poolType];//DescriptorType.UniformBuffer;
-            poolSize.DescriptorCount = 1; //specifies the number of descriptors of a given type which can be allocated in total from a given pool (across all descriptor sets).
-
-            DescriptorPoolCreateInfo createInfo = new DescriptorPoolCreateInfo();
-            createInfo.SType = StructureType.DescriptorPoolCreateInfo;
-            createInfo.PoolSizeCount = 1; //the amount of descriptor pools to allocated
-            createInfo.PPoolSizes = &poolSize;
-            createInfo.MaxSets = 1; //the maximum number of descriptor sets that can be allocated from the pool.
-
-            DescriptorPool descriptorPool;
-            //create descriptor pool(s)
-            if (vk.CreateDescriptorPool(vkDevice, in createInfo, null, &descriptorPool) != Result.Success)
-            {
-                throw new InitializationException("Failed to create descriptor pool!");
-            }
-            descriptorPools.Insert((uint)poolType, descriptorPool);
-            return descriptorPool;
-        }*/
         #endregion
 
         #region images

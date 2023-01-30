@@ -13,6 +13,10 @@ namespace Somnium.Framework
     /// </summary>
     public sealed class Application : IDisposable
     {
+        public static class Config
+        {
+            public static uint maxSimultaneousFrames = 2;
+        }
         public string AppName { get; private set; }
 
         public Graphics Graphics;
@@ -61,16 +65,21 @@ namespace Somnium.Framework
         /// <param name="preferredBackend">The preferred backend. (In the future) should the backend not be available, Somnium will automatically choose the next best backend for the app.</param>
         /// <param name="maxSimultaneousFrames">The maximum rendering frames to be processed at a time, for use in the Double Buffering technique to boost FPS in Vulkan, DX12 and Metal</param>
         /// <returns></returns>
-        public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend, int maxSimultaneousFrames = 2)
+        public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend, uint maxSimultaneousFrames = 2)
         {
+            if (maxSimultaneousFrames == 0 || maxSimultaneousFrames > 3)
+            {
+                throw new ArgumentOutOfRangeException("Max simultaneous frames must be between 1-3!");
+            }
             Application app = new Application();
             app.AppName = AppName;
+            Config.maxSimultaneousFrames = maxSimultaneousFrames;
 
             //TODO: check for preferredBackend compatibility
             app.runningBackend = preferredBackend;
 
             Input.instance = new InputStateGLFW();
-            app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend, maxSimultaneousFrames);
+            app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend);
 
             app.Graphics = new Graphics(app);
 
@@ -128,12 +137,16 @@ namespace Somnium.Framework
 
                     Draw?.Invoke((float)delta);
 
+                    if (Graphics.currentRenderbuffer != null)
+                    {
+                        throw new ExecutionException("Renderbuffer target must be set to null(default) by the end of the draw loop!");
+                    }
                     if (runningBackend == Backends.Vulkan)
                     {
-                        VkEngine.EndDraw();
+                        VkEngine.EndDraw(this);
                     }
                     Window.frameNumber++;
-                    if (Window.frameNumber >= Window.maxSimultaneousFrames)
+                    if (Window.frameNumber >= Config.maxSimultaneousFrames)
                     {
                         Window.frameNumber = 0;
                     }
@@ -147,12 +160,12 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        Fence* fences = stackalloc Fence[Window.maxSimultaneousFrames];
-                        for (int i = 0; i < Window.maxSimultaneousFrames; i++)
+                        Fence* fences = stackalloc Fence[(int)Config.maxSimultaneousFrames];
+                        for (int i = 0; i < Config.maxSimultaneousFrames; i++)
                         {
                             fences[i] = VkEngine.frames[i].fence;
                         }
-                        VkEngine.vk.WaitForFences(VkEngine.vkDevice, (uint)Window.maxSimultaneousFrames, fences, new Bool32(true), uint.MaxValue);
+                        VkEngine.vk.WaitForFences(VkEngine.vkDevice, (uint)Config.maxSimultaneousFrames, fences, new Bool32(true), uint.MaxValue);
                     }
                     break;
             }
