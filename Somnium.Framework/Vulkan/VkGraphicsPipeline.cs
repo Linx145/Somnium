@@ -385,7 +385,7 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
+        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType, bool autoUpdateUniformsOnBind = true)
         {
             var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
             vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
@@ -393,42 +393,28 @@ namespace Somnium.Framework.Vulkan
             vk.CmdSetViewport(vkCmdBuffer, 0, 1, viewport.ToVulkanViewport());
             vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
 
-            PushUniformUpdates(commandBuffer, bindType);
-            //for (int i = )
-                //vk.CmdBindDescriptorSets(new CommandBuffer(commandBuffer.handle), Converters.RenderStageToBindPoint[(int)bindType], pipelineLayout, 0, (uint)descriptorSets.Length, ptr, 0, null);
+            if (autoUpdateUniformsOnBind) PushUniformUpdates(commandBuffer, bindType);
         }
 
         public unsafe void PushUniformUpdates(CommandCollection commandBuffer, RenderStage bindType)
         {
             for (int i = 0; i < shaders.Length; i++)
             {
+                if (!shaders[i].descriptorHasBeenSet)
+                {
+                    continue;
+                }
                 DescriptorSet currentFrameDescriptorSet = shaders[i].descriptorSet;
 
-                if (shaders[i].useDynamicUniformBuffer)
-                {
-                    vk.CmdBindDescriptorSets(
-                        new CommandBuffer(commandBuffer.handle),
-                        Converters.RenderStageToBindPoint[(int)bindType],
-                        pipelineLayout,
-                        0,
-                        1,
-                        &currentFrameDescriptorSet,
-                        (uint)VkEngine.unifiedDynamicBuffer.dataOffsets.Count,
-                        VkEngine.unifiedDynamicBuffer.dataOffsets.AsReadonlySpan()
-                        );
-                }
-                else
-                {
-                    vk.CmdBindDescriptorSets(
-    new CommandBuffer(commandBuffer.handle),
-    Converters.RenderStageToBindPoint[(int)bindType],
-    pipelineLayout,
-    0,
-    1,
-    &currentFrameDescriptorSet,
-    0,
-    null);
-                }
+                vk.CmdBindDescriptorSets(
+new CommandBuffer(commandBuffer.handle),
+Converters.RenderStageToBindPoint[(int)bindType],
+pipelineLayout,
+0,
+1,
+&currentFrameDescriptorSet,
+0,
+null);
             }
         }
 

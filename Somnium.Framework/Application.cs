@@ -15,13 +15,40 @@ namespace Somnium.Framework
     {
         public static class Config
         {
+            /// <summary>
+            /// The max number of frames that can be processed at once. Must be 1-3 inclusive
+            /// </summary>
             public static uint maxSimultaneousFrames = 2;
+            /// <summary>
+            /// Whether to throw an exception everytime the backend graphics API encounters an error
+            /// </summary>
+            public static bool throwValidationExceptions = true;
+            /// <summary>
+            /// Whether to send the debug information via Console.Writeline, System.Diagnostic.Debug.Writeline or not send anything at all.
+            /// </summary>
+            public static LoggingMode loggingMode = LoggingMode.Console;
+            /// <summary>
+            /// Whether to log manual memory allocations present in low-level APIs such as Vulkan
+            /// </summary>
+            public static bool logMemoryAllocations = false;
+
+            public static bool logUniformBufferAllocations = false;
         }
+        /// <summary>
+        /// The name of your app.
+        /// </summary>
         public string AppName { get; private set; }
-
+        /// <summary>
+        /// The Graphics context.
+        /// </summary>
         public Graphics Graphics;
-
+        /// <summary>
+        /// Used to keep track of deltaTime for update calls.
+        /// </summary>
         public Stopwatch updateStopwatch;
+        /// <summary>
+        /// Used to keep track of deltaTime for draw calls.
+        /// </summary>
         public Stopwatch drawStopwatch;
 
         //TODO: Allow applications to have multiple windows

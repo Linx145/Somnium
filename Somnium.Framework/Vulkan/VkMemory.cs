@@ -59,7 +59,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Console.WriteLine("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -92,7 +92,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Console.WriteLine("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -123,7 +123,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Console.WriteLine("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -153,7 +153,7 @@ namespace Somnium.Framework.Vulkan
             }
             if (memory.amountBound == 0)
             {
-                Console.WriteLine("Unmap Memory called to " + this.ToString());
+                Debugger.LogMemoryAllocation("Unmap memory called to " + this.ToString());
                 VkEngine.vk.UnmapMemory(VkEngine.vkDevice, handle);
 
                 lock (memory.memoryPtrLock)
@@ -286,7 +286,7 @@ namespace Somnium.Framework.Vulkan
                 {
                     regions.RemoveAt(i);
                     gaps.Add(region);
-                    Console.WriteLine("Freed memory at " + region.ToString());
+                    Debugger.LogMemoryAllocation("Freed memory at " + this.ToString());
                     return;
                 }
             }
@@ -327,7 +327,7 @@ namespace Somnium.Framework.Vulkan
                 var result = allocatedMemories[i].TryAllocate(requiredSpace);
                 if (result != default)
                 {
-                    Console.WriteLine("Allocated memory at " + result.ToString());
+                    Debugger.LogMemoryAllocation("Allocated memory at " + this.ToString());
                     return result;
                 }
             }
@@ -350,14 +350,14 @@ namespace Somnium.Framework.Vulkan
             }
 
             AllocatedMemory allocatedMemory = new AllocatedMemory(deviceMemory, sizeToAllocate);
-            Console.WriteLine("Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
+            Debugger.LogMemoryAllocation("Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
             allocatedMemories.Add(allocatedMemory);
             AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace); //we dont allocate the sizeToAllocate: That's the size for the buffer
             if (region == default)
             {
                 throw new AssetCreationException("Failed to allocate memory in new buffer!");
             }
-            Console.WriteLine("Allocated memory at " + region.ToString());
+            Debugger.LogMemoryAllocation("Allocated memory at " + region.ToString());
             return region;
         }
         public void FreeMemory(AllocatedMemory allocatedMemory)
@@ -452,7 +452,7 @@ namespace Somnium.Framework.Vulkan
             
             if (!memoryPools.WithinLength(memoryTypeIndex) || memoryPools[memoryTypeIndex] == null)
             {
-                Console.WriteLine("Created new Memory Pool at index " + memoryTypeIndex + " for bit types " + memoryRequirements.MemoryTypeBits);
+                Debugger.LogMemoryAllocation("Created new Memory Pool at index " + memoryTypeIndex + " for bit types " + memoryRequirements.MemoryTypeBits);
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex, memoryRequirements.MemoryTypeBits));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];

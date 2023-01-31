@@ -193,34 +193,6 @@ namespace Somnium.Framework.Vulkan
                 beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }
-            /*ClearValue* clearValues = stackalloc ClearValue[2];
-            if (clearColor != null)
-            {
-                ClearColorValue? clearColorValue = null;
-                ClearDepthStencilValue? clearDepthStencilValue = null;
-
-                beginInfo.ClearValueCount++;
-                clearColorValue = new ClearColorValue(clearColor!.Value.R / 255f, clearColor!.Value.G / 255f, clearColor!.Value.B / 255f, 1f);
-                clearValues[0] = new ClearValue(color: clearColorValue);
-
-                if (hasDepthStencil)
-                {
-                    beginInfo.ClearValueCount++;
-                    clearDepthStencilValue = new ClearDepthStencilValue(1f, 0);
-                    clearValues[1] = new ClearValue(depthStencil: clearDepthStencilValue);
-                }
-            }
-            else
-            {
-                ClearColorValue? clearColorValue = null;
-                ClearDepthStencilValue? clearDepthStencilValue = null;
-
-                beginInfo.ClearValueCount++;
-                clearColorValue = new ClearColorValue();//new ClearColorValue(clearColor!.Value.R / 255f, clearColor!.Value.G / 255f, clearColor!.Value.B / 255f, 1f);
-                clearValues[0] = new ClearValue(color: clearColorValue);
-            }
-
-            beginInfo.PClearValues = clearValues;*/
             beginInfo.ClearValueCount = 0;
             beginInfo.PClearValues = null;
             //use inline for primary command buffers

@@ -62,7 +62,7 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics)
+        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics, bool autoUpdateUniforms = true)
         {
             switch (application.runningBackend)
             {
@@ -71,14 +71,16 @@ namespace Somnium.Framework
                     if (application.Graphics.currentRenderbuffer == null)
                     {
                         pipeline = VkEngine.GetPipeline(handle);
+                        VkEngine.SetRenderPass(VkEngine.renderPass, application.Graphics.currentRenderbuffer);
                         //VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, renderTarget);
                     }
                     else
                     {
                         pipeline = VkEngine.GetRenderbufferPipeline(handle);
+                        VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, application.Graphics.currentRenderbuffer);
                         //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
                     }
-                    pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
+                    pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo, autoUpdateUniforms);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
                 default:
@@ -106,11 +108,7 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    if (application.Graphics.currentRenderbuffer == null)
-                    {
-                        VkEngine.renderPass.End(VkEngine.commandBuffer);
-                    }
-                    else VkEngine.framebufferRenderPass.End(VkEngine.commandBuffer);
+                    VkEngine.currentRenderPass.End(VkEngine.commandBuffer);
                     VkEngine.currentRenderPass = null;
                     
                     VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();

@@ -10,18 +10,6 @@ namespace Somnium.Framework.Vulkan
     {
         static Window window;
 
-        public enum Mode
-        {
-            /// <summary>
-            /// Specifies that the output of the Debug should be written to Console via Console.WriteLine
-            /// </summary>
-            Console, 
-            /// <summary>
-            /// Specifies that the output of the Debug should be written to the Debug Output in VS via System.Diagnostics.WriteLine
-            /// </summary>
-            Output
-        }
-
         public static DebugUtilsMessageSeverityFlagsEXT MessageSeverity =
             DebugUtilsMessageSeverityFlagsEXT.WarningBitExt |
             DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt;
@@ -29,8 +17,6 @@ namespace Somnium.Framework.Vulkan
         public static DebugUtilsMessageTypeFlagsEXT MessageTypes = 
             DebugUtilsMessageTypeFlagsEXT.GeneralBitExt |
             DebugUtilsMessageTypeFlagsEXT.ValidationBitExt;
-
-        public static Mode WriteMode;
 
         public static ExtDebugUtils? debugUtils;
         private static DebugUtilsMessengerEXT messenger;
@@ -45,16 +31,17 @@ namespace Somnium.Framework.Vulkan
         private static uint DebugCallback(DebugUtilsMessageSeverityFlagsEXT messageSeverity, DebugUtilsMessageTypeFlagsEXT messageTypes, DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
         {
             string? str = Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage);
-            if (WriteMode == Mode.Output)
+            if (Application.Config.loggingMode == LoggingMode.VSDebug)
             {
                 System.Diagnostics.Debug.WriteLine("Validation Layer: " + str);
             }
-            else
+            else if (Application.Config.loggingMode == LoggingMode.Console)
             {
-                Console.WriteLine("frame: " + window.frameNumber);
                 Console.WriteLine(str);
-                Console.WriteLine();
+            }
 
+            if (Application.Config.throwValidationExceptions)
+            {
                 if ((messageSeverity | DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt) != 0)
                 {
                     throw new ExecutionException(str);

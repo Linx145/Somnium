@@ -71,16 +71,7 @@ namespace Somnium.Framework
                     {
                         if (VkEngine.currentRenderPass != null)
                         {
-                            VkEngine.currentRenderPass.End(VkEngine.commandBuffer);
-                            VkEngine.currentRenderPass = null;
-                        }
-                        if (renderBuffer == null)
-                        {
-                            VkEngine.SetRenderPass(VkEngine.renderPass, null);
-                        }
-                        else
-                        {
-                            VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, renderBuffer);
+                            throw new InvalidOperationException("Cannot set target renderbuffer when renderpass is active!");
                         }
                         currentRenderbuffer = renderBuffer;
                     }
@@ -93,9 +84,10 @@ namespace Somnium.Framework
         /// Sets and begins a render pipeline state containing the shader to use.
         /// </summary>
         /// <param name="pipelineState"></param>
-        public void SetPipeline(PipelineState pipelineState)
+        /// <param name="autoUpdateUniforms">If true, updates the shaders uniform state as well</param>
+        public void SetPipeline(PipelineState pipelineState, bool autoUpdateUniforms = true)
         {
-            pipelineState.Begin();
+            pipelineState.Begin(autoUpdateUniforms: autoUpdateUniforms);
             currentPipeline = pipelineState;
         }
         public void EndPipeline()
@@ -106,7 +98,6 @@ namespace Somnium.Framework
             }
             currentPipeline.End();
             currentPipeline = null;
-            currentRenderbuffer = null;
         }
         /// <summary>
         /// Syncs the local state of the uniform buffers with the shader
@@ -210,6 +201,7 @@ namespace Somnium.Framework
                 }
                 currentPipeline.shaders[i].uniformHasBeenSet = false;
             }
+            //at least one uniform has been updated, so we need to update our descriptors
             if (updateUniforms) ForceUpdateUniforms();
 
             //need to update using the old descriptorForThisDrawCall state

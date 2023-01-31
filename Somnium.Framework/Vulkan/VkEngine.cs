@@ -141,9 +141,6 @@ namespace Somnium.Framework.Vulkan
             //either be in layouts undefined or present_src_khr, so we now need to transition it back
             //into color attachment optimal for use in drawing again.
             //UPDATE: This is now handled by the renderpass setting
-
-            //pre-emptively begin the backbuffer render pass
-            SetRenderPass(renderPass, null);
         }
         internal static void EndDraw(Application application)
         {
@@ -304,9 +301,10 @@ namespace Somnium.Framework.Vulkan
                 vkInstanceCreateInfo.PpEnabledLayerNames = Utils.StringArrayToPointer(validationLayersToUse, out validationLayersPtr);
 
                 //enable debugging
-                DebugUtilsMessengerCreateInfoEXT debugCreateInfo = new DebugUtilsMessengerCreateInfoEXT();
-                VkDebug.PopulateDebugMessengerCreateInfo(ref debugCreateInfo);
-                vkInstanceCreateInfo.PNext = &debugCreateInfo;
+
+                    DebugUtilsMessengerCreateInfoEXT debugCreateInfo = new DebugUtilsMessengerCreateInfoEXT();
+                    VkDebug.PopulateDebugMessengerCreateInfo(ref debugCreateInfo);
+                    vkInstanceCreateInfo.PNext = &debugCreateInfo;
             }
             else
             {
@@ -729,8 +727,7 @@ namespace Somnium.Framework.Vulkan
 
         public static DescriptorPool GetOrCreateDescriptorPool()
         {
-            uint maxUniformDescriptors = (uint)(VkEngine.maxDescriptorSets * Application.Config.maxSimultaneousFrames);
-            uint maxImageDescriptors = (uint)(16 * Application.Config.maxSimultaneousFrames);
+            uint maxUniformDescriptors = VkEngine.maxDescriptorSets * Application.Config.maxSimultaneousFrames;
 
             if (descriptorPool.Handle != 0) return descriptorPool;
             DescriptorPoolSize* poolSizes = stackalloc DescriptorPoolSize[]
@@ -743,7 +740,7 @@ namespace Somnium.Framework.Vulkan
                 new DescriptorPoolSize()
                 {
                     Type = DescriptorType.CombinedImageSampler,
-                    DescriptorCount = maxImageDescriptors
+                    DescriptorCount = maxUniformDescriptors
                 }
             };
             

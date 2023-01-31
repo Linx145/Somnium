@@ -2,6 +2,7 @@
 using Somnium.Framework.Vulkan;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
@@ -173,58 +174,31 @@ namespace Somnium.Framework
             if (param.type == UniformType.uniformBuffer)
             {
                 shader.uniformHasBeenSet = true;
-                if (shader.useDynamicUniformBuffer)
-                {
-                    //dont need to specify offset here as it will automatically set the offset to the dynamic
-                    //buffer extents
-                    VkEngine.unifiedDynamicBuffer.SetData(value, 0);
-                }
-                else param.GetUniformBuffer().SetData(value, 0);
+                
+                param.GetUniformBuffer().SetData(value, 0);
 
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
                         unsafe
                         {
-                            if (shader.useDynamicUniformBuffer)
-                            {
-                                DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                                bufferInfo.Buffer = new Buffer(VkEngine.unifiedDynamicBuffer.handle);//uniformBuffers[i];
-                                bufferInfo.Range = param.width;
-                                bufferInfo.Offset = 0; //dont need to specify offset here because we will do so in cmdBindDescriptorSet
 
-                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                descriptorWrite.DstSet = shader.descriptorSet;
-                                descriptorWrite.DstBinding = param.binding;
-                                descriptorWrite.DstArrayElement = 0;
+                            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
 
-                                descriptorWrite.DescriptorType = DescriptorType.UniformBufferDynamic;
-                                descriptorWrite.DescriptorCount = 1;
-                                descriptorWrite.PBufferInfo = &bufferInfo;
+                            bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
+                            bufferInfo.Range = param.width;
+                            bufferInfo.Offset = 0;
 
-                                VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
-                            }
-                            else
-                            {
-                                DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                                
-                                bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
-                                bufferInfo.Range = param.width;
-                                bufferInfo.Offset = 0;
+                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                            descriptorWrite.DstSet = shader.descriptorSet;
+                            descriptorWrite.DstBinding = param.binding;
+                            descriptorWrite.DstArrayElement = 0;
+                            descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
+                            descriptorWrite.DescriptorCount = 1;
+                            descriptorWrite.PBufferInfo = &bufferInfo;
 
-                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                descriptorWrite.DstSet = shader.descriptorSet;
-                                descriptorWrite.DstBinding = param.binding;
-                                descriptorWrite.DstArrayElement = 0;
-
-                                descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                                descriptorWrite.DescriptorCount = 1;
-                                descriptorWrite.PBufferInfo = &bufferInfo;
-
-                                VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
-                            }
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
                         }
                         break;
                     default:
@@ -282,7 +256,10 @@ namespace Somnium.Framework
                 var param = parameters[i];
                 if (param.type == UniformType.uniformBuffer)
                 {
-                    Console.WriteLine("Created new uniform buffer for shader param " + param.name + " for index " + shader.descriptorForThisDrawCall);
+                    if (Application.Config.logUniformBufferAllocations)
+                    {
+                        Debugger.Log("Created new uniform buffer for shader param " + param.name + " for index " + shader.descriptorForThisDrawCall);
+                    }
                     param.uniformBuffersPerFrame[application.Window.frameNumber].Add(new UniformBuffer(application, param.width));
                 }
             }
@@ -343,7 +320,7 @@ namespace Somnium.Framework
             this.size = size;
             this.width = size * Math.Max(1, arrayLength);
 
-            if (type == UniformType.uniformBuffer && !shader.useDynamicUniformBuffer)
+            if (type == UniformType.uniformBuffer)
             {
                 uniformBuffersPerFrame = new List<UniformBuffer>[Application.Config.maxSimultaneousFrames];
                 for (int i = 0;i  < uniformBuffersPerFrame.Length; i++)
@@ -351,7 +328,6 @@ namespace Somnium.Framework
                     uniformBuffersPerFrame[i] = new List<UniformBuffer>();
                 }
             }
-            else uniformBuffersPerFrame = null;
         }
 
         public void Dispose()

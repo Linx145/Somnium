@@ -20,7 +20,6 @@ namespace Somnium.Framework
 
         internal readonly Application application;
         public readonly ShaderType type;
-        public readonly bool useDynamicUniformBuffer;
         public bool isDisposed { get; private set; }
         private byte[] byteCode;
         private byte[] byteCode2;
@@ -52,11 +51,20 @@ namespace Somnium.Framework
                 return descriptorSetsPerFrame[application.Window.frameNumber][descriptorForThisDrawCall];
             }
         }
+        /// <summary>
+        /// If true, there is at least one descriptor set that has been updated for use in the upcoming draw call.
+        /// </summary>
+        public bool descriptorHasBeenSet
+        {
+            get
+            {
+                return descriptorSetsPerFrame[application.Window.frameNumber].Count > 0;
+            }
+        }
         #endregion
 
-        public Shader(Application application, ShaderType Type, byte[] byteCode, bool useDynamicUniformBuffer = true)
+        public Shader(Application application, ShaderType Type, byte[] byteCode)
         {
-            this.useDynamicUniformBuffer = useDynamicUniformBuffer;
             this.application = application;
             this.byteCode = byteCode;
             this.byteCode2 = null;
@@ -66,9 +74,8 @@ namespace Somnium.Framework
 
             Construct();
         }
-        public Shader(Application application, byte[] shaderCode1, byte[] shaderCode2, ShaderType type = ShaderType.VertexAndFragment, bool useDynamicUniformBuffer = false)
+        public Shader(Application application, byte[] shaderCode1, byte[] shaderCode2, ShaderType type = ShaderType.VertexAndFragment)
         {
-            this.useDynamicUniformBuffer = useDynamicUniformBuffer;
             this.application = application;
             this.type = type;
             this.byteCode = shaderCode1; //vertex / tessellation control
@@ -199,10 +206,6 @@ namespace Somnium.Framework
                                 DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
                                 binding.Binding = value.binding;
                                 binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
-                                if (binding.DescriptorType == DescriptorType.UniformBuffer && useDynamicUniformBuffer)
-                                {
-                                    binding.DescriptorType = DescriptorType.UniformBufferDynamic;
-                                }
                                 //If the binding points to a variable in the shader that is an array, this would be that array's length
                                 binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
                                 binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader1Params!.shaderType];
@@ -254,48 +257,41 @@ namespace Somnium.Framework
                 }
             }
         }
-        public void CheckUniformSet()
+        private unsafe void CheckUniformSet()
         {
             if (!uniformHasBeenSet)
             {
                 if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
                 {
-                    AddDescriptorSets();
+                    //allocate a new descriptor and buffers to go along
+                    DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
+
+                    DescriptorSet result;
+
+                    DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
+                    allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
+                    allocInfo.DescriptorPool = relatedPool;
+                    allocInfo.DescriptorSetCount = 1;
+                    fixed (DescriptorSetLayout* copy = &descriptorSetLayout)
+                    {
+                        allocInfo.PSetLayouts = copy;
+                    }
+
+                    var allocResult = VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, &result);
+                    if (allocResult != Result.Success)
+                    {
+                        throw new AssetCreationException("Failed to create Vulkan descriptor sets! Error: " + allocResult.ToString());
+                    }
+
+                    descriptorSetsPerFrame[application.Window.frameNumber].Add(result);
+
+                    shader1Params?.AddUniformBuffers();
+                    shader2Params?.AddUniformBuffers();
+
                 }
                 uniformHasBeenSet = true;
             }
         }
-        public unsafe void AddDescriptorSets()
-        {
-            DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
-
-            DescriptorSet result;
-
-            DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
-            allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
-            allocInfo.DescriptorPool = relatedPool;
-            allocInfo.DescriptorSetCount = 1;
-            fixed (DescriptorSetLayout* copy = &descriptorSetLayout)
-            {
-                allocInfo.PSetLayouts = copy;
-            }
-
-            if (VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, &result) != Result.Success)
-            {
-                throw new AssetCreationException("Failed to create Vulkan descriptor sets!");
-            }
-
-            descriptorSetsPerFrame[application.Window.frameNumber].Add(result);
-
-            shader1Params?.AddUniformBuffers();
-            shader2Params?.AddUniformBuffers();
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="uniform"></param>
-        /// <param name="shaderNumber">Which uniform buffer should the data be set into</param>
         public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
             CheckUniformSet();
@@ -468,14 +464,12 @@ namespace Somnium.Framework
                         for (int c = 0; c < samplerImagesCount; c++)
                         {
                             uint stringSize = reader.ReadUInt32();
-                            //Console.WriteLine("samplerImage name size: " + stringSize);
                             byte[] bytes = reader.ReadBytes((int)stringSize);
                             string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
                             uint set = reader.ReadUInt32();
                             uint binding = reader.ReadUInt32();
                             uint arrayLength = reader.ReadUInt32();
 
-                            //Console.WriteLine(Encoding.UTF8.GetString(bytes, 0, bytes.Length));
                             if (i == 0)
                             {
                                 imageSamplers1.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));

@@ -22,6 +22,8 @@ namespace Test
         private static ushort[] indices;
         private static IndexBuffer indexBuffer;
 
+        private static int drawFrame = 0;
+
 #if INSTANCING || MULTIDRAW
         private static Vector4[] positions;
         private static Vector3[] velocities;
@@ -35,7 +37,7 @@ namespace Test
         const int instanceCount = 10000;
 #endif
 #if MULTIDRAW
-        const int instanceCount = 256;
+        const int instanceCount = 9;
 #endif
 
 #if RENDERBUFFERS
@@ -182,16 +184,21 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
 //Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
 );
 
-            shader.SetUniform("texSampler", texture);
-            shader.SetUniform("wvpBlock", viewProjection);
-
             Graphics.SetRenderbuffer(renderBuffer);
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
+
+            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("wvpBlock", viewProjection);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
             Graphics.EndPipeline();
+
+            //causing error, since we begun the render pass earlier this frame and ended it,
+            //resulting in it's backbuffer image becoming present_src_khr
+            //while we are expecting color_attachment_optimal
+            Graphics.SetRenderbuffer(null);
 
             viewProjection = new ViewProjection(
 Matrix4x4.Identity,
@@ -201,12 +208,9 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("texSampler", renderBuffer);
             shader.SetUniform("wvpBlock", viewProjection);
 
-            //causing error, since we begun the render pass earlier this frame and ended it,
-            //resulting in it's backbuffer image becoming present_src_khr
-            //while we are expecting color_attachment_optimal
-            Graphics.SetRenderbuffer(null);
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.Black);
+
             Graphics.SetVertexBuffer(vb2, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
@@ -245,20 +249,21 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
 
+            Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
             for (int i = 0; i < instanceCount; i++)
             {
                 viewProjection.View = Matrix4x4.CreateTranslation(new Vector3(positions[i].X, positions[i].Y, positions[i].Z));
-                shader.SetUniform("texSampler", texture);
+
+                shader.SetUniform("texSampler", (i % 2 == 0) ? texture : texture2);
                 shader.SetUniform("wvpBlock", viewProjection);
 
-                Graphics.SetPipeline(state);
                 Graphics.DrawIndexedPrimitives(6, 1);
-                state.End();
             }
+            Graphics.EndPipeline();
 #endif
-#endregion
-#region instanced drawing
+            #endregion
+            #region instanced drawing
 #if INSTANCING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -277,9 +282,9 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetInstanceBuffer(instanceBuffer, 1);
 
             Graphics.DrawIndexedPrimitives(6, instanceCount);
-            state.End();
+            Graphics.EndPipeline();
 #endif
-#endregion
+            #endregion
         }
 
         private static void Update(float deltaTime)
@@ -315,7 +320,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
 
 #if INSTANCING || MULTIDRAW
-            Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
+            //Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif
         }
         private static void Unload()
