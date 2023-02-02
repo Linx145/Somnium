@@ -404,6 +404,9 @@ namespace Somnium.Framework.Vulkan
                 {
                     continue;
                 }
+
+                shaders[i].SyncUniformsWithGPU();
+
                 DescriptorSet currentFrameDescriptorSet = shaders[i].descriptorSet;
 
                 vk.CmdBindDescriptorSets(

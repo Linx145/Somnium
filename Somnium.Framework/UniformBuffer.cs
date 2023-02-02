@@ -42,8 +42,7 @@ namespace Somnium.Framework
             {
                 dataOffsets = new UnorderedList<uint>();
             }
-                Construct();
-            
+            Construct();
         }
 
         public void ClearDynamicOffsets()
@@ -163,6 +162,7 @@ namespace Somnium.Framework
                         {
                             Buffer buffer = VkEngine.CreateResourceBuffer(size, BufferUsageFlags.UniformBufferBit);
                             memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            Console.WriteLine("Frame " + application.Window.frameNumber + ": Uniform buffer malloc'd " + memoryRegion.ToString());
                             handle = buffer.Handle;
 
                             void* pointer = memoryRegion.Bind();

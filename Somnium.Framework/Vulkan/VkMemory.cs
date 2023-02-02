@@ -77,7 +77,6 @@ namespace Somnium.Framework.Vulkan
         /// <exception cref="ExecutionException"></exception>
         public unsafe T* Bind<T>() where T : unmanaged
         {
-            
             if (memory.memoryPtr == null)
             {
                 lock (memory.memoryPtrLock)
@@ -249,14 +248,36 @@ namespace Somnium.Framework.Vulkan
                         regions.Add(result);
                         if (remainder > 0)
                         {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("Shrinking gap at " + gaps[i]);
+                            Console.ForegroundColor = ConsoleColor.White;
                             //if our memory is smaller than the gap, allocate and shrink the gap
                             gaps[i] = new AllocatedMemoryRegion(this, handle, copy.start + requiredSpace, remainder);
                         }
-                        else
+                        else if (remainder == 0)
                         {
                             //otherwise, we fit perfectly and we can remove the gap
+                            //Console.WriteLine("Removing gap at " + gaps[i].ToString());
+                            if (gaps[i].start == 1024)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.WriteLine("Removed gap at " + gaps[i].ToString());
+                                Console.ForegroundColor = ConsoleColor.White;
+
+                                for (int c = 0; c < gaps.Count; c++)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Green;
+                                    Console.WriteLine("   " + c.ToString() + ": " + gaps[c].ToString());
+                                    Console.ForegroundColor = ConsoleColor.White;
+                                }
+                            }
                             gaps.RemoveAt(i);
                         }
+                        else
+                        {
+                            continue;
+                        }
+                        
                         return result;
                     }
                 }
@@ -280,13 +301,27 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InvalidOperationException("Attempting to remove a region of memory from this AllocatedMemory that does not belong to it!");
             }
+
+            ulong finalPosition = 0;
+            for (int i = 0; i < regions.Count; i++)
+            {
+                //get the maximum extents of the area of filled device memory
+                finalPosition = Math.Max(finalPosition, regions[i].start);
+            }
+
             for (int i = regions.Count - 1; i >= 0; i--)
             {
                 if (regions[i] == region)
                 {
                     regions.RemoveAt(i);
-                    gaps.Add(region);
-                    Debugger.LogMemoryAllocation("Freed memory at " + this.ToString());
+                    //make sure if we are at the end of the memory location, do not add ourselves as a gap in memory
+                    //because there is nothing superceding us
+                    if (region.start != finalPosition)
+                    {
+                        gaps.Add(region);
+                    }
+
+                    Debugger.LogMemoryAllocation("Freed memory at " + region.ToString());
                     return;
                 }
             }

@@ -50,8 +50,6 @@ namespace Test
         private static SoundEffect ogg;
 #endif
 
-        private static ViewProjection viewProjection;
-
         [STAThread]
         public static void Main(string[] args)
         {
@@ -178,7 +176,7 @@ namespace Test
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
 
-            viewProjection = new ViewProjection(
+            var viewProjection = new ViewProjection(
 Matrix4x4.Identity,
 Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f, 1f)
 //Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
@@ -234,14 +232,14 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
-            state.End();
+            Graphics.EndPipeline();
 #endif
 #endregion
 #region multi draw stress test
 #if MULTIDRAW
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
-            viewProjection = new ViewProjection(
+            var viewProjection = new ViewProjection(
                 Matrix4x4.Identity,
                 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
                 );

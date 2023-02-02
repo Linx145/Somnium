@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+using StbImageSharp;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -99,11 +100,14 @@ namespace Somnium.Framework
             }
             return false;
         }
+
         public void Set(int paramIndex, RenderBuffer renderTarget)
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.imageAndSampler)
             {
+                param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = renderTarget.backendTexture;
+
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
@@ -112,7 +116,8 @@ namespace Somnium.Framework
                             //we need this to ensure that the image is ready for reading by the shader instead of
                             //being in PresentSrcKhr which it would have been when it was fresh out of the render call
                             VkEngine.TransitionImageLayout(new Image(renderTarget.backendTexture.imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ShaderReadOnlyOptimal, VkEngine.commandBuffer);
-                            DescriptorImageInfo imageInfo = new DescriptorImageInfo();
+                            
+                            /*DescriptorImageInfo imageInfo = new DescriptorImageInfo();
                             imageInfo.ImageLayout = ImageLayout.ShaderReadOnlyOptimal;
                             imageInfo.ImageView = new ImageView(renderTarget.backendTexture.imageViewHandle);
                             imageInfo.Sampler = new Sampler(renderTarget.backendTexture.samplerState.handle);
@@ -127,25 +132,29 @@ namespace Somnium.Framework
                             descriptorWrite.DescriptorCount = 1;
                             descriptorWrite.PImageInfo = &imageInfo;
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
                         }
                         break;
                     default:
                         throw new NotImplementedException();
                 }
             }
+            else throw new InvalidOperationException("Attempting to set texture into a non-texture-based shader uniform!");
         }
         public void Set(int paramIndex, Texture2D texture)
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.imageAndSampler)
             {
+                param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = texture;
+
                 switch (application.runningBackend)
                 {
                     case Backends.Vulkan:
                         unsafe
                         {
-                            DescriptorImageInfo imageInfo = new DescriptorImageInfo();
+
+                            /*DescriptorImageInfo imageInfo = new DescriptorImageInfo();
                             imageInfo.ImageLayout = ImageLayout.ShaderReadOnlyOptimal;
                             imageInfo.ImageView = new ImageView(texture.imageViewHandle);
                             imageInfo.Sampler = new Sampler(texture.samplerState.handle);
@@ -160,21 +169,23 @@ namespace Somnium.Framework
                             descriptorWrite.DescriptorCount = 1;
                             descriptorWrite.PImageInfo = &imageInfo;
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
                         }
                         break;
                     default:
                         throw new NotImplementedException();
                 }
             }
+            else throw new InvalidOperationException("Attempting to set texture into a non-texture-based shader uniform!");
         }
+        //TODO: public void Set(int paramIndex, Texture2D[] texture)
         public void Set<T>(int paramIndex, T value) where T : unmanaged
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.uniformBuffer)
             {
                 shader.uniformHasBeenSet = true;
-                
+
                 param.GetUniformBuffer().SetData(value, 0);
 
                 switch (application.runningBackend)
@@ -183,7 +194,7 @@ namespace Somnium.Framework
                         unsafe
                         {
 
-                            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
+                            /*DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
 
                             bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
                             bufferInfo.Range = param.width;
@@ -198,14 +209,14 @@ namespace Somnium.Framework
                             descriptorWrite.DescriptorCount = 1;
                             descriptorWrite.PBufferInfo = &bufferInfo;
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
                         }
                         break;
                     default:
                         throw new NotImplementedException();
                 }
             }
-            else throw new NotImplementedException();
+            else throw new InvalidOperationException("Attempting to set uniform data of type " + typeof(T).Name + " into a non-buffer-based shader uniform!");
         }
         public void Set<T>(int paramIndex, T[] value) where T : unmanaged
         {
@@ -220,7 +231,7 @@ namespace Somnium.Framework
                     case Backends.Vulkan:
                         unsafe
                         {
-                            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
+                            /*DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
                             bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
                             bufferInfo.Range = param.width;
 
@@ -240,7 +251,7 @@ namespace Somnium.Framework
                                 descriptorWrites[i] = descriptorWrite;
                             }
 
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, (uint)value.Length, descriptorWrites, 0, null);
+                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, (uint)value.Length, descriptorWrites, 0, null);*/
                         }
                         break;
                     default:
@@ -249,18 +260,24 @@ namespace Somnium.Framework
             }
             else throw new NotImplementedException();
         }
-        public void AddUniformBuffers()
+        public void AddStagingDatas()
         {
             for (int i = 0; i < parameters.Count; i++)
             {
                 var param = parameters[i];
+
                 if (param.type == UniformType.uniformBuffer)
                 {
+                    var buffer = new UniformBuffer(application, param.width);
+                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState(buffer));
                     if (Application.Config.logUniformBufferAllocations)
                     {
                         Debugger.Log("Created new uniform buffer for shader param " + param.name + " for index " + shader.descriptorForThisDrawCall);
                     }
-                    param.uniformBuffersPerFrame[application.Window.frameNumber].Add(new UniformBuffer(application, param.width));
+                }
+                else if (param.type == UniformType.imageBuffer || param.type == UniformType.imageAndSampler)
+                {
+                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState((int)Math.Max(1, param.arrayLength)));
                 }
             }
         }
@@ -270,6 +287,42 @@ namespace Somnium.Framework
             {
                 parameters[i].Dispose();
             }
+        }
+    }
+    /// <summary>
+    /// Whenever SetUniform is called in Shader.cs, the mutable state is updated. The changes are
+    /// normally only pushed to the GPU right before the draw call.
+    /// </summary>
+    internal struct StagingMutableState
+    {
+        //does not need to be an array as a single buffer can fit multiple datas
+        public UniformBuffer uniformBuffer;
+        //needs to be an array for texture arrays
+        public Texture2D[] textures;
+
+        public bool mutated;
+
+
+        #region Vulkan
+        public DescriptorBufferInfo vkBufferInfo;
+        public DescriptorImageInfo vkImageInfo;
+        #endregion
+
+        public StagingMutableState(UniformBuffer uniformBuffer)
+        {
+            vkBufferInfo = default;
+            vkImageInfo = default;
+            mutated = false;
+            this.uniformBuffer = uniformBuffer;
+            textures = null;
+        }
+        public StagingMutableState(int textureArrayLength)
+        {
+            vkBufferInfo = default;
+            vkImageInfo = default;
+            mutated = false;
+            uniformBuffer = null;
+            textures = new Texture2D[textureArrayLength];
         }
     }
     public class ShaderParameter : IDisposable
@@ -302,11 +355,11 @@ namespace Somnium.Framework
         /// </summary>
         public readonly ulong width;
 
-        public readonly List<UniformBuffer>[] uniformBuffersPerFrame;
+        internal readonly UnorderedList<StagingMutableState>[] stagingData;
 
-        public UniformBuffer GetUniformBuffer()
+        internal UniformBuffer GetUniformBuffer()
         {
-            return uniformBuffersPerFrame[application.Window.frameNumber][shader.descriptorForThisDrawCall];
+            return stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].uniformBuffer;
         }
 
         public ShaderParameter(Shader shader, string name, uint index, UniformType type, uint size, uint arrayLength)
@@ -320,27 +373,40 @@ namespace Somnium.Framework
             this.size = size;
             this.width = size * Math.Max(1, arrayLength);
 
-            if (type == UniformType.uniformBuffer)
+            stagingData = new UnorderedList<StagingMutableState>[Application.Config.maxSimultaneousFrames];
+            for (int i = 0; i < stagingData.Length; i++)
             {
-                uniformBuffersPerFrame = new List<UniformBuffer>[Application.Config.maxSimultaneousFrames];
-                for (int i = 0;i  < uniformBuffersPerFrame.Length; i++)
+                stagingData[i] = new UnorderedList<StagingMutableState>();
+            }
+            /*if (type == UniformType.uniformBuffer)
+            {
+                stagingBuffersPerFrame = new List<UniformBuffer>[Application.Config.maxSimultaneousFrames];
+                for (int i = 0;i  < stagingBuffersPerFrame.Length; i++)
                 {
-                    uniformBuffersPerFrame[i] = new List<UniformBuffer>();
+                    stagingBuffersPerFrame[i] = new List<UniformBuffer>();
                 }
             }
+            else if (type == UniformType.imageAndSampler || type == UniformType.imageBuffer)
+            {
+                stagingImagesPerFrame = new List<Texture2D>[Application.Config.maxSimultaneousFrames];
+                for (int i = 0; i < stagingImagesPerFrame.Length; i++)
+                {
+                    stagingImagesPerFrame[i] = new List<Texture2D>();
+                }
+            }*/
         }
 
         public void Dispose()
         {
             if (type == UniformType.uniformBuffer)
             {
-                if (uniformBuffersPerFrame != null)
+                if (stagingData != null)
                 {
-                    for (int i = 0; i < uniformBuffersPerFrame.Length; i++)
+                    for (int i = 0; i < stagingData.Length; i++)
                     {
-                        for (int j = 0; j < uniformBuffersPerFrame[i].Count; j++)
+                        for (int j = 0; j < stagingData[i].Count; j++)
                         {
-                            uniformBuffersPerFrame[i][j].Dispose();
+                            stagingData[i][j].uniformBuffer?.Dispose();
                         }
                     }
                 }

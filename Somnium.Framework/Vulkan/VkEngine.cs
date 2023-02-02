@@ -757,6 +757,7 @@ namespace Somnium.Framework.Vulkan
                 throw new InitializationException("Failed to create descriptor pool!");
             }
             descriptorPool = newPool;
+
             return descriptorPool;
         }
         #endregion
