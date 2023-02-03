@@ -7,6 +7,9 @@ namespace Somnium.Framework.GLFW
     {
         internal static SparseArray<KeyState> perFrameKeyStates = new SparseArray<KeyState>(KeyState.None);
         internal static SparseArray<bool> keysDown = new SparseArray<bool>(false);
+
+        internal static SparseArray<KeyState> perFrameMouseStates = new SparseArray<KeyState>(KeyState.None);
+        internal static SparseArray<bool> mouseButtonsDown = new SparseArray<bool>(false);
         public InputStateGLFW()
         {
         }
@@ -23,25 +26,46 @@ namespace Somnium.Framework.GLFW
             return perFrameKeyStates.WithinLength((uint)key) && perFrameKeyStates[(uint)key] == KeyState.Released;
         }
 
+        public override bool IsMouseDown(MouseButtons button)
+        {
+            return mouseButtonsDown.WithinLength((uint)button) && mouseButtonsDown[(uint)button];
+        }
+        public override bool IsMousePressed(MouseButtons button)
+        {
+            return perFrameKeyStates.WithinLength((uint)button) && perFrameKeyStates[(uint)button] == KeyState.Pressed;
+        }
+        public override bool IsMouseRelease(MouseButtons button)
+        {
+            return perFrameKeyStates.WithinLength((uint)button) && perFrameKeyStates[(uint)button] == KeyState.Released;
+        }
+
         /// <summary>
         /// Called at the end of every frame. Resets per-frame key states
         /// </summary>
-        internal static void ResetPerFrameKeyStates()
+        internal static void ResetPerFrameInputStates()
         {
             for (int i = 0; i < perFrameKeyStates.values.Length; i++)
             {
                 perFrameKeyStates.values[i] = KeyState.None;
             }
+            for (int i = 0; i < perFrameMouseStates.values.Length; i++)
+            {
+                perFrameMouseStates.values[i] = KeyState.None;
+            }
         }
         /// <summary>
         /// Called when the window is minimized or any other reason that may cause the window to stop recording key presses
         /// </summary>
-        internal static void ClearAllKeyStates()
+        internal static void ClearAllInputStates()
         {
-            ResetPerFrameKeyStates();
+            ResetPerFrameInputStates();
             for (int i = 0; i < keysDown.values.Length; i++)
             {
                 keysDown.values[i] = false;
+            }
+            for (int i = 0; i < mouseButtonsDown.values.Length; i++)
+            {
+                mouseButtonsDown.values[i] = false;
             }
         }
     }

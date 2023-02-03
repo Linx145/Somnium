@@ -11,7 +11,7 @@ namespace Somnium.Framework
     /// <summary>
     /// The entry point for your app. Every app should only have one Application instance, but (in the future) can have multiple windows.
     /// </summary>
-    public sealed class Application : IDisposable
+    public class Application : IDisposable
     {
         public static class Config
         {

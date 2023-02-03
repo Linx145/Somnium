@@ -248,29 +248,11 @@ namespace Somnium.Framework.Vulkan
                         regions.Add(result);
                         if (remainder > 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("Shrinking gap at " + gaps[i]);
-                            Console.ForegroundColor = ConsoleColor.White;
                             //if our memory is smaller than the gap, allocate and shrink the gap
                             gaps[i] = new AllocatedMemoryRegion(this, handle, copy.start + requiredSpace, remainder);
                         }
                         else if (remainder == 0)
                         {
-                            //otherwise, we fit perfectly and we can remove the gap
-                            //Console.WriteLine("Removing gap at " + gaps[i].ToString());
-                            if (gaps[i].start == 1024)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine("Removed gap at " + gaps[i].ToString());
-                                Console.ForegroundColor = ConsoleColor.White;
-
-                                for (int c = 0; c < gaps.Count; c++)
-                                {
-                                    Console.ForegroundColor = ConsoleColor.Green;
-                                    Console.WriteLine("   " + c.ToString() + ": " + gaps[c].ToString());
-                                    Console.ForegroundColor = ConsoleColor.White;
-                                }
-                            }
                             gaps.RemoveAt(i);
                         }
                         else

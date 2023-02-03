@@ -12,4 +12,6 @@ public enum ImageFormat
     B8G8R8A8Unorm,
     B8G8R8A8SNorm,
     B8G8R8A8Srgb,
+    HalfVector4,
+    Vector4
 }

@@ -171,6 +171,7 @@ namespace Somnium.Framework.GLFW
             activeWindows++;
             //set the key press event for this window
             Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
+            Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
             window.initialized = true;
             return window;
         }
@@ -187,7 +188,7 @@ namespace Somnium.Framework.GLFW
         {
             if (status) //if is minimized, wipe the input
             {
-                InputStateGLFW.ClearAllKeyStates();
+                InputStateGLFW.ClearAllInputStates();
             }
             base.OnMinimizationChanged(this, status);
         }
@@ -227,6 +228,19 @@ namespace Somnium.Framework.GLFW
 
             onKeyPressed?.Invoke((Keys)(int)key, scanCode, (KeyState)(int)inputAction);
         }
+        public unsafe void OnMousePressed(WindowHandle* handle, MouseButton button, InputAction inputAction, KeyModifiers keyModifiers)
+        {
+            if (inputAction == InputAction.Press)
+            {
+                InputStateGLFW.mouseButtonsDown.Insert((uint)button, true);
+                InputStateGLFW.perFrameMouseStates.Insert((uint)button, KeyState.Pressed);
+            }
+            else if (inputAction == InputAction.Release)
+            {
+                InputStateGLFW.mouseButtonsDown.Insert((uint)button, false);
+                InputStateGLFW.perFrameMouseStates.Insert((uint)button, KeyState.Released);
+            }
+        }
         public override void Update()
         {
             if (GLContext != null)
@@ -247,7 +261,7 @@ namespace Somnium.Framework.GLFW
             }
 
             //finally, reset per state key frames
-            InputStateGLFW.ResetPerFrameKeyStates();
+            InputStateGLFW.ResetPerFrameInputStates();
             //and poll events such as clicking window close/minimize buttons, etc
             Glfw.PollEvents();
         }

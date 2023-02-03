@@ -37,7 +37,7 @@ namespace Test
         const int instanceCount = 10000;
 #endif
 #if MULTIDRAW
-        const int instanceCount = 9;
+        const int instanceCount = 16;
 #endif
 
 #if RENDERBUFFERS

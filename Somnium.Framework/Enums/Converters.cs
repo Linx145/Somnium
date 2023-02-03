@@ -50,7 +50,9 @@ public static class Converters
         Format.R8G8B8A8Srgb,
         Format.B8G8R8A8Unorm,
         Format.B8G8R8A8SNorm,
-        Format.B8G8R8A8Srgb
+        Format.B8G8R8A8Srgb,
+        Format.R16G16B16A16Sfloat,
+        Format.R32G32B32A32Sfloat
     };
     public static ImageFormat VkFormatToImageFormat(Format vkFormat)
     {
