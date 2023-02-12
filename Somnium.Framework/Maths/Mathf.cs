@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Numerics;
 
 namespace Somnium.Framework
 {
@@ -9,11 +6,24 @@ namespace Somnium.Framework
     {
         public const int MatrixSize = sizeof(float) * 16;
 
+        public static readonly Vector3 Vector3Forward = new Vector3(0f, 0f, -1f);
+        public static readonly Vector3 Vector3Backward = new Vector3(0f, 0f, 1f);
+
         public static bool WithinEpsilon(float a, float b)
         {
             float num = a - b;
             return ((-1.401298E-45f <= num) && (num <= float.Epsilon));
         }
+        public static Plane PlaneFrom(Vector3 pointOnPlane, Vector3 normal)
+        {
+            float d = -(
+                pointOnPlane.X * normal.X +
+                pointOnPlane.Y * normal.Y +
+                pointOnPlane.Z * normal.Z
+            );
+            return new Plane(normal, d);
+        }
+
         public static Vector2 MulT(float sin, float cos, Vector2 vectorToRotate)
         {
             return new Vector2(cos * vectorToRotate.X + sin * vectorToRotate.Y, -sin * vectorToRotate.X + cos * vectorToRotate.Y);

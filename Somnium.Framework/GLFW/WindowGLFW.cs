@@ -172,9 +172,12 @@ namespace Somnium.Framework.GLFW
             //set the key press event for this window
             Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
             Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
+            Glfw.SetCursorPosCallback(window.handle, new GlfwCallbacks.CursorPosCallback(window.MousePositionCallback));
+            Glfw.SetScrollCallback(window.handle, new GlfwCallbacks.ScrollCallback(window.MouseScrollCallback));
             window.initialized = true;
             return window;
         }
+        #region window control callbacks
         public unsafe void OnMaximizeGLFW(WindowHandle* handle, bool maximized)
         {
             if (maximized)
@@ -212,7 +215,9 @@ namespace Somnium.Framework.GLFW
         {
             Glfw.SetWindowShouldClose(handle, true);
         }
+        #endregion
 
+        #region input callbacks
         public unsafe void OnKeyPressed(WindowHandle* handle, Silk.NET.GLFW.Keys key, int scanCode, InputAction inputAction, KeyModifiers modifiers)
         {
             if (inputAction == InputAction.Press)
@@ -241,6 +246,17 @@ namespace Somnium.Framework.GLFW
                 InputStateGLFW.perFrameMouseStates.Insert((uint)button, KeyState.Released);
             }
         }
+        public unsafe void MousePositionCallback(WindowHandle* handle, double x, double y)
+        {
+            InputStateGLFW.internalMousePosition.X = (float)x;
+            InputStateGLFW.internalMousePosition.Y = (float)y;
+        }
+        public unsafe void MouseScrollCallback(WindowHandle* handle, double offsetX, double offsetY)
+        {
+            InputStateGLFW.scroll.X = (float)offsetX;
+            InputStateGLFW.scroll.Y = (float)offsetY;
+        }
+#endregion
         public override void Update()
         {
             if (GLContext != null)

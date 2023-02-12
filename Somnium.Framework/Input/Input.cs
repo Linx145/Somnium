@@ -1,4 +1,6 @@
-﻿namespace Somnium.Framework
+﻿
+
+namespace Somnium.Framework
 {
     public static class Input
     {
@@ -47,6 +49,10 @@
         /// <param name="button"></param>
         /// <returns></returns>
         public static bool IsMouseReleased(MouseButtons button) => instance.IsMouseRelease(button);
+
+        public static Vector2 mousePosition => instance.mousePosition;
+        public static void SetMousePosition(Window window, Vector2 position) => instance.SetMousePosition(window, position);
+        public static Vector2 mouseScroll => instance.mouseScroll;
     }
 
     public abstract class InputState
@@ -57,5 +63,8 @@
         public abstract bool IsMouseDown(MouseButtons button);
         public abstract bool IsMousePressed(MouseButtons button);
         public abstract bool IsMouseRelease(MouseButtons button);
+        public abstract Vector2 mousePosition { get;}
+        public abstract unsafe void SetMousePosition(Window window, Vector2 mousePosition);
+        public abstract Vector2 mouseScroll { get; }
     }
 }

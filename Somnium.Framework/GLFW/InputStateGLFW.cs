@@ -1,10 +1,14 @@
 ﻿using Silk.NET.GLFW;
 using System;
 
+
 namespace Somnium.Framework.GLFW
 {
     public class InputStateGLFW : InputState
     {
+        internal static Vector2 internalMousePosition;
+        internal static Vector2 scroll;
+
         internal static SparseArray<KeyState> perFrameKeyStates = new SparseArray<KeyState>(KeyState.None);
         internal static SparseArray<bool> keysDown = new SparseArray<bool>(false);
 
@@ -38,6 +42,19 @@ namespace Somnium.Framework.GLFW
         {
             return perFrameKeyStates.WithinLength((uint)button) && perFrameKeyStates[(uint)button] == KeyState.Released;
         }
+        public override Vector2 mousePosition
+        {
+            get
+            {
+                return internalMousePosition;
+            }
+        }
+        public override unsafe void SetMousePosition(Window window, Vector2 mousePosition)
+        {
+            var windowGLFW = (WindowGLFW)window;
+            internalMousePosition = mousePosition;
+            SomniumGLFW.API.SetCursorPos(windowGLFW.handle, mousePosition.X, mousePosition.Y);
+        }
 
         /// <summary>
         /// Called at the end of every frame. Resets per-frame key states
@@ -68,5 +85,6 @@ namespace Somnium.Framework.GLFW
                 mouseButtonsDown.values[i] = false;
             }
         }
+        public override Vector2 mouseScroll => scroll;
     }
 }

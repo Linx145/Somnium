@@ -5,7 +5,6 @@
 using System;
 using System.Runtime.Serialization;
 using System.Diagnostics;
-using System.Numerics;
 
 namespace Somnium.Framework
 {

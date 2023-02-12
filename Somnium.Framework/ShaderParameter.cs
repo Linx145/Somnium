@@ -3,7 +3,7 @@ using Somnium.Framework.Vulkan;
 using StbImageSharp;
 using System;
 using System.Collections.Generic;
-using System.Numerics;
+
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
