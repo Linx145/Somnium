@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.Numerics;
 
 namespace Somnium.Framework
 {
@@ -76,34 +77,6 @@ namespace Somnium.Framework
         public bool Equals(Random obj)
         {
             return random.Equals(obj);
-        }
-        public string NextString(int maxChars, int maxVal = 26, int minVal = 0)
-        {
-            if (maxChars < 1)
-            {
-                throw new Exception("ERROR: maxchars cannot be negative or zero.");
-            }
-            StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < maxChars; i++)
-            {
-
-                /*if (rand.Next(0, 1) == 0)
-                {*/
-
-                int num = Next(minVal, maxVal);
-
-                //char let = (char)('a' + num);
-                char let = Convert.ToChar(num);
-                builder.Append(let);
-                /*}
-                else
-                {
-                    int num = rand.Next(int.MinValue + 1, int.MaxValue - 1);
-                    builder.Append(num);
-                }*/
-
-            }
-            return builder.ToString();
         }
         public Vector2 NextVector(float min, float max)
         {

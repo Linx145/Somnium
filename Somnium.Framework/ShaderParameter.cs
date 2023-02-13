@@ -63,7 +63,7 @@ namespace Somnium.Framework
             //maxWidth += param.size;
         }
         public ReadOnlySpan<ShaderParameter> GetParameters() => parameters.AsReadonlySpan();
-        public void HasUniform(string paramName) => map.ContainsKey(paramName);
+        public bool HasUniform(string paramName) => map.ContainsKey(paramName);
         public bool Set<T>(string paramName, T value) where T : unmanaged
         {
             if (map.TryGetValue(paramName, out var index))

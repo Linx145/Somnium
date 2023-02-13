@@ -4,6 +4,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System;
+using System.Numerics;
 
 namespace Somnium.Framework
 {

@@ -293,6 +293,18 @@ namespace Somnium.Framework
                 uniformHasBeenSet = true;
             }
         }
+        public bool HasUniform(string uniformName, SetNumber shaderNumber = SetNumber.Either)
+        {
+            if (shaderNumber == SetNumber.Either)
+            {
+                return shader1Params.HasUniform(uniformName) || shader2Params.HasUniform(uniformName);
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                return shader1Params.HasUniform(uniformName);
+            }
+            else return shader2Params.HasUniform(uniformName);
+        }
         public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
             CheckUniformSet();

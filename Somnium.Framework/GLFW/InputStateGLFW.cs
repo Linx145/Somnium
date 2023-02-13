@@ -1,6 +1,6 @@
 ﻿using Silk.NET.GLFW;
 using System;
-
+using System.Numerics;
 
 namespace Somnium.Framework.GLFW
 {

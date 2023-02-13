@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System;
 using FMOD;
+using System.Numerics;
 
 namespace Somnium.Framework.Audio
 {
@@ -15,7 +16,6 @@ namespace Somnium.Framework.Audio
             }
         }
         public Sound sound;
-        public Channel channel;
         public SoundEffect(string filePath)
         {
             CREATESOUNDEXINFO exinfo = new CREATESOUNDEXINFO();
@@ -28,35 +28,53 @@ namespace Somnium.Framework.Audio
                 throw new AssetCreationException("Failed to create sound!");
             }
         }
-        public override void Play(float volume, float pitch)
+        public override ISoundEffectInstance Play(float volume = 1f, float pitch = 1f)
         {
             if (sound.getOpenState(out var openState, out var percentBuffered, out bool starving, out bool diskbusy) == RESULT.OK)
             {
                 if (openState == OPENSTATE.LOADING)
                 {
-                    return;
+                    return null;
                 }
             }
             else throw new AssetCreationException("Failed to get FMOD sound state!");
+
+            Channel channel;
             var result = API.playSound(sound, default, false, out channel);
-            if (result != RESULT.OK)
+            if (result != RESULT.OK || !channel.hasHandle())
             {
                 throw new ExecutionException("Failed to play sound!");
             }
+            uint generation = AudioEngine.ChannelGenerations[channel.handle];
+            generation++;
+            AudioEngine.ChannelGenerations[channel.handle] = generation;
+            var instance = new SoundEffectInstance(channel, generation, this);
+
+            if (volume != 1f) instance.Volume = volume;
+            if (pitch != 1f) instance.Pitch = pitch;
+
+            return instance;
+        }
+        public override ISoundEffectInstance Play(Vector3 position, Vector3 velocity)
+        {
+            throw new NotImplementedException();
+        }
+        public override float GetDuration()
+        {
+            sound.getLength(out var length, TIMEUNIT.MS);
+            return length / 1000f;
         }
         public override void Dispose()
         {
-            var result = sound.release();
-            if (result != RESULT.OK)
+            if (!isDisposed)
             {
-                throw new ExecutionException("Error releasing sound asset!");
+                var result = sound.release();
+                if (result != RESULT.OK)
+                {
+                    throw new ExecutionException("Error releasing sound asset!");
+                }
             }
         }
     }
 #endif
-    public abstract class BaseSoundEffect : IDisposable
-    {
-        public abstract void Play(float volume, float pitch);
-        public abstract void Dispose();
-    }
 }

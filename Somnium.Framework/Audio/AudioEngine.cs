@@ -1,5 +1,7 @@
 ﻿using FMOD;
 using System;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace Somnium.Framework.Audio
 {
@@ -7,6 +9,7 @@ namespace Somnium.Framework.Audio
     {
 #if FMOD
         public static FMOD.System API;
+        internal static Dictionary<IntPtr, uint> ChannelGenerations;
         public static void Initialize()
         {
             var result = FMOD.Factory.System_Create(out API);
@@ -43,6 +46,16 @@ namespace Somnium.Framework.Audio
             {
                 throw new InitializationException("FMOD release error: " + result);
             }
+        }
+
+        public static VECTOR ToVECTOR(this Vector3 vector)
+        {
+            VECTOR results = new VECTOR();
+            results.x = vector.X;
+            results.y = vector.Y;
+            results.z = vector.Z;
+
+            return results;
         }
 #endif
     }
