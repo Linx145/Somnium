@@ -2,6 +2,7 @@
 using System;
 using FMOD;
 using System.Numerics;
+using System.ComponentModel.DataAnnotations;
 
 namespace Somnium.Framework.Audio
 {
@@ -16,6 +17,7 @@ namespace Somnium.Framework.Audio
             }
         }
         public Sound sound;
+        private float duration = -1f;
         public SoundEffect(string filePath)
         {
             CREATESOUNDEXINFO exinfo = new CREATESOUNDEXINFO();
@@ -25,7 +27,18 @@ namespace Somnium.Framework.Audio
             var result = API.createSound(fullPath, MODE.DEFAULT, ref exinfo, out sound);//(fullPath, MODE.DEFAULT, ref createInfo, out sound);
             if (result != RESULT.OK)
             {
-                throw new AssetCreationException("Failed to create sound!");
+                throw new AssetCreationException("Failed to create sound! Error: " + result.ToString());
+            }
+        }
+        public SoundEffect(byte[] data)
+        {
+            CREATESOUNDEXINFO exinfo = new CREATESOUNDEXINFO();
+            exinfo.cbsize = MarshalHelper.SizeOf(typeof(CREATESOUNDEXINFO));
+
+            var result = API.createSound(data, MODE.DEFAULT, ref exinfo, out sound);
+            if (result != RESULT.OK)
+            {
+                throw new AssetCreationException("Failed to create sound! Error: " + result.ToString());
             }
         }
         public override ISoundEffectInstance Play(float volume = 1f, float pitch = 1f)
@@ -45,9 +58,16 @@ namespace Somnium.Framework.Audio
             {
                 throw new ExecutionException("Failed to play sound!");
             }
-            uint generation = AudioEngine.ChannelGenerations[channel.handle];
-            generation++;
-            AudioEngine.ChannelGenerations[channel.handle] = generation;
+            if (!AudioEngine.ChannelGenerations.TryGetValue(channel.handle, out var generation))
+            {
+                generation = 1;
+                AudioEngine.ChannelGenerations.Add(channel.handle, generation);
+            }
+            else
+            {
+                generation++;
+                AudioEngine.ChannelGenerations[channel.handle] = generation;
+            }
             var instance = new SoundEffectInstance(channel, generation, this);
 
             if (volume != 1f) instance.Volume = volume;
@@ -61,8 +81,12 @@ namespace Somnium.Framework.Audio
         }
         public override float GetDuration()
         {
-            sound.getLength(out var length, TIMEUNIT.MS);
-            return length / 1000f;
+            if (duration < 0f)
+            {
+                sound.getLength(out var length, TIMEUNIT.MS);
+                duration = length / 1000f;
+            }
+            return duration;
         }
         public override void Dispose()
         {

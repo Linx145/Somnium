@@ -1,10 +1,5 @@
 ﻿using FMOD;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Somnium.Framework.Audio
 {
@@ -61,8 +56,8 @@ namespace Somnium.Framework.Audio
         {
             get
             {
-                RESULT result;
-                if ((result = channel.getVolume(out var volume)) != RESULT.OK)
+                RESULT result = channel.getVolume(out var volume);
+                if (result != RESULT.OK)
                 {
                     throw new ExecutionException("Failed to get FMOD sound effect instance volume! Error: " + result.ToString());
                 }
@@ -110,11 +105,11 @@ namespace Somnium.Framework.Audio
             }
             set
             {
-                VECTOR pos = new VECTOR();
+                var pos = new VECTOR();
                 pos.x = value.X;
                 pos.y = value.Y;
                 pos.z = value.Z;
-                VECTOR vel = Velocity.ToVECTOR();
+                var vel = Velocity.ToVECTOR();
                 var result = channel.set3DAttributes(ref pos, ref vel);
                 if (result != RESULT.OK)
                 {
@@ -135,15 +130,35 @@ namespace Somnium.Framework.Audio
             }
             set
             {
-                VECTOR vel = new VECTOR();
+                var vel = new VECTOR();
                 vel.x = value.X;
                 vel.y = value.Y;
                 vel.z = value.Z;
-                VECTOR pos = Position.ToVECTOR();
+                var pos = Position.ToVECTOR();
                 var result = channel.set3DAttributes(ref pos, ref vel);
                 if (result != RESULT.OK)
                 {
                     throw new ExecutionException("Failed to set FMOD sound attributes! Error: " + result.ToString());
+                }
+            }
+        }
+        public int LoopCount
+        {
+            get
+            {
+                var result = channel.getLoopCount(out int loopCount);
+                if (result != RESULT.OK)
+                {
+                    throw new ExecutionException("Failed to get FMOD sound loop count! Error: " + result.ToString());
+                }
+                return loopCount;
+            }
+            set
+            {
+                var result = channel.setLoopCount(value);
+                if (result != RESULT.OK)
+                {
+                    throw new ExecutionException("Failed to set FMOD sound loop count! Error: " + result.ToString());
                 }
             }
         }
@@ -167,14 +182,41 @@ namespace Somnium.Framework.Audio
                 throw new ExecutionException("Failed to set FMOD sound progress! Error: " + result.ToString());
             }
         }
-        public bool IsPlaying()
+        public float GetPlaybackPosition()
         {
-            RESULT result;
-            if ((result = channel.isPlaying(out var playing)) != RESULT.OK)
+            var result = channel.getPosition(out var ms, TIMEUNIT.MS);
+            if (result != RESULT.OK)
             {
-                throw new ExecutionException("Error getting playing state of FMOD sound! Error: " + result.ToString());
+                throw new ExecutionException("Failed to get FMOD sound playback position! Error: " + result);
             }
-            return playing;
+            return ms / 1000f;
+        }
+        public bool IsPlaying
+        {
+            get
+            {
+                RESULT result;
+                if ((result = channel.isPlaying(out var playing)) != RESULT.OK)
+                {
+                    throw new ExecutionException("Error getting playing state of FMOD sound! Error: " + result.ToString());
+                }
+                return playing;
+            }
+        }
+        public bool IsComplete
+        {
+            get
+            {
+                if (!IsValid) return true;
+
+                float duration = soundEffect.GetDuration();
+                float playback = GetPlaybackPosition();
+                if (playback >= duration)
+                {
+                    return true;
+                }
+                return false;
+            }
         }
     }
 #endif

@@ -487,13 +487,12 @@ namespace Somnium.Framework
             }
         }
         /// <summary>
-        /// Loads a shader from a Somnium Engine .shader file, which can contain the bytecode for a single 
-        /// shader of any type, or a pair of Vertex+Fragment or Tessellation Control+Evaluation shaders.
+        /// Loads a shader from a stream containing a Somnium Engine .shader file.
         /// </summary>
         /// <param name="application"></param>
-        /// <param name="filePath"></param>
+        /// <param name="stream"></param>
         /// <returns></returns>
-        public static Shader FromFile(Application application, string filePath)
+        public static Shader FromStream(Application application, Stream stream)
         {
             void AddUniforms(ShaderParameterCollection collection, List<ShaderParamUniformData> uniforms)
             {
@@ -511,8 +510,8 @@ namespace Somnium.Framework
                     collection.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
                 }
             }
-            
-            using (BinaryReader reader = new BinaryReader(File.OpenRead(filePath)))
+
+            using (BinaryReader reader = new BinaryReader(stream))
             {
                 uint version = reader.ReadUInt32();
                 if (version == 1)
@@ -631,9 +630,33 @@ namespace Somnium.Framework
                 }
                 else throw new NotSupportedException(".shader file version not supported: " + version);
             }
+        }
+        /// <summary>
+        /// Loads a shader from a Somnium Engine .shader file, which can contain the bytecode for a single 
+        /// shader of any type, or a pair of Vertex+Fragment or Tessellation Control+Evaluation shaders.
+        /// </summary>
+        /// <param name="application"></param>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        public static Shader FromFile(Application application, string filePath)
+        {
+            using (FileStream fs = File.OpenRead(filePath))
+                return FromStream(application, fs);
             /*byte[] bytes = File.ReadAllBytes(filePath);
             return new Shader(application, type, bytes);*/
         }
+        public static Shader FromBytes(Application application, byte[] bytes)
+        {
+            using (MemoryStream ms = new MemoryStream(bytes))
+                return FromStream(application, ms);
+        }
+        /// <summary>
+        /// Creates a new shader from the specified file paths. Up to you to add and compile the shader uniforms yourself.
+        /// </summary>
+        /// <param name="application"></param>
+        /// <param name="vertexShaderFile"></param>
+        /// <param name="fragmentShaderFile"></param>
+        /// <returns></returns>
         public static Shader FromSpvFiles(Application application, string vertexShaderFile, string fragmentShaderFile)
         {
             byte[] vertex = File.ReadAllBytes(vertexShaderFile);

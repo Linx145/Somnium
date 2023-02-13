@@ -284,7 +284,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
             #endregion
         }
-
+        private static ISoundEffectInstance sfxInstance;
         private static void Update(float deltaTime)
         {
             recordTime += deltaTime;
@@ -313,7 +313,16 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             }
             if (Input.IsKeyPressed(Keys.Space))
             {
-                ogg.Play(1f, 1f);
+                sfxInstance = ogg.Play(1f, 1f);
+            }
+
+            if (sfxInstance != null)
+            {
+                if (sfxInstance.IsComplete)
+                {
+                    Debugger.Log("SFX complete");
+                    sfxInstance = null;
+                }
             }
 #endif
 

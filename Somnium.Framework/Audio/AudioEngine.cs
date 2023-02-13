@@ -9,7 +9,7 @@ namespace Somnium.Framework.Audio
     {
 #if FMOD
         public static FMOD.System API;
-        internal static Dictionary<IntPtr, uint> ChannelGenerations;
+        internal static Dictionary<IntPtr, uint> ChannelGenerations = new Dictionary<IntPtr, uint>();
         public static void Initialize()
         {
             var result = FMOD.Factory.System_Create(out API);

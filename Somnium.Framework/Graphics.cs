@@ -21,6 +21,42 @@ namespace Somnium.Framework
             this.application = application;
         }
 
+        /// <summary>
+        /// Clears the target renderbuffer, or if none is specified, the backbuffer.
+        /// </summary>
+        public void ClearBuffer(Color clearColor, RenderBuffer targetBuffer = null)
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    unsafe
+                    {
+                        if (targetBuffer == null)
+                        {
+                            VkEngine.SetRenderPass(VkEngine.renderPass, null);
+                            VkEngine.currentRenderPass = VkEngine.renderPass;
+                        }
+                        else
+                        {
+                            VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, targetBuffer);
+                            VkEngine.currentRenderPass = VkEngine.framebufferRenderPass;
+                        }
+
+                        Clear(clearColor);
+
+                        VkEngine.currentRenderPass.End(VkEngine.commandBuffer);
+                        VkEngine.currentRenderPass = null;
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+        /// <summary>
+        /// Clears the buffer that is currently specified by PipelineState.Begin. Must be called within PipelineState.Begin and End. Otherwise, use ClearBuffer instead
+        /// </summary>
+        /// <param name="clearColor"></param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Clear(Color clearColor)
         {
             switch (application.runningBackend)

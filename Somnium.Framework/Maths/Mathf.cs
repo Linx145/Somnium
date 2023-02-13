@@ -6,6 +6,7 @@ namespace Somnium.Framework
     public static class Mathf
     {
         public const int MatrixSize = sizeof(float) * 16;
+        public const int Vector4Size = sizeof(float) * 4;
 
         public static readonly Vector3 Vector3Forward = new Vector3(0f, 0f, -1f);
         public static readonly Vector3 Vector3Backward = new Vector3(0f, 0f, 1f);
@@ -24,7 +25,20 @@ namespace Somnium.Framework
             );
             return new Plane(normal, d);
         }
+        /// <summary>
+        /// Interpolates between two values using a cubic equation.
+        /// </summary>
+        /// <param name="value1">Source value.</param>
+        /// <param name="value2">Source value.</param>
+        /// <param name="amount">Weighting value.</param>
+        /// <returns>Interpolated value.</returns>
+        public static float SmoothStep(float value1, float value2, float amount)
+        {
+            float result = Mathf.Clamp(amount, 0f, 1f);
+            result = Mathf.Hermite(value1, 0f, value2, 0f, result);
 
+            return result;
+        }
         public static Vector2 MulT(float sin, float cos, Vector2 vectorToRotate)
         {
             return new Vector2(cos * vectorToRotate.X + sin * vectorToRotate.Y, -sin * vectorToRotate.X + cos * vectorToRotate.Y);

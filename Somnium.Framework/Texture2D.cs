@@ -227,6 +227,18 @@ namespace Somnium.Framework
             ImageResult result = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
             return new Texture2D(application, result.Data, (uint)result.Width, (uint)result.Height, samplerState, format);
         }
+        /// <summary>
+        /// Loads a texture from the following formats: .png, .jpg, .bmp, .tga
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static Texture2D FromFile(Application application, string fileName, SamplerState samplerState, ImageFormat format = ImageFormat.R8G8B8A8Unorm)
+        {
+            using (FileStream fs = File.OpenRead(fileName))
+            {
+                return FromStream(application, fs, samplerState, format);
+            }
+        }
 #endregion
     }
 }
