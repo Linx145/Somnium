@@ -31,7 +31,7 @@ namespace Somnium.Framework
         {
             if (Application.Config.logMemoryAllocations)
             {
-                Log(message, false);
+                Log(message.ToString(), false);
             }
         }
     }

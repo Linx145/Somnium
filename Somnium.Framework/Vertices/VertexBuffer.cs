@@ -51,7 +51,7 @@ namespace Somnium.Framework
 
                             CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
 
-                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                            VkEngine.DestroyResourceBuffer(stagingBuffer);
                             stagingMemoryRegion.Free();
                         }
                         else
@@ -110,7 +110,7 @@ namespace Somnium.Framework
                     unsafe
                     {
                         Buffer buffer = new Buffer(handle);
-                        VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, buffer, null);
+                        VkEngine.DestroyResourceBuffer(buffer);
                         if (memoryRegion.IsValid)
                         {
                             memoryRegion.Free();

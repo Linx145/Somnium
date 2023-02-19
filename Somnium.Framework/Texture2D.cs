@@ -149,7 +149,8 @@ namespace Somnium.Framework
 
                                 VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
 
-                                VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                                VkEngine.DestroyResourceBuffer(stagingBuffer);
+                                //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                                 stagingMemoryRegion.Free();
                             }
                             /*else

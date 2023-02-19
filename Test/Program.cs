@@ -34,7 +34,7 @@ namespace Test
         private static InstanceBuffer instanceBuffer;
         private static VertexDeclaration instanceDataDeclaration;
 
-        const int instanceCount = 10000;
+        const int instanceCount = 20000;
 #endif
 #if MULTIDRAW
         const int instanceCount = 16;
@@ -53,12 +53,12 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New("Test", new Point(1920, 1080), "Window", Backends.Vulkan, 2))
+            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 2))
             {
-                application.OnLoad = OnLoad;
-                application.Update = Update;
-                application.Draw = Draw;
-                application.Unload = Unload;
+                application.OnLoadCallback = OnLoad;
+                application.UpdateCallback = Update;
+                application.DrawCallback = Draw;
+                application.UnloadCallback = Unload;
                 Graphics = application.Graphics;
                 application.Start();
             }
@@ -265,7 +265,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #if INSTANCING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
-            viewProjection = new ViewProjection(
+            var viewProjection = new ViewProjection(
                 Matrix4x4.Identity,
                 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
                 );
@@ -327,7 +327,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
 
 #if INSTANCING || MULTIDRAW
-            //Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
+            Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
 #endif
         }
         private static void Unload()

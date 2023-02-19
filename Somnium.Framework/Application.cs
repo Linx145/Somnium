@@ -92,13 +92,13 @@ namespace Somnium.Framework
         /// <param name="preferredBackend">The preferred backend. (In the future) should the backend not be available, Somnium will automatically choose the next best backend for the app.</param>
         /// <param name="maxSimultaneousFrames">The maximum rendering frames to be processed at a time, for use in the Double Buffering technique to boost FPS in Vulkan, DX12 and Metal</param>
         /// <returns></returns>
-        public static Application New(string AppName, Point windowSize, string title, Backends preferredBackend, uint maxSimultaneousFrames = 2)
+        public static Application New(Application instance, string AppName, Point windowSize, string title, Backends preferredBackend, uint maxSimultaneousFrames = 2)
         {
             if (maxSimultaneousFrames == 0 || maxSimultaneousFrames > 3)
             {
                 throw new ArgumentOutOfRangeException("Max simultaneous frames must be between 1-3!");
             }
-            Application app = new Application();
+            Application app = instance ?? new Application();
             app.AppName = AppName;
             Config.maxSimultaneousFrames = maxSimultaneousFrames;
 
@@ -123,6 +123,7 @@ namespace Somnium.Framework
             AudioEngine.Initialize();
             SamplerState.AddDefaultSamplerStates(this);
             VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
+            InitializeCallback?.Invoke();
 
             updateStopwatch = new Stopwatch();
             drawStopwatch = new Stopwatch();
@@ -132,7 +133,7 @@ namespace Somnium.Framework
             {
                 if (!loaded)
                 {
-                    OnLoad?.Invoke();
+                    OnLoadCallback?.Invoke();
                     loaded = true;
                 }
                 double delta;
@@ -142,7 +143,7 @@ namespace Somnium.Framework
                 {
                     updateStopwatch.Restart();
                     AudioEngine.Update();
-                    Update?.Invoke((float)delta);
+                    UpdateCallback?.Invoke((float)delta);
                 }
 
                 delta = drawStopwatch.Elapsed.TotalSeconds;
@@ -162,7 +163,7 @@ namespace Somnium.Framework
                         VkEngine.BeginDraw();
                     }
 
-                    Draw?.Invoke((float)delta);
+                    DrawCallback?.Invoke((float)delta);
 
                     if (Graphics.currentRenderbuffer != null)
                     {
@@ -196,7 +197,7 @@ namespace Somnium.Framework
                     }
                     break;
             }
-            Unload?.Invoke();
+            UnloadCallback?.Invoke();
             AudioEngine.Shutdown();
             switch (runningBackend)
             {
@@ -205,10 +206,11 @@ namespace Somnium.Framework
                     break;
             }
         }
-        public Action OnLoad;
-        public Action<float> Update;
-        public Action<float> Draw;
-        public Action Unload;
+        public Action InitializeCallback;
+        public Action OnLoadCallback;
+        public Action<float> UpdateCallback;
+        public Action<float> DrawCallback;
+        public Action UnloadCallback;
 
         public void Dispose()
         {

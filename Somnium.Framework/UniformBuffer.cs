@@ -139,7 +139,7 @@ namespace Somnium.Framework
             memoryRegion.Free();
 
             //dispose of the old buffer
-            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handle), null);
+            VkEngine.DestroyResourceBuffer(new Buffer(handle));
 
             //update variables
             size = newMaxSize;
@@ -194,7 +194,7 @@ namespace Somnium.Framework
                     {
                         //if (memoryRegion.isBound) memoryRegion.Unbind();
                         memoryRegion.Free();
-                        VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handle), null);
+                        VkEngine.DestroyResourceBuffer(new Buffer(handle));
                     }
                     break;
                 default:

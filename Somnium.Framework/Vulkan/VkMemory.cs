@@ -344,7 +344,7 @@ namespace Somnium.Framework.Vulkan
                 var result = allocatedMemories[i].TryAllocate(requiredSpace);
                 if (result != default)
                 {
-                    Debugger.LogMemoryAllocation("Allocated memory at " + this.ToString());
+                    Debugger.LogMemoryAllocation("Allocated memory at " + result.ToString());
                     return result;
                 }
             }
@@ -451,6 +451,8 @@ namespace Somnium.Framework.Vulkan
             MemoryRequirements memoryRequirements;
             VkEngine.vk.GetImageMemoryRequirements(VkEngine.vkDevice, image, &memoryRequirements);
 
+            //ensure the thing fits nicely into GPU alignment requirements by making it a multiple of 1024
+            memoryRequirements.Size = (ulong)(Mathf.Ceiling(memoryRequirements.Size / 1024f) * 1024);
             AllocatedMemoryRegion memoryRegion = malloc(memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForImagesInMiB * 1024 * 1024)); //we malloc a much larger DeviceMemory size for potentially image-holding buffers
 
             if (autoBind)

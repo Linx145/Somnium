@@ -58,7 +58,14 @@ namespace Somnium.Framework
         /// Called when the window is minimized/restored
         /// </summary>
         public event Action<Window, bool> onMinimizationChanged;
+        /// <summary>
+        /// Called when a key is pressed.
+        /// </summary>
         public Action<Keys, int, KeyState> onKeyPressed;
+        /// <summary>
+        /// Called when a character is inputted, distinct from onKeyPressed in it's recording function
+        /// </summary>
+        public Action<char> onTextInput;
         /// <summary>
         /// Whether VSync should be turned on, thus limiting max FPS to your monitor's refresh rate but preventing screen tearing. Only applicable in high-level Graphics API such as OpenGL as DX11
         /// </summary>

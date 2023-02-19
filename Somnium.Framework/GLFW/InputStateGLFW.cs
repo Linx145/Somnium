@@ -7,6 +7,7 @@ namespace Somnium.Framework.GLFW
     public class InputStateGLFW : InputState
     {
         internal static Vector2 internalMousePosition;
+        internal static Vector2 internalWorldMousePosition;
         internal static Vector2 scroll;
 
         internal static SparseArray<KeyState> perFrameKeyStates = new SparseArray<KeyState>(KeyState.None);

@@ -170,6 +170,7 @@ namespace Somnium.Framework.GLFW
 
             activeWindows++;
             //set the key press event for this window
+            Glfw.SetCharCallback(window.handle, new GlfwCallbacks.CharCallback(window.OnTextInput));
             Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
             Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
             Glfw.SetCursorPosCallback(window.handle, new GlfwCallbacks.CursorPosCallback(window.MousePositionCallback));
@@ -232,6 +233,10 @@ namespace Somnium.Framework.GLFW
             }
 
             onKeyPressed?.Invoke((Keys)(int)key, scanCode, (KeyState)(int)inputAction);
+        }
+        public unsafe void OnTextInput(WindowHandle* handle, uint codePoint)
+        {
+            onTextInput?.Invoke((char)codePoint);
         }
         public unsafe void OnMousePressed(WindowHandle* handle, MouseButton button, InputAction inputAction, KeyModifiers keyModifiers)
         {

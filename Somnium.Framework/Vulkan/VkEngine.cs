@@ -7,6 +7,7 @@ using Silk.NET.Vulkan.Extensions.KHR;
 using System;
 using System.Linq;
 using Buffer = Silk.NET.Vulkan.Buffer;
+using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -49,6 +50,8 @@ namespace Somnium.Framework.Vulkan
         private static GenerationalArray<VkGraphicsPipeline> pipelines = new GenerationalArray<VkGraphicsPipeline>(null);
         private static GenerationalArray<VkGraphicsPipeline> renderbufferPipelines = new GenerationalArray<VkGraphicsPipeline>(null);
         public static FrameData[] frames;
+
+        public static HashSet<ulong> allResourceBuffers = new HashSet<ulong>();
 
         public static CommandCollection commandBuffer
         {
@@ -655,7 +658,17 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new AssetCreationException("Error creating Vulkan Buffer!");
             }
+            allResourceBuffers.Add(buffer.Handle);
             return buffer;
+        }
+        public static void DestroyResourceBuffer(Buffer buffer)
+        {
+            if (allResourceBuffers.Contains(buffer.Handle))
+            {
+                allResourceBuffers.Remove(buffer.Handle);
+                vk.DestroyBuffer(VkEngine.vkDevice, buffer, null);
+            }
+            else throw new InvalidOperationException("Error! Buffer was not created/registered via VkEngine.CreateResourceBuffer!");
         }
         /// <summary>
         /// Copies a resource(AKA Vertex, index etc etc) buffer by creating a command buffer, sending a command, submitting it and deleting it.
@@ -967,6 +980,10 @@ namespace Somnium.Framework.Vulkan
                 //TrianglePipeline.Dispose();
                 swapChain.Dispose();
                 //testShader.Dispose();
+                foreach (ulong buffer in allResourceBuffers)
+                {
+                    vk.DestroyBuffer(vkDevice, new Buffer(buffer), null);
+                }
                 vk.DestroyDevice(vkDevice, null);
                 KhrSurfaceAPI.DestroySurface(vkInstance, internalWindowSurface, null);
                 if (ValidationLayersActive)

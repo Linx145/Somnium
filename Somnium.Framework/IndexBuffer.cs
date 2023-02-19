@@ -41,16 +41,6 @@ namespace Somnium.Framework
 
         public void SetData<T>(T[] indices, int offset, int Length) where T : unmanaged
         {
-#if DEBUG
-            unsafe
-            {
-                int sizeofT = sizeof(T);
-                if (sizeofT != indexSize)
-                {
-                    throw new AssetCreationException(typeof(T).Name + "with size " + sizeofT + " is not of the same size as the member within this index buffer(" + indexSize.ToString() + ")!");
-                }
-            }
-#endif
             if (offset + Length > indices.Length)
             {
                 throw new IndexOutOfRangeException("Attempting to set data outside of this index buffer!");
@@ -74,7 +64,8 @@ namespace Somnium.Framework
                             //up until the point where we utilise them, we can share the same copy code
                             VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
 
-                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                            VkEngine.DestroyResourceBuffer(stagingBuffer);
+                            //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
                             stagingMemoryRegion.Free();
                         }
                         else
@@ -115,7 +106,8 @@ namespace Somnium.Framework
                     unsafe
                     {
                         Buffer buffer = new Buffer(handle);
-                        VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, buffer, null);
+                        VkEngine.DestroyResourceBuffer(buffer);
+                        //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, buffer, null);
                         if (memoryRegion.IsValid)
                         {
                             memoryRegion.Free();

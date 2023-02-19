@@ -51,6 +51,7 @@ namespace Somnium.Framework
         public static bool IsMouseReleased(MouseButtons button) => instance.IsMouseRelease(button);
 
         public static Vector2 mousePosition => instance.mousePosition;
+        public static Vector2 worldMousePosition => instance.worldMousePosition;
         public static void SetMousePosition(Window window, Vector2 position) => instance.SetMousePosition(window, position);
         public static Vector2 mouseScroll => instance.mouseScroll;
     }
@@ -64,6 +65,10 @@ namespace Somnium.Framework
         public abstract bool IsMousePressed(MouseButtons button);
         public abstract bool IsMouseRelease(MouseButtons button);
         public abstract Vector2 mousePosition { get;}
+        /// <summary>
+        /// To be set by the end user where applicable
+        /// </summary>
+        public Vector2 worldMousePosition;
         public abstract unsafe void SetMousePosition(Window window, Vector2 mousePosition);
         public abstract Vector2 mouseScroll { get; }
     }

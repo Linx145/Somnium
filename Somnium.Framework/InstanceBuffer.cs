@@ -113,7 +113,8 @@ namespace Somnium.Framework
                         {
                             for (int i = 0; i < handles.Length; i++)
                             {
-                                VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handles[i]), null);
+                                VkEngine.DestroyResourceBuffer(new Buffer(handles[i]));
+                                //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, new Buffer(handles[i]), null);
                                 if (memoryRegions[i].isBound) memoryRegions[i].Unbind();
                                 memoryRegions[i].Free();
                             }
