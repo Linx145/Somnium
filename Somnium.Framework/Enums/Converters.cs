@@ -10,7 +10,8 @@ public static class Converters
         Format.R32Sfloat,
         Format.R32G32Sfloat,
         Format.R32G32B32Sfloat,
-        Format.R32G32B32A32Sfloat
+        Format.R32G32B32A32Sfloat,
+        Format.R32Sint
             /*case VertexElementFormat.Float:
                 return Format.R32Sfloat;
 

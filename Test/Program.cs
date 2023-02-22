@@ -26,6 +26,11 @@ namespace Test
 
 #if INSTANCING || MULTIDRAW
         private static Vector4[] positions;
+#endif
+#if MULTITEXTURES
+        private static TexturedInstanceVertexData[] positions;
+#endif
+#if INSTANCING || MULTIDRAW || MULTITEXTURES
         private static Vector3[] velocities;
 
         private static ExtendedRandom rand;
@@ -38,6 +43,12 @@ namespace Test
 #endif
 #if MULTIDRAW
         const int instanceCount = 16;
+#endif
+#if MULTITEXTURES
+        private static InstanceBuffer instanceBuffer;
+        private static Texture2D[] textureArray;
+
+        const int instanceCount = 20;
 #endif
 
 #if RENDERBUFFERS
@@ -125,21 +136,21 @@ namespace Test
 
             state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
 #endif
-            #endregion
+#endregion
 
-#if INSTANCING || MULTIDRAW
+#if INSTANCING || MULTIDRAW || MULTITEXTURES
             rand = new ExtendedRandom();
-            positions = new Vector4[instanceCount];
+            positions = new TexturedInstanceVertexData[instanceCount];
             velocities = new Vector3[instanceCount];
 
             for (int i = 0; i < positions.Length; i++)
             {
                 velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
-                positions[i] = new Vector4(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f, 0f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
+                positions[i] = new TexturedInstanceVertexData(new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f), rand.Next(2));//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
 #endif
 
-            #region test: instancing
+#region test: instancing
 
 #if INSTANCING
             shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");
@@ -150,9 +161,8 @@ namespace Test
             state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
             instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
 #endif
-            #endregion
+#endregion
 
-            #region uniforms
             using (FileStream stream = File.OpenRead("Content/tbh.png"))
             {
                 texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
@@ -161,11 +171,24 @@ namespace Test
             {
                 texture2 = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
             }
-#endregion
+
+#region test: multitextured instancing
+
+#if MULTITEXTURES
+            shader = Shader.FromFile(application, "Content/ShaderInstancedArray.shader");
+
+            TexturedInstanceVertexData.RegisterVertexDeclaration();
+            instanceBuffer = InstanceBuffer.New<TexturedInstanceVertexData>(application, instanceCount);
+            textureArray = new Texture2D[] { texture, texture2 };//, texture2, texture, texture2, texture, texture2 };
+
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, TexturedInstanceVertexData.VertexDeclaration);
+#endif
+
+            #endregion
         }
         private static void Draw(float deltaTime)
         {
-#if INSTANCING
+#if INSTANCING || MULTITEXTURES
             instanceBuffer.SetData(positions);
 #endif
 
@@ -186,7 +209,8 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
 
-            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("inputTexture", texture);
+            shader.SetUniform("samplerState", texture.samplerState);
             shader.SetUniform("wvpBlock", viewProjection);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
@@ -203,7 +227,8 @@ Matrix4x4.Identity,
 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
 );
 
-            shader.SetUniform("texSampler", renderBuffer);
+            shader.SetUniform("inputTexture", renderBuffer);
+            shader.SetUniform("samplerState", SamplerState.PointClamp);
             shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state);
@@ -260,8 +285,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             }
             Graphics.EndPipeline();
 #endif
-            #endregion
-            #region instanced drawing
+#endregion
+#region instanced drawing
 #if INSTANCING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -283,7 +308,31 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, instanceCount);
             Graphics.EndPipeline();
 #endif
-            #endregion
+#endregion
+#region textured instancing
+#if MULTITEXTURES
+            float camWidth = 20f;
+            float camHeight = camWidth * (9f / 16f);
+            var viewProjection = new ViewProjection(
+                Matrix4x4.Identity,
+                Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
+                );
+
+            shader.SetUniforms("textures", textureArray);
+            shader.SetUniform("samplerState", texture.samplerState);
+            shader.SetUniform("wvpBlock", viewProjection);
+
+            Graphics.SetVertexBuffer(vb, 0);
+            Graphics.SetIndexBuffer(indexBuffer);
+            Graphics.SetInstanceBuffer(instanceBuffer, 1);
+
+            Graphics.ClearBuffer(Color.CornflowerBlue);
+
+            Graphics.SetPipeline(state);
+            Graphics.DrawIndexedPrimitives(6, instanceCount);
+            Graphics.EndPipeline();
+#endif
+#endregion
         }
         private static ISoundEffectInstance sfxInstance;
         private static void Update(float deltaTime)
@@ -329,6 +378,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 
 #if INSTANCING || MULTIDRAW
             Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
+#elif MULTITEXTURES
+            Parallel.For(0, instanceCount, (int i) => { positions[i].position += velocities[i] * deltaTime; });
 #endif
         }
         private static void Unload()

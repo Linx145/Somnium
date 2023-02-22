@@ -105,6 +105,15 @@ namespace Somnium.Framework
             }
             return false;
         }
+        public bool Set(string paramName, Texture2D[] textures)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                Set(index, textures);
+                return true;
+            }
+            return false;
+        }
         public bool Set(string paramName, SamplerState samplerState)
         {
             if (map.TryGetValue(paramName, out var index))

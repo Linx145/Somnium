@@ -385,6 +385,26 @@ namespace Somnium.Framework
             }
             else shader2Params.Set(uniformName, uniform);
         }
+        public void SetUniforms(string uniformName, Texture2D[] uniforms, SetNumber shaderNumber = SetNumber.Either)
+        {
+            CheckUniformSet();
+
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniforms))
+                {
+                    if (!shader2Params.Set(uniformName, uniforms))
+                    {
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, uniforms);
+            }
+            else shader2Params.Set(uniformName, uniforms);
+        }
         public void SetUniform(string uniformName, SamplerState uniform, SetNumber shaderNumber = SetNumber.Either)
         {
             CheckUniformSet();
@@ -483,7 +503,7 @@ namespace Somnium.Framework
                                         descriptorWrite.DstArrayElement = (uint)i;
                                         descriptorWrite.DescriptorType = DescriptorType.Sampler;
                                         descriptorWrite.DescriptorCount = 1;
-                                        descriptorWrite.PImageInfo = ptr;
+                                        descriptorWrite.PImageInfo = ptr + i;
 
                                         descriptorSetWrites.Add(descriptorWrite);
                                         //descriptorWrites[i] = descriptorWrite;
@@ -511,7 +531,7 @@ namespace Somnium.Framework
                                         descriptorWrite.DstArrayElement = (uint)i;
                                         descriptorWrite.DescriptorType = DescriptorType.SampledImage;
                                         descriptorWrite.DescriptorCount = 1;
-                                        descriptorWrite.PImageInfo = ptr;
+                                        descriptorWrite.PImageInfo = ptr + i;
 
                                         descriptorSetWrites.Add(descriptorWrite);
                                         //descriptorWrites[i] = descriptorWrite;
