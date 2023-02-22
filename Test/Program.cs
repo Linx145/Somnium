@@ -15,6 +15,9 @@ namespace Test
         private static PipelineState state;
         private static Texture2D texture;
         private static Texture2D texture2;
+        private static Texture2D texture3;
+        private static Texture2D texture4;
+        private static Texture2D texture5;
 
         private static VertexPositionColorTexture[] vertices;
         private static VertexBuffer vb;
@@ -64,7 +67,7 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 2))
+            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 3))
             {
                 application.OnLoadCallback = OnLoad;
                 application.UpdateCallback = Update;
@@ -146,11 +149,11 @@ namespace Test
             for (int i = 0; i < positions.Length; i++)
             {
                 velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
-                positions[i] = new TexturedInstanceVertexData(new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f), rand.Next(2));//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
+                positions[i] = new TexturedInstanceVertexData(new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f), rand.Next(5));//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
 #endif
 
-#region test: instancing
+            #region test: instancing
 
 #if INSTANCING
             shader = Shader.FromFile(application, "Content/ShaderInstanced.shader");
@@ -161,25 +164,23 @@ namespace Test
             state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, instanceDataDeclaration);
             instanceBuffer = InstanceBuffer.New<Vector4>(application, instanceCount);
 #endif
-#endregion
+            #endregion
 
-            using (FileStream stream = File.OpenRead("Content/tbh.png"))
-            {
-                texture = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
-            }
-            using (FileStream stream = File.OpenRead("Content/RedSlime.png"))
-            {
-                texture2 = Texture2D.FromStream(application, stream, SamplerState.PointClamp);
-            }
+            texture = Texture2D.FromFile(application, "Content/tbh.png", SamplerState.PointClamp);
+            texture2 = Texture2D.FromFile(application, "Content/RedSlime.png", SamplerState.PointClamp);
+            texture3 = Texture2D.FromFile(application, "Content/GreenSlime.png", SamplerState.PointClamp);
+            texture4 = Texture2D.FromFile(application, "Content/BlueSlime.png", SamplerState.PointClamp);
+            texture5 = Texture2D.FromFile(application, "Content/Illupinky.png", SamplerState.PointClamp);
 
-#region test: multitextured instancing
+
+            #region test: multitextured instancing
 
 #if MULTITEXTURES
             shader = Shader.FromFile(application, "Content/ShaderInstancedArray.shader");
 
             TexturedInstanceVertexData.RegisterVertexDeclaration();
             instanceBuffer = InstanceBuffer.New<TexturedInstanceVertexData>(application, instanceCount);
-            textureArray = new Texture2D[] { texture, texture2 };//, texture2, texture, texture2, texture, texture2 };
+            textureArray = new Texture2D[] { texture, texture2, texture3, texture4, texture5 };//, texture2, texture, texture2, texture, texture2 };
 
             state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, TexturedInstanceVertexData.VertexDeclaration);
 #endif
@@ -386,6 +387,9 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
         {
             texture.Dispose();
             texture2.Dispose();
+            texture3.Dispose();
+            texture4.Dispose();
+            texture5.Dispose();
             state.Dispose();
             shader.Dispose();
             vb.Dispose();
