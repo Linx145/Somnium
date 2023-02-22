@@ -8,5 +8,5 @@ namespace Somnium.Framework;
 
 public enum UniformType
 {
-    uniformBuffer, imageBuffer, imageStorage, sampler, imageAndSampler
+    uniformBuffer, image, imageStorage, sampler
 }

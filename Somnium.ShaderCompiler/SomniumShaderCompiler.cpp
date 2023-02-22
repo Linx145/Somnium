@@ -12,7 +12,10 @@ namespace Somnium
     void GetSpirvUniforms(ShaderCompileResult& compileResult)
     {
         std::vector<ShaderUniformData> uniforms;
-        std::vector<ShaderImageSamplerData> samplerImages;
+        std::vector<ShaderSamplerData> samplers;
+        std::vector<ShaderImageData> images;
+        //std::vector<ShaderImageSamplerData> samplerImages;
+
         spirv_cross::Compiler crossCompiler = spirv_cross::Compiler(compileResult.byteCode);
         spirv_cross::ShaderResources resources = crossCompiler.get_shader_resources();
 
@@ -38,8 +41,50 @@ namespace Somnium
 
             uniforms.push_back(uniformData);
         }
-        //these are for sampler-image combos present in glsl and vulkan
-        for (auto& samplerImage : resources.sampled_images)
+        for (auto& sampler : resources.separate_samplers)
+        {
+            auto type = crossCompiler.get_type(sampler.type_id);
+
+            ShaderSamplerData samplerData;
+            samplerData.name = sampler.name;
+            samplerData.set = crossCompiler.get_decoration(sampler.id, spv::DecorationDescriptorSet);
+            samplerData.binding = crossCompiler.get_decoration(sampler.id, spv::DecorationBinding);
+        
+            if (type.array.size() == 0)
+            {
+                samplerData.arrayLength = 0;
+            }
+            else if (type.array.size() > 1)
+            {
+                std::cerr << "Error: Multidimensional array uniforms not currently supported!" << std::endl;
+            }
+            else samplerData.arrayLength = type.array[0];
+
+            samplers.push_back(samplerData);
+        }
+        for (auto& image : resources.separate_images)
+        {
+            auto type = crossCompiler.get_type(image.type_id);
+
+            ShaderImageData imageData;
+            imageData.name = image.name;
+            imageData.set = crossCompiler.get_decoration(image.id, spv::DecorationDescriptorSet);
+            imageData.binding = crossCompiler.get_decoration(image.id, spv::DecorationBinding);
+
+            if (type.array.size() == 0)
+            {
+                imageData.arrayLength = 0;
+            }
+            else if (type.array.size() > 1)
+            {
+                std::cerr << "Error: Multidimensional array uniforms not currently supported!" << std::endl;
+            }
+            else imageData.arrayLength = type.array[0];
+
+            images.push_back(imageData);
+        }
+
+        /*for (auto& samplerImage : resources.sampled_images)
         {
             auto type = crossCompiler.get_type(samplerImage.type_id);
 
@@ -48,21 +93,13 @@ namespace Somnium
             samplerImageData.set = crossCompiler.get_decoration(samplerImage.id, spv::DecorationDescriptorSet);
             samplerImageData.binding = crossCompiler.get_decoration(samplerImage.id, spv::DecorationBinding);
             
-            if (type.array.size() == 0)
-            {
-                samplerImageData.arrayLength = 0;
-            }
-            else if (type.array.size() > 1)
-            {
-                std::cerr << "Error: Multidimensional array uniforms not currently supported!" << std::endl;
-            }
-            else samplerImageData.arrayLength = type.array[0];
-            
             samplerImages.push_back(samplerImageData);
-        }
+        }*/
 
-        compileResult.samplerImages = samplerImages;
+        //compileResult.samplerImages = samplerImages;
         compileResult.uniforms = uniforms;
+        compileResult.samplers = samplers;
+        compileResult.images = images;
     }
 
     std::vector<uint32_t> CompileSpirvBinary(const shaderc::Compiler& compiler, const std::string& source_name,

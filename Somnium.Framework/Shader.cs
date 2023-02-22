@@ -345,7 +345,47 @@ namespace Somnium.Framework
             }
             else shader2Params.Set(uniformName, uniformArray);
         }
+        public void SetUniform(string uniformName, ReadOnlySpan<byte> bytes, SetNumber shaderNumber = SetNumber.Either)
+        {
+            CheckUniformSet();
+
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, bytes))
+                {
+                    if (!shader2Params.Set(uniformName, bytes))
+                    {
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, bytes);
+            }
+            else shader2Params.Set(uniformName, bytes);
+        }
         public void SetUniform(string uniformName, Texture2D uniform, SetNumber shaderNumber = SetNumber.Either)
+        {
+            CheckUniformSet();
+
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniform))
+                {
+                    if (!shader2Params.Set(uniformName, uniform))
+                    {
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, uniform);
+            }
+            else shader2Params.Set(uniformName, uniform);
+        }
+        public void SetUniform(string uniformName, SamplerState uniform, SetNumber shaderNumber = SetNumber.Either)
         {
             CheckUniformSet();
 
@@ -423,7 +463,63 @@ namespace Somnium.Framework
                                 }
                             }
                             break;
-                        case UniformType.imageAndSampler:
+                        case UniformType.sampler:
+                            {
+                                //samplers also use DescriptorImageInfo as well
+                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++)
+                                {
+                                    mutableState.vkImageInfos[i] = new DescriptorImageInfo(new Sampler(mutableState.samplers[i].handle), null, ImageLayout.ShaderReadOnlyOptimal);
+                                }
+
+                                int length = (int)Math.Max(1, param.arrayLength);
+                                fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                {
+                                    for (int i = 0; i < length; i++)
+                                    {
+                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                        descriptorWrite.DstSet = descriptorSet;
+                                        descriptorWrite.DstBinding = param.binding;
+                                        descriptorWrite.DstArrayElement = (uint)i;
+                                        descriptorWrite.DescriptorType = DescriptorType.Sampler;
+                                        descriptorWrite.DescriptorCount = 1;
+                                        descriptorWrite.PImageInfo = ptr;
+
+                                        descriptorSetWrites.Add(descriptorWrite);
+                                        //descriptorWrites[i] = descriptorWrite;
+                                    }
+                                }
+                            }
+                            break;
+                        case UniformType.image:
+                            {
+                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++)
+                                {
+                                    mutableState.vkImageInfos[i] = new DescriptorImageInfo(null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+                                }
+                                //= new DescriptorImageInfo(null, new ImageView(mutableState.textures[0].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+
+                                int length = (int)Math.Max(1, param.arrayLength);
+                                fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                {
+                                    for (int i = 0; i < length; i++)
+                                    {
+                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                        descriptorWrite.DstSet = descriptorSet;
+                                        descriptorWrite.DstBinding = param.binding;
+                                        descriptorWrite.DstArrayElement = (uint)i;
+                                        descriptorWrite.DescriptorType = DescriptorType.SampledImage;
+                                        descriptorWrite.DescriptorCount = 1;
+                                        descriptorWrite.PImageInfo = ptr;
+
+                                        descriptorSetWrites.Add(descriptorWrite);
+                                        //descriptorWrites[i] = descriptorWrite;
+                                    }
+                                }
+                            }
+                            break;
+                        /*case UniformType.imageAndSampler:
                             {
                                 mutableState.vkImageInfo = new DescriptorImageInfo(new Sampler(mutableState.textures[0].samplerState.handle), new ImageView(mutableState.textures[0].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
 
@@ -441,7 +537,7 @@ namespace Somnium.Framework
                                     descriptorSetWrites.Add(descriptorWrite);
                                 }
                             }
-                            break;
+                            break;*/
                         default:
                             throw new NotImplementedException();
                     }
@@ -502,27 +598,38 @@ namespace Somnium.Framework
                     collection.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
                 }
             }
-            void AddImageSamplers(ShaderParameterCollection collection, List<ShaderParamImageSamplerData> samplerImages)
+            void AddImages(ShaderParameterCollection collection, List<ShaderParamImageData> images)
             {
-                for (int i = 0; i < samplerImages.Count; i++)
+                for (int i = 0; i < images.Count; i++)
                 {
-                    var samplerImage = samplerImages[i];
-                    collection.AddTexture2DParameter(samplerImage.name, samplerImage.binding, samplerImage.arrayLength);
+                    var image = images[i];
+                    collection.AddTexture2DParameter(image.name, image.binding, image.arrayLength);
+                }
+            }
+            void AddSamplers(ShaderParameterCollection collection, List<ShaderParamSamplerData> samplers)
+            {
+                for (int i = 0; i < samplers.Count; i++)
+                {
+                    var sampler = samplers[i];
+                    collection.AddSamplerParameter(sampler.name, sampler.binding, sampler.arrayLength);
                 }
             }
 
             using (BinaryReader reader = new BinaryReader(stream))
             {
                 uint version = reader.ReadUInt32();
-                if (version == 1)
+                if (version == 1 || version == 2)
                 {
                     List<byte[]> shaderBytecode = new List<byte[]>();
 
                     var uniforms1 = new List<ShaderParamUniformData>();
                     var uniforms2 = new List<ShaderParamUniformData>();
 
-                    var imageSamplers1 = new List<ShaderParamImageSamplerData>();
-                    var imageSamplers2 = new List<ShaderParamImageSamplerData>();
+                    var images1 = new List<ShaderParamImageData>();
+                    var images2 = new List<ShaderParamImageData>();
+
+                    var samplers1 = new List<ShaderParamSamplerData>();
+                    var samplers2 = new List<ShaderParamSamplerData>();
 
                     ulong maxShaders = reader.ReadUInt64();
 
@@ -555,21 +662,61 @@ namespace Somnium.Framework
                             else uniforms2.Add(new ShaderParamUniformData(name, set, binding, stride, arrayLength));
                         }
 
-                        uint samplerImagesCount = reader.ReadUInt32();
-                        for (int c = 0; c < samplerImagesCount; c++)
+                        if (version == 1)
                         {
-                            uint stringSize = reader.ReadUInt32();
-                            byte[] bytes = reader.ReadBytes((int)stringSize);
-                            string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-                            uint set = reader.ReadUInt32();
-                            uint binding = reader.ReadUInt32();
-                            uint arrayLength = reader.ReadUInt32();
-
-                            if (i == 0)
+                            uint samplerImagesCount = reader.ReadUInt32();
+                            for (int c = 0; c < samplerImagesCount; c++)
                             {
-                                imageSamplers1.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
+                                uint stringSize = reader.ReadUInt32();
+                                byte[] bytes = reader.ReadBytes((int)stringSize);
+                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                                uint set = reader.ReadUInt32();
+                                uint binding = reader.ReadUInt32();
+                                uint arrayLength = reader.ReadUInt32();
+
+                                //21/2/2023: Image-Sampler combinations deprecated due to lack of support across multiple graphics API
+                                /*if (i == 0)
+                                {
+                                    imageSamplers1.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
+                                }
+                                else imageSamplers2.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));*/
                             }
-                            else imageSamplers2.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
+                        }
+                        if (version >= 2)
+                        {
+                            uint samplerCount = reader.ReadUInt32();
+                            for (int c = 0; c < samplerCount; c++)
+                            {
+                                uint stringSize = reader.ReadUInt32();
+                                byte[] bytes = reader.ReadBytes((int)stringSize);
+                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                                uint set = reader.ReadUInt32();
+                                uint binding = reader.ReadUInt32();
+                                uint arrayLength = reader.ReadUInt32();
+
+                                if (i == 0)
+                                {
+                                    samplers1.Add(new ShaderParamSamplerData(name, set, binding, arrayLength));
+                                }
+                                else samplers2.Add(new ShaderParamSamplerData(name, set, binding, arrayLength));
+                            }
+
+                            uint imagesCount = reader.ReadUInt32();
+                            for (int c = 0; c < imagesCount; c++)
+                            {
+                                uint stringSize = reader.ReadUInt32();
+                                byte[] bytes = reader.ReadBytes((int)stringSize);
+                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                                uint set = reader.ReadUInt32();
+                                uint binding = reader.ReadUInt32();
+                                uint arrayLength = reader.ReadUInt32();
+
+                                if (i == 0)
+                                {
+                                    images1.Add(new ShaderParamImageData(name, set, binding, arrayLength));
+                                }
+                                else images2.Add(new ShaderParamImageData(name, set, binding, arrayLength));
+                            }
                         }
 
                         ulong size = reader.ReadUInt64();
@@ -593,8 +740,13 @@ namespace Somnium.Framework
                         AddUniforms(result.shader1Params, uniforms1);
                         AddUniforms(result.shader2Params, uniforms2);
 
-                        AddImageSamplers(result.shader1Params, imageSamplers1);
-                        AddImageSamplers(result.shader2Params, imageSamplers2);
+                        AddSamplers(result.shader1Params, samplers1);
+                        AddSamplers(result.shader2Params, samplers2);
+
+                        AddImages(result.shader1Params, images1);
+                        AddImages(result.shader2Params, images2);
+                        //AddImageSamplers(result.shader1Params, imageSamplers1);
+                        //AddImageSamplers(result.shader2Params, imageSamplers2);
                     }
                     else if (flag1 == ShaderTypeFlags.Fragment && flag2 == ShaderTypeFlags.Vertex)
                     {
@@ -602,28 +754,33 @@ namespace Somnium.Framework
                         AddUniforms(result.shader1Params, uniforms2);
                         AddUniforms(result.shader2Params, uniforms1);
 
-                        AddImageSamplers(result.shader1Params, imageSamplers2);
-                        AddImageSamplers(result.shader2Params, imageSamplers1);
+                        AddSamplers(result.shader1Params, samplers2);
+                        AddSamplers(result.shader2Params, samplers1);
+
+                        AddImages(result.shader1Params, images2);
+                        AddImages(result.shader2Params, images1);
                     }
                     else if (flag1 == ShaderTypeFlags.Vertex)
                     {
                         result = new Shader(application, ShaderType.Vertex, shaderBytecode[0]);
                         AddUniforms(result.shader1Params, uniforms1);
-                        AddImageSamplers(result.shader1Params, imageSamplers1);
+                        AddSamplers(result.shader1Params, samplers1);
+                        AddImages(result.shader1Params, images1);
                     }
                     else if (flag1 == ShaderTypeFlags.Fragment)
                     {
                         result = new Shader(application, ShaderType.Fragment, shaderBytecode[0]);
                         AddUniforms(result.shader1Params, uniforms1);
-                        AddImageSamplers(result.shader1Params, imageSamplers1);
+                        AddSamplers(result.shader1Params, samplers1);
+                        AddImages(result.shader1Params, images1);
                     }
                     else throw new NotSupportedException("Unsupported shader type combination: " + flag1.ToString() + " and " + flag2.ToString());
 
-                    if (flag2 == ShaderTypeFlags.None)
+                    /*if (flag2 == ShaderTypeFlags.None)
                     {
                         AddUniforms(result.shader1Params, uniforms1);
                         AddImageSamplers(result.shader1Params, imageSamplers1);
-                    }
+                    }*/
                     result.ConstructParams();
 
                     return result;

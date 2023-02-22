@@ -98,6 +98,7 @@ namespace Somnium.Framework.Vulkan
             if (!initialized)
             {
                 window.onResized += OnResized;
+                window.onMoved += OnMoved;
 
                 initialized = true;
                 appName = AppName;
@@ -262,6 +263,10 @@ namespace Somnium.Framework.Vulkan
         public static void OnResized(Window window, int width, int height)
         {
             onResized = true;
+        }
+        public static void OnMoved(Window window, int x, int y)
+        {
+
         }
         #region instance creation
         /// <summary>

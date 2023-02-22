@@ -175,6 +175,7 @@ namespace Somnium.Framework.GLFW
             Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
             Glfw.SetCursorPosCallback(window.handle, new GlfwCallbacks.CursorPosCallback(window.MousePositionCallback));
             Glfw.SetScrollCallback(window.handle, new GlfwCallbacks.ScrollCallback(window.MouseScrollCallback));
+            
             window.initialized = true;
             return window;
         }
@@ -185,6 +186,9 @@ namespace Somnium.Framework.GLFW
             {
                 Glfw.GetWindowSize(handle, out int width, out int height);
                 //OnResized(this, width, height);
+                internalSize.X = width;
+                internalSize.Y = height;
+
                 OnMaximize(this, width, height);
             }
         }
@@ -207,8 +211,8 @@ namespace Somnium.Framework.GLFW
         }
         public unsafe void OnMovedGLFW(WindowHandle* handle, int X, int Y)
         {
-            internalSize.X = X;
-            internalSize.Y = Y;
+            internalPosition.X = X;
+            internalPosition.Y = Y;
 
             base.OnMoved(this, X, Y);
         }

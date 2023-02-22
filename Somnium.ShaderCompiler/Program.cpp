@@ -60,8 +60,15 @@ int main()
             std::string allLines = Somnium::file_ReadAllLines(inputFilePath);
 
             Somnium::ShaderCompileResult compileResult;
-            compileResult.byteCode = Somnium::CompileSpirvBinary(compiler, inputFilePath.filename().string().c_str(), GLShaderType, allLines);
+
+                compileResult.byteCode = Somnium::CompileSpirvBinary(compiler, inputFilePath.filename().string().c_str(), GLShaderType, allLines);
+
             compileResult.type = somniumShaderType;
+
+            if (compileResult.byteCode.size() == 0)
+            {
+                return -1;
+            }
 
             Somnium::GetSpirvUniforms(compileResult);
 
@@ -97,7 +104,7 @@ int main()
                 outputFile.write((char*)&uniform.arrayLength, sizeof(uint32_t));
             }
 
-            uint32_t samplerImageCount = (uint32_t)allShaderData[i].samplerImages.size();
+            /*uint32_t samplerImageCount = (uint32_t)allShaderData[i].samplerImages.size();
             outputFile.write((char*)&samplerImageCount, sizeof(uint32_t));
             for (const auto& samplerImage : allShaderData[i].samplerImages)
             {
@@ -106,7 +113,31 @@ int main()
                 outputFile.write(samplerImage.name.c_str(), stringSize);
                 outputFile.write((char*)&samplerImage.set, sizeof(uint32_t));
                 outputFile.write((char*)&samplerImage.binding, sizeof(uint32_t));
-                outputFile.write((char*)&samplerImage.arrayLength, sizeof(uint32_t));
+                //outputFile.write((char*)&samplerImage.arrayLength, sizeof(uint32_t));
+            }*/
+
+            uint32_t samplersCount = (uint32_t)allShaderData[i].samplers.size();
+            outputFile.write((char*)&samplersCount, sizeof(uint32_t));
+            for (const auto& sampler : allShaderData[i].samplers)
+            {
+                uint32_t stringSize = (uint32_t)sampler.name.size();
+                outputFile.write((char*)&stringSize, sizeof(uint32_t));
+                outputFile.write(sampler.name.c_str(), stringSize);
+                outputFile.write((char*)&sampler.set, sizeof(uint32_t));
+                outputFile.write((char*)&sampler.binding, sizeof(uint32_t));
+                outputFile.write((char*)&sampler.arrayLength, sizeof(uint32_t));
+            }
+
+            uint32_t imagesCount = (uint32_t)allShaderData[i].images.size();
+            outputFile.write((char*)&imagesCount, sizeof(uint32_t));
+            for (const auto& image : allShaderData[i].images)
+            {
+                uint32_t stringSize = (uint32_t)image.name.size();
+                outputFile.write((char*)&stringSize, sizeof(uint32_t));
+                outputFile.write(image.name.c_str(), stringSize);
+                outputFile.write((char*)&image.set, sizeof(uint32_t));
+                outputFile.write((char*)&image.binding, sizeof(uint32_t));
+                outputFile.write((char*)&image.arrayLength, sizeof(uint32_t));
             }
 
             uint64_t size = (uint64_t)allShaderData[i].byteCode.size();

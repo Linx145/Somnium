@@ -15,7 +15,15 @@ namespace Somnium
         uint32_t set;
         uint32_t arrayLength;
     };
-    struct ShaderImageSamplerData
+    struct ShaderSamplerData
+    {
+    public:
+        std::string name;
+        uint32_t binding;
+        uint32_t set;
+        uint32_t arrayLength;
+    };
+    struct ShaderImageData
     {
     public:
         std::string name;
@@ -40,11 +48,12 @@ namespace Somnium
     public:
         std::vector<uint32_t> byteCode;
         std::vector<ShaderUniformData> uniforms;
-        std::vector<ShaderImageSamplerData> samplerImages;
+        std::vector<ShaderImageData> images;
+        std::vector<ShaderSamplerData> samplers;
         ShaderType type;
     };
 
-	inline constexpr uint32_t shaderFileVersion = 1;
+	inline constexpr uint32_t shaderFileVersion = 2;
 
     std::vector<uint32_t> CompileSpirvBinary(const shaderc::Compiler& compiler, const std::string& source_name,
         shaderc_shader_kind kind,

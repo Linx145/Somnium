@@ -57,10 +57,15 @@ namespace Somnium.Framework
         }
         public void AddTexture2DParameter(string name, uint binding, uint arrayLength = 1)
         {
-            ShaderParameter param = new ShaderParameter(shader, name, binding, UniformType.imageAndSampler, 0, arrayLength);
+            ShaderParameter param = new ShaderParameter(shader, name, binding, UniformType.image, 0, arrayLength);
             AddParameter(param);
             //param.offset = maxWidth;
             //maxWidth += param.size;
+        }
+        public void AddSamplerParameter(string name, uint binding, uint arrayLength = 1)
+        {
+            ShaderParameter param = new ShaderParameter(shader, name, binding, UniformType.sampler, 0, arrayLength);
+            AddParameter(param);
         }
         public ReadOnlySpan<ShaderParameter> GetParameters() => parameters.AsReadonlySpan();
         public bool HasUniform(string paramName) => map.ContainsKey(paramName);
@@ -82,11 +87,29 @@ namespace Somnium.Framework
             }
             else return false;
         }
+        public bool Set(string paramName, ReadOnlySpan<byte> bytes)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                SetBytes(index, bytes);
+                return true;
+            }
+            return false;
+        }
         public bool Set(string paramName, Texture2D texture)
         {
             if (map.TryGetValue(paramName, out var index))
             {
                 Set(index, texture);
+                return true;
+            }
+            return false;
+        }
+        public bool Set(string paramName, SamplerState samplerState)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                Set(index, samplerState);
                 return true;
             }
             return false;
@@ -104,7 +127,7 @@ namespace Somnium.Framework
         public void Set(int paramIndex, RenderBuffer renderTarget)
         {
             var param = parameters[paramIndex];
-            if (param.type == UniformType.imageAndSampler)
+            if (param.type == UniformType.image)
             {
                 param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = renderTarget.backendTexture;
 
@@ -116,23 +139,6 @@ namespace Somnium.Framework
                             //we need this to ensure that the image is ready for reading by the shader instead of
                             //being in PresentSrcKhr which it would have been when it was fresh out of the render call
                             VkEngine.TransitionImageLayout(new Image(renderTarget.backendTexture.imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ShaderReadOnlyOptimal, VkEngine.commandBuffer);
-                            
-                            /*DescriptorImageInfo imageInfo = new DescriptorImageInfo();
-                            imageInfo.ImageLayout = ImageLayout.ShaderReadOnlyOptimal;
-                            imageInfo.ImageView = new ImageView(renderTarget.backendTexture.imageViewHandle);
-                            imageInfo.Sampler = new Sampler(renderTarget.backendTexture.samplerState.handle);
-
-                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                            descriptorWrite.DstSet = shader.descriptorSet;
-                            descriptorWrite.DstBinding = param.binding;
-                            descriptorWrite.DstArrayElement = 0;
-
-                            descriptorWrite.DescriptorType = DescriptorType.CombinedImageSampler;
-                            descriptorWrite.DescriptorCount = 1;
-                            descriptorWrite.PImageInfo = &imageInfo;
-
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
                         }
                         break;
                     default:
@@ -144,41 +150,43 @@ namespace Somnium.Framework
         public void Set(int paramIndex, Texture2D texture)
         {
             var param = parameters[paramIndex];
-            if (param.type == UniformType.imageAndSampler)
+            if (param.type == UniformType.image)
             {
                 param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = texture;
-
-                switch (application.runningBackend)
-                {
-                    case Backends.Vulkan:
-                        unsafe
-                        {
-
-                            /*DescriptorImageInfo imageInfo = new DescriptorImageInfo();
-                            imageInfo.ImageLayout = ImageLayout.ShaderReadOnlyOptimal;
-                            imageInfo.ImageView = new ImageView(texture.imageViewHandle);
-                            imageInfo.Sampler = new Sampler(texture.samplerState.handle);
-
-                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                            descriptorWrite.DstSet = shader.descriptorSet;
-                            descriptorWrite.DstBinding = param.binding;
-                            descriptorWrite.DstArrayElement = 0;
-
-                            descriptorWrite.DescriptorType = DescriptorType.CombinedImageSampler;
-                            descriptorWrite.DescriptorCount = 1;
-                            descriptorWrite.PImageInfo = &imageInfo;
-
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
-                        }
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
             }
-            else throw new InvalidOperationException("Attempting to set texture into a non-texture-based shader uniform!");
+            else throw new InvalidOperationException("Attempting to set texture into a non-texture shader uniform!");
         }
-        //TODO: public void Set(int paramIndex, Texture2D[] texture)
+        public void Set(int paramIndex, Texture2D[] textureArray)
+        {
+            var param = parameters[paramIndex];
+            if (param.type == UniformType.image)
+            {
+                var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures;
+                if (textureArray.Length != destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's texture array length!");
+                Array.Copy(textureArray, destArray, textureArray.Length);
+            }
+            else throw new InvalidOperationException("Attempting to set texture array into a non-texture shader uniform!");
+        }
+        public void Set(int paramIndex, SamplerState samplerState)
+        {
+            var param = parameters[paramIndex];
+            if (param.type == UniformType.sampler)
+            {
+                param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].samplers[0] = samplerState;
+            }
+            else throw new InvalidOperationException("Attempting to set sampler into a non-sampler shader uniform!");
+        }
+        public void Set(int paramIndex, SamplerState[] samplerStates)
+        {
+            var param = parameters[paramIndex];
+            if (param.type == UniformType.sampler)
+            {
+                var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].samplers;
+                if (samplerStates.Length != destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's sampler array length!");
+                Array.Copy(samplerStates, destArray, samplerStates.Length);
+            }
+            else throw new InvalidOperationException("Attempting to set sampler into a non-sampler shader uniform!");
+        }
         public void Set<T>(int paramIndex, T value) where T : unmanaged
         {
             var param = parameters[paramIndex];
@@ -260,6 +268,16 @@ namespace Somnium.Framework
             }
             else throw new NotImplementedException();
         }
+        public void SetBytes(int paramIndex, ReadOnlySpan<byte> value)
+        {
+            var param = parameters[paramIndex];
+            shader.uniformHasBeenSet = true;
+            if (param.type == UniformType.uniformBuffer)
+            {
+                param.GetUniformBuffer().SetDataBytes(value, 0);
+            }
+            else throw new InvalidOperationException();
+        }
         public void AddStagingDatas()
         {
             for (int i = 0; i < parameters.Count; i++)
@@ -275,9 +293,15 @@ namespace Somnium.Framework
                         Debugger.Log("Created new uniform buffer for shader param " + param.name + " for index " + shader.descriptorForThisDrawCall);
                     }
                 }
-                else if (param.type == UniformType.imageBuffer || param.type == UniformType.imageAndSampler)
+                else if (param.type == UniformType.image)
                 {
-                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState((int)Math.Max(1, param.arrayLength)));
+                    Texture2D[] textures = new Texture2D[(int)Math.Max(1, param.arrayLength)];
+                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState(textures));
+                }
+                else if (param.type == UniformType.sampler)
+                {
+                    SamplerState[] samplers = new SamplerState[(int)Math.Max(1, param.arrayLength)];
+                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState(samplers));
                 }
             }
         }
@@ -299,30 +323,42 @@ namespace Somnium.Framework
         public UniformBuffer uniformBuffer;
         //needs to be an array for texture arrays
         public Texture2D[] textures;
+        public SamplerState[] samplers;
 
         public bool mutated;
 
 
         #region Vulkan
         public DescriptorBufferInfo vkBufferInfo;
-        public DescriptorImageInfo vkImageInfo;
+        public DescriptorImageInfo[] vkImageInfos;
         #endregion
 
         public StagingMutableState(UniformBuffer uniformBuffer)
         {
             vkBufferInfo = default;
-            vkImageInfo = default;
+            vkImageInfos = null;
             mutated = false;
             this.uniformBuffer = uniformBuffer;
             textures = null;
+            samplers = null;
         }
-        public StagingMutableState(int textureArrayLength)
+        public StagingMutableState(Texture2D[] textures)
         {
             vkBufferInfo = default;
-            vkImageInfo = default;
+            vkImageInfos = new DescriptorImageInfo[textures.Length];
             mutated = false;
             uniformBuffer = null;
-            textures = new Texture2D[textureArrayLength];
+            this.textures = textures;
+            samplers = null;
+        }
+        public StagingMutableState(SamplerState[] samplers)
+        {
+            vkBufferInfo = default;
+            vkImageInfos = new DescriptorImageInfo[samplers.Length];
+            mutated = false;
+            uniformBuffer = null;
+            textures = null;
+            this.samplers = samplers;
         }
     }
     public class ShaderParameter : IDisposable
@@ -430,14 +466,42 @@ namespace Somnium.Framework
             this.arrayLength = arrayLength;
         }
     }
-    public readonly struct ShaderParamImageSamplerData
+    /*public readonly struct ShaderParamImageSamplerData
+    {
+        public readonly string name;
+        public readonly uint set;
+        public readonly uint binding;
+
+        public ShaderParamImageSamplerData(string name, uint set, uint binding)
+        {
+            this.name = name;
+            this.set = set;
+            this.binding = binding;
+        }
+    }*/
+    public readonly struct ShaderParamImageData
     {
         public readonly string name;
         public readonly uint set;
         public readonly uint binding;
         public readonly uint arrayLength;
 
-        public ShaderParamImageSamplerData(string name, uint set, uint binding, uint arrayLength)
+        public ShaderParamImageData(string name, uint set, uint binding, uint arrayLength)
+        {
+            this.name = name;
+            this.set = set;
+            this.binding = binding;
+            this.arrayLength = arrayLength;
+        }
+    }
+    public readonly struct ShaderParamSamplerData
+    {
+        public readonly string name;
+        public readonly uint set;
+        public readonly uint binding;
+        public readonly uint arrayLength;
+
+        public ShaderParamSamplerData(string name, uint set, uint binding, uint arrayLength)
         {
             this.name = name;
             this.set = set;

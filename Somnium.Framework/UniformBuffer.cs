@@ -114,6 +114,14 @@ namespace Somnium.Framework
                 data.CopyTo(new Span<T>(ptr, data.Length));
             }
         }
+        public void SetDataBytes(ReadOnlySpan<byte> bytes, ulong offset)
+        {
+            unsafe
+            {
+                byte* ptr = (byte*)bindingPoint + offset;
+                bytes.CopyTo(new Span<byte>(ptr, bytes.Length));
+            }
+        }
         public unsafe void ExpandDynamicBuffer(ulong newMaxSize)
         {
             if (!isDynamic) throw new InvalidOperationException("Cannot dynamically resize a non-dynamic uniform buffer!");

@@ -270,7 +270,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
                 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
                 );
 
-            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("inputTexture", texture);
+            shader.SetUniform("samplerState", texture.samplerState);
             shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state);
