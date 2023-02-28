@@ -6,7 +6,7 @@ struct ViewProjection {
     mat4 projection;
 };
 
-layout(binding = 0) uniform wvpBlock {
+layout(binding = 0) uniform Matrices {
     ViewProjection viewProjection;
 } matrices;
 

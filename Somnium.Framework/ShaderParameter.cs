@@ -69,6 +69,14 @@ namespace Somnium.Framework
         }
         public ReadOnlySpan<ShaderParameter> GetParameters() => parameters.AsReadonlySpan();
         public bool HasUniform(string paramName) => map.ContainsKey(paramName);
+        public ShaderParameter GetUniform(string paramName)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                return parameters[index];
+            }
+            else return null;
+        }
         public bool Set<T>(string paramName, T value) where T : unmanaged
         {
             if (map.TryGetValue(paramName, out var index))
@@ -105,7 +113,7 @@ namespace Somnium.Framework
             }
             return false;
         }
-        public bool Set(string paramName, Texture2D[] textures)
+        public bool Set(string paramName, ReadOnlySpan<Texture2D> textures)
         {
             if (map.TryGetValue(paramName, out var index))
             {
@@ -165,14 +173,22 @@ namespace Somnium.Framework
             }
             else throw new InvalidOperationException("Attempting to set texture into a non-texture shader uniform!");
         }
-        public void Set(int paramIndex, Texture2D[] textureArray)
+        public void Set(int paramIndex, ReadOnlySpan<Texture2D> textureArray)
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.image)
             {
                 var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures;
-                if (textureArray.Length != destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's texture array length!");
-                Array.Copy(textureArray, destArray, textureArray.Length);
+                if (textureArray.Length > destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's texture array length!");
+                if (textureArray.Length < destArray.Length)
+                {
+                    for (int i = textureArray.Length; i < destArray.Length; i++)
+                    {
+                        destArray[i] = null;
+                    }
+                }
+                //Array.Copy(textureArray, destArray, textureArray.Length);
+                textureArray.CopyTo(destArray);
             }
             else throw new InvalidOperationException("Attempting to set texture array into a non-texture shader uniform!");
         }

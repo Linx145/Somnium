@@ -7,7 +7,7 @@ namespace Somnium.Framework
 {
     public enum VertexElementFormat
     {
-        Float, Vector2, Vector3, Vector4, Int
+        Float, Vector2, Vector3, Vector4, Int, Color
     }
     public enum VertexElementInputRate
     {
@@ -41,8 +41,13 @@ namespace Somnium.Framework
         /// The input rate, whether the structure should be progressed per vertex or per instance
         /// </summary>
         public VertexElementInputRate inputRate;
+        /// <summary>
+        /// Can be whatever the user slaps into it
+        /// </summary>
+        public object userDefinedMetadata;
 
         public static List<VertexDeclaration> allVertexDeclarations = new List<VertexDeclaration>();
+
         private VertexDeclaration()
         {
             elements = new List<VertexElement>();
@@ -90,6 +95,13 @@ namespace Somnium.Framework
             declaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 12));
             declaration.AddElement(new VertexElement(VertexElementFormat.Vector2, 28));
             VertexPositionColorTexture.internalVertexDeclaration = declaration;
+            allVertexDeclarations.Add(declaration);
+
+            declaration = NewVertexDeclaration<VertexPositionTextureColor>(backend);
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector2, 12));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector4, 20));
+            VertexPositionTextureColor.internalVertexDeclaration = declaration;
             allVertexDeclarations.Add(declaration);
 
             declaration = NewVertexDeclaration<VertexPositionTexture>(backend);

@@ -37,11 +37,11 @@ namespace Somnium.Framework.GLFW
         }
         public override bool IsMousePressed(MouseButtons button)
         {
-            return perFrameKeyStates.WithinLength((uint)button) && perFrameKeyStates[(uint)button] == KeyState.Pressed;
+            return perFrameMouseStates.WithinLength((uint)button) && perFrameMouseStates[(uint)button] == KeyState.Pressed;
         }
         public override bool IsMouseRelease(MouseButtons button)
         {
-            return perFrameKeyStates.WithinLength((uint)button) && perFrameKeyStates[(uint)button] == KeyState.Released;
+            return perFrameMouseStates.WithinLength((uint)button) && perFrameMouseStates[(uint)button] == KeyState.Released;
         }
         public override Vector2 mousePosition
         {

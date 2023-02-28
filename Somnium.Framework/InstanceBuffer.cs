@@ -92,7 +92,8 @@ namespace Somnium.Framework
                         {
                             //make sure the thing is bound
                             T* data = memoryRegions[application.Window.frameNumber].Bind<T>();
-                            instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                            new ReadOnlySpan<T>(instanceData, 0, Length).CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                            //instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                         }
                         //no need to call unbind
                     }

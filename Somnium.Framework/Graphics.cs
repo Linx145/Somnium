@@ -121,9 +121,9 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="pipelineState"></param>
         /// <param name="autoUpdateUniforms">If true, updates the shaders uniform state as well</param>
-        public void SetPipeline(PipelineState pipelineState, bool autoUpdateUniforms = true)
+        public void SetPipeline(PipelineState pipelineState)
         {
-            pipelineState.Begin(autoUpdateUniforms: autoUpdateUniforms);
+            pipelineState.Begin();
             currentPipeline = pipelineState;
         }
         public void EndPipeline()
@@ -138,9 +138,19 @@ namespace Somnium.Framework
         /// <summary>
         /// Syncs the local state of the uniform buffers with the shader
         /// </summary>
-        public void ForceUpdateUniforms()
+        public void SendUpdatedUniforms()
         {
-            currentPipeline.ForceUpdateUniforms(RenderStage.Graphics);
+            bool updateUniforms = false;
+            for (int i = 0; i < currentPipeline.shaders.Length; i++)
+            {
+                if (currentPipeline.shaders[i].uniformHasBeenSet)
+                {
+                    updateUniforms = true;
+                }
+                currentPipeline.shaders[i].uniformHasBeenSet = false;
+            }
+            //at least one uniform has been updated, so we need to update our descriptors
+            if (updateUniforms) currentPipeline.ForceUpdateUniforms(RenderStage.Graphics);
         }
         public void SetInstanceBuffer(InstanceBuffer buffer, uint bindingPoint)
         {
@@ -228,7 +238,7 @@ namespace Somnium.Framework
         }
         private void ResetPipelineShaders()
         {
-            bool updateUniforms = false;
+            /*bool updateUniforms = false;
             for (int i = 0; i < currentPipeline.shaders.Length; i++)
             {
                 if (currentPipeline.shaders[i].uniformHasBeenSet)
@@ -238,7 +248,8 @@ namespace Somnium.Framework
                 currentPipeline.shaders[i].uniformHasBeenSet = false;
             }
             //at least one uniform has been updated, so we need to update our descriptors
-            if (updateUniforms) ForceUpdateUniforms();
+            if (updateUniforms) SendUpdatedUniforms();*/
+            SendUpdatedUniforms();
 
             //need to update using the old descriptorForThisDrawCall state
             for (int i = 0; i < currentPipeline.shaders.Length; i++)

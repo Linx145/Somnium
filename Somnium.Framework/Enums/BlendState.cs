@@ -44,5 +44,12 @@ namespace Somnium.Framework
             DestinationColorBlend = destinationBlend;
             DestinationAlphaBlend = destinationBlend;
         }
+        public BlendState(Blend srcColBlend, Blend srcAlphaBlend, Blend destColorBlend, Blend destAlphaBlend)
+        {
+            SourceColorBlend = srcColBlend;
+            SourceAlphaBlend = srcAlphaBlend;
+            DestinationColorBlend = destColorBlend;
+            DestinationAlphaBlend = destAlphaBlend;
+        }
     }
 }

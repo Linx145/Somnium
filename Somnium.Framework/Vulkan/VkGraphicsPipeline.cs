@@ -27,6 +27,8 @@ namespace Somnium.Framework.Vulkan
         public PipelineLayout pipelineLayout;
         public VkVertex[] vertices;
         public DynamicState[] dynamicStates;
+        public bool depthWrite;
+        public bool depthTest;
 
         FrontFace frontFaceMode = FrontFace.CounterClockwise;
         CullModeFlags cullMode = CullModeFlags.None;
@@ -51,8 +53,12 @@ namespace Somnium.Framework.Vulkan
             PrimitiveType primitiveType,
             VkRenderPass renderPass,
             Shader shader,
+            bool depthTest,
+            bool depthWrite,
             params VertexDeclaration[] vertexTypes)
         {
+            this.depthTest = depthTest;
+            this.depthWrite = depthWrite;
             this.application = application;
             this.vertices = new VkVertex[vertexTypes.Length];//new VkVertex(vertexType);
             for (int i = 0; i < this.vertices.Length; i++)
@@ -258,7 +264,7 @@ namespace Somnium.Framework.Vulkan
             createInfo.SType = StructureType.PipelineDepthStencilStateCreateInfo;
             createInfo.DepthTestEnable = new Bool32(depthTest);
             createInfo.DepthWriteEnable = new Bool32(depthWrite);
-            createInfo.DepthCompareOp = depthTest ? compareOperation : CompareOp.Always;
+            createInfo.DepthCompareOp = depthTest ? compareOperation : CompareOp.Never;
             createInfo.DepthBoundsTestEnable = new Bool32(false);
             createInfo.MinDepthBounds = 0.0f; // Optional
             createInfo.MaxDepthBounds = 1.0f; // Optional
@@ -367,7 +373,7 @@ namespace Somnium.Framework.Vulkan
                 pipelineInfo.PColorBlendState = ptr;
             }
 
-            depthInfo = CreateDepthStencilState(true, true, CompareOp.LessOrEqual);
+            depthInfo = CreateDepthStencilState(depthTest, depthWrite, CompareOp.LessOrEqual);
             fixed (PipelineDepthStencilStateCreateInfo* ptr = &depthInfo)
             {
                 pipelineInfo.PDepthStencilState = ptr;
@@ -385,7 +391,7 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType, bool autoUpdateUniformsOnBind = true)
+        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
         {
             var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
             vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
@@ -393,7 +399,7 @@ namespace Somnium.Framework.Vulkan
             vk.CmdSetViewport(vkCmdBuffer, 0, 1, viewport.ToVulkanViewport());
             vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
 
-            if (autoUpdateUniformsOnBind) PushUniformUpdates(commandBuffer, bindType);
+            //if (autoUpdateUniformsOnBind) PushUniformUpdates(commandBuffer, bindType);
         }
 
         public unsafe void PushUniformUpdates(CommandCollection commandBuffer, RenderStage bindType)

@@ -28,7 +28,7 @@ namespace Test
         private static int drawFrame = 0;
 
 #if INSTANCING || MULTIDRAW
-        private static Vector4[] positions;
+        private static Vector3[] positions;
 #endif
 #if MULTITEXTURES
         private static TexturedInstanceVertexData[] positions;
@@ -51,7 +51,7 @@ namespace Test
         private static InstanceBuffer instanceBuffer;
         private static Texture2D[] textureArray;
 
-        const int instanceCount = 20;
+        const int instanceCount = 100000;
 #endif
 
 #if RENDERBUFFERS
@@ -80,21 +80,30 @@ namespace Test
 
         private static void OnLoad()
         {
-            float width = 26f / 16f;// 16f;
-            float height = 19f / 16f;// 16f;
+            float width = 26f / 16f * 1f;// 16f;
+            float height = 19f / 16f * 1f;// 16f;
             vertices = new VertexPositionColorTexture[]
             {
-                new VertexPositionColorTexture(new Vector3(0f, 0f, 0f), Color.White, new Vector2(0, 0)),
-                new VertexPositionColorTexture(new Vector3(width, 0f, 0f), Color.White, new Vector2(1, 0)),
-                new VertexPositionColorTexture(new Vector3(width, height, 0f), Color.White, new Vector2(1, 1)),
-                new VertexPositionColorTexture(new Vector3(0f, height, 0f), Color.White, new Vector2(0, 1))
+                new VertexPositionColorTexture(new Vector3(0f, 0f, 1f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(width, 0f, 1f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(width, height, 1f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(0f, height, 1f), Color.White, new Vector2(0, 1)),
+#if DEPTHBUFFER
+                new VertexPositionColorTexture(new Vector3(width * 0.5f, 0f, 0f), Color.White, new Vector2(0, 0)),
+                new VertexPositionColorTexture(new Vector3(width * 1.5f, 0f, 0f), Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(new Vector3(width * 1.5f, height, 0f), Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(new Vector3(width * 0.5f, height, 0f), Color.White, new Vector2(0, 1)),
+#endif
             };
             vb = new VertexBuffer(application, VertexPositionColorTexture.VertexDeclaration, vertices.Length, true);
             vb.SetData(vertices, 0, vertices.Length);
 
             indices = new ushort[]
             {
-                0, 1, 2, 2, 3, 0
+                0, 1, 2, 2, 3, 0,
+#if DEPTHBUFFER
+                4, 5, 6, 6, 7, 4
+#endif
             };
             indexBuffer = new IndexBuffer(application, IndexSize.Uint16, indices.Length, false);
             indexBuffer.SetData(indices, 0, indices.Length);
@@ -125,31 +134,31 @@ namespace Test
 #endif
 #endregion
 
-#region test: regular drawing
-#if DRAWING
+#if DRAWING || MULTIDRAW || DEPTHBUFFER
             shader = Shader.FromFile(application, "Content/Shader.shader");
 
-            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, true, true, VertexPositionColorTexture.VertexDeclaration);
 #endif
-#endregion
 
-#region test: multi-drawing descriptor stress test
-#if MULTIDRAW
-            shader = Shader.FromFile(application, "Content/Shader.shader");
-
-            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
-#endif
-#endregion
-
-#if INSTANCING || MULTIDRAW || MULTITEXTURES
+#if INSTANCING || MULTITEXTURES
             rand = new ExtendedRandom();
             positions = new TexturedInstanceVertexData[instanceCount];
             velocities = new Vector3[instanceCount];
 
             for (int i = 0; i < positions.Length; i++)
             {
-                velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
+                velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), rand.NextFloat(-1f, 1f));
                 positions[i] = new TexturedInstanceVertexData(new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f), rand.Next(5));//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
+            }
+#endif
+#if MULTIDRAW
+            rand = new ExtendedRandom();
+            positions = new Vector3[instanceCount];
+            velocities = new Vector3[instanceCount];
+            for (int i = 0; i < positions.Length; i++)
+            {
+                velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), 0f);
+                positions[i] = new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f);//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
 #endif
 
@@ -242,26 +251,31 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
 #endregion
 #region basic drawing
-#if DRAWING
+#if DRAWING || DEPTHBUFFER
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
-            viewProjection = new ViewProjection(
+            var viewProjection = new ViewProjection(
                 Matrix4x4.Identity,
                 Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight, -1000f, 1000f)
                 );
 
-            shader.SetUniform("texSampler", texture);
+            shader.SetUniform("samplerState", texture.samplerState);
+            shader.SetUniform("inputTexture", texture);
             shader.SetUniform("wvpBlock", viewProjection);
 
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.CornflowerBlue);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
+#if DEPTHBUFFER
+            Graphics.DrawIndexedPrimitives(12, 2);
+#else
             Graphics.DrawIndexedPrimitives(6, 1);
+#endif
             Graphics.EndPipeline();
 #endif
 #endregion
-#region multi draw stress test
+            #region multi draw stress test
 #if MULTIDRAW
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -273,21 +287,24 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
 
-            Graphics.SetPipeline(state);
-            Graphics.Clear(Color.CornflowerBlue);
+
+            Graphics.ClearBuffer(Color.CornflowerBlue);
             for (int i = 0; i < instanceCount; i++)
             {
                 viewProjection.View = Matrix4x4.CreateTranslation(new Vector3(positions[i].X, positions[i].Y, positions[i].Z));
 
-                shader.SetUniform("texSampler", (i % 2 == 0) ? texture : texture2);
-                shader.SetUniform("wvpBlock", viewProjection);
+                shader.SetUniform("inputTexture", (i % 2 == 0) ? texture : texture2);
+                shader.SetUniform("samplerState", SamplerState.PointClamp);
+                shader.SetUniform("Matrices", viewProjection);
 
+                Graphics.SetPipeline(state);
                 Graphics.DrawIndexedPrimitives(6, 1);
+                Graphics.EndPipeline();
             }
-            Graphics.EndPipeline();
+
 #endif
-#endregion
-#region instanced drawing
+            #endregion
+            #region instanced drawing
 #if INSTANCING
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -309,8 +326,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, instanceCount);
             Graphics.EndPipeline();
 #endif
-#endregion
-#region textured instancing
+            #endregion
+            #region textured instancing
 #if MULTITEXTURES
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -333,7 +350,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, instanceCount);
             Graphics.EndPipeline();
 #endif
-#endregion
+            #endregion
         }
         private static ISoundEffectInstance sfxInstance;
         private static void Update(float deltaTime)
@@ -378,7 +395,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
 
 #if INSTANCING || MULTIDRAW
-            Parallel.For(0, instanceCount, (int i) => { positions[i] += new Vector4(velocities[i], 0f) * deltaTime; });
+            Parallel.For(0, instanceCount, (int i) => { positions[i] += velocities[i] * deltaTime; });
 #elif MULTITEXTURES
             Parallel.For(0, instanceCount, (int i) => { positions[i].position += velocities[i] * deltaTime; });
 #endif

@@ -305,6 +305,23 @@ namespace Somnium.Framework
             }
             else return shader2Params.HasUniform(uniformName);
         }
+        public ShaderParameter GetUniform(string uniformName, SetNumber shaderNumber = SetNumber.Either)
+        {
+            if (shaderNumber == SetNumber.Either)
+            {
+                var result = shader1Params.GetUniform(uniformName);
+                if (result != null)
+                {
+                    return result;
+                }
+                else return shader2Params.GetUniform(uniformName);
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                return shader1Params.GetUniform(uniformName);
+            }
+            else return shader2Params.GetUniform(uniformName);
+        }
         public void SetUniform<T>(string uniformName, T uniform, SetNumber shaderNumber = SetNumber.Either) where T : unmanaged
         {
             CheckUniformSet();
@@ -385,7 +402,7 @@ namespace Somnium.Framework
             }
             else shader2Params.Set(uniformName, uniform);
         }
-        public void SetUniforms(string uniformName, Texture2D[] uniforms, SetNumber shaderNumber = SetNumber.Either)
+        public void SetUniforms(string uniformName, ReadOnlySpan<Texture2D> uniforms, SetNumber shaderNumber = SetNumber.Either)
         {
             CheckUniformSet();
 
@@ -524,16 +541,19 @@ namespace Somnium.Framework
                                 {
                                     for (int i = 0; i < length; i++)
                                     {
-                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                        descriptorWrite.DstSet = descriptorSet;
-                                        descriptorWrite.DstBinding = param.binding;
-                                        descriptorWrite.DstArrayElement = (uint)i;
-                                        descriptorWrite.DescriptorType = DescriptorType.SampledImage;
-                                        descriptorWrite.DescriptorCount = 1;
-                                        descriptorWrite.PImageInfo = ptr + i;
+                                        if (mutableState.textures[i] != null)
+                                        {
+                                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                            descriptorWrite.DstSet = descriptorSet;
+                                            descriptorWrite.DstBinding = param.binding;
+                                            descriptorWrite.DstArrayElement = (uint)i;
+                                            descriptorWrite.DescriptorType = DescriptorType.SampledImage;
+                                            descriptorWrite.DescriptorCount = 1;
+                                            descriptorWrite.PImageInfo = ptr + i;
 
-                                        descriptorSetWrites.Add(descriptorWrite);
+                                            descriptorSetWrites.Add(descriptorWrite);
+                                        }
                                         //descriptorWrites[i] = descriptorWrite;
                                     }
                                 }

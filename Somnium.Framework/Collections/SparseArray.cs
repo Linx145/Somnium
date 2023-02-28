@@ -67,10 +67,6 @@ namespace Somnium.Framework
         }
         public ref T GetRef(uint index)
         {
-            if (index >= values.Length)
-            {
-                throw new KeyNotFoundException("Key '" + index + "' not found in the Sparse Array!");
-            }
             return ref values[index];
         }
         public T this[uint index]
@@ -96,10 +92,6 @@ namespace Somnium.Framework
         /// <exception cref="IndexOutOfRangeException">Thrown if index is more than the length of values</exception>
         public T Pop(uint index)
         {
-            if (index > values.Length)
-            {
-                throw new IndexOutOfRangeException("index " + index.ToString() + " is greater than values.Length");
-            }
             T result = values[index];
             values[index] = defaultValue;
             return result;

@@ -18,6 +18,8 @@ namespace Somnium.Framework
         public readonly PrimitiveType primitiveType;
         public readonly BlendState blendState;
         public readonly Shader[] shaders;
+        public readonly bool depthWrite;
+        public readonly bool depthTest;
 
         public GenerationalIndex handle;
 
@@ -27,12 +29,16 @@ namespace Somnium.Framework
             PrimitiveType primitiveType,
             BlendState blendState,
             Shader shader,
+            bool depthTest,
+            bool depthWrite,
             params VertexDeclaration[] vertices)
         {
             this.application = application;
             this.cullMode = cullMode;
             this.primitiveType = primitiveType;
             this.blendState = blendState;
+            this.depthTest = depthTest;
+            this.depthWrite = depthWrite;
             shaders = new Shader[] { shader };
             this.vertices = vertices;
 
@@ -45,10 +51,10 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     if (shaders.Length != 1) throw new NotImplementedException();
 
-                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], vertices);
+                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], depthTest, depthWrite, vertices);
                     handle = VkEngine.AddPipeline(pipeline);
 
-                    pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], vertices);
+                    pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], depthTest, depthWrite, vertices);
                     VkEngine.AddRenderbufferPipeline(pipeline);
                     break;
                 default:
@@ -62,7 +68,7 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics, bool autoUpdateUniforms = true)
+        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics)
         {
             switch (application.runningBackend)
             {
@@ -80,7 +86,7 @@ namespace Somnium.Framework
                         VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, application.Graphics.currentRenderbuffer);
                         //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
                     }
-                    pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo, autoUpdateUniforms);
+                    pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
                 default:
