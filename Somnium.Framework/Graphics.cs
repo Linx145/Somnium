@@ -33,19 +33,26 @@ namespace Somnium.Framework
                     {
                         if (targetBuffer == null)
                         {
-                            VkEngine.SetRenderPass(VkEngine.renderPass, null);
-                            VkEngine.currentRenderPass = VkEngine.renderPass;
+                            var renderpass = VkRenderPass.GetOrCreate(VkEngine.swapChain.imageFormat, ImageLayout.PresentSrcKhr, VkEngine.swapChain.depthFormat);
+                            VkEngine.SetRenderPass(renderpass, null);
+                            VkEngine.activeRenderPass = renderpass;
                         }
                         else
                         {
-                            VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, targetBuffer);
-                            VkEngine.currentRenderPass = VkEngine.framebufferRenderPass;
+                            var renderpass = VkRenderPass.GetOrCreate(
+                                Converters.ImageFormatToVkFormat[(int)targetBuffer.backendTexture.imageFormat],
+                                ImageLayout.ShaderReadOnlyOptimal,
+                                targetBuffer.depthBuffer == null ? DepthFormat.None : targetBuffer.depthBuffer.depthFormat);
+                            VkEngine.SetRenderPass(renderpass, targetBuffer);
+                            VkEngine.activeRenderPass = renderpass;
+                            //VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, targetBuffer);
+                            //VkEngine.currentRenderPass = VkEngine.framebufferRenderPass;
                         }
 
                         Clear(clearColor);
 
-                        VkEngine.currentRenderPass.End(VkEngine.commandBuffer);
-                        VkEngine.currentRenderPass = null;
+                        VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
+                        VkEngine.activeRenderPass = null;
                     }
                     break;
                 default:
@@ -64,16 +71,20 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        if (VkEngine.currentRenderPass == null)
+                        if (VkEngine.activeRenderPass == null)
                         {
                             throw new InvalidOperationException("Cannot perform clear buffer operation in Vulkan when no VkRenderPass is active!");
                         }
                         //vkCmdClearAttachments is not affected by the bound pipeline state.
                         //it however must be issued within a valid render pass
-                        int clearCount = 2;
-                        ClearAttachment* clearAttachments = stackalloc ClearAttachment[clearCount];
+                        int clearCount = 1;
+                        ClearAttachment* clearAttachments = stackalloc ClearAttachment[2];
                         clearAttachments[0] = new ClearAttachment(ImageAspectFlags.ColorBit, 0, new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, clearColor.A / 255f)));
-                        clearAttachments[1] = new ClearAttachment(ImageAspectFlags.DepthBit, 0, new ClearValue(null, new ClearDepthStencilValue(1f, 0)));
+                        if (VkEngine.activeRenderPass.hasDepthStencil)
+                        {
+                            clearCount++;
+                            clearAttachments[1] = new ClearAttachment(ImageAspectFlags.DepthBit, 0, new ClearValue(null, new ClearDepthStencilValue(1f, 0)));
+                        }
 
                         ClearRect* clearAreas = stackalloc ClearRect[clearCount];
                         Extent2D extents;
@@ -105,7 +116,7 @@ namespace Somnium.Framework
                 case Backends.Vulkan:
                     unsafe
                     {
-                        if (VkEngine.currentRenderPass != null)
+                        if (VkEngine.activeRenderPass != null)
                         {
                             throw new InvalidOperationException("Cannot set target renderbuffer when renderpass is active!");
                         }

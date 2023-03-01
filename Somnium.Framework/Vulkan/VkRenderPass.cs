@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 using System;
+using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -8,6 +9,7 @@ namespace Somnium.Framework.Vulkan
     /// </summary>
     public unsafe class VkRenderPass : IDisposable
     {
+        public static Dictionary<uint, VkRenderPass> renderPassCache = new Dictionary<uint, VkRenderPass>();
         private static Vk vk
         {
             get
@@ -17,16 +19,29 @@ namespace Somnium.Framework.Vulkan
         }
 
         public bool hasDepthStencil;
+        public uint hash;
         RenderPass handle;
-        private VkRenderPass()
+        private VkRenderPass(uint hash)
         {
-
+            this.hash = hash;
         }
         public static implicit operator RenderPass(VkRenderPass pass)
         {
             return pass.handle;
         }
         public bool begun { get; private set; }
+
+        public static VkRenderPass GetOrCreate(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat)
+        {
+            uint hash = GetKey(imageFormat, depthFormat, finalLayout);
+            if (renderPassCache.TryGetValue(hash, out var pass))
+            {
+                return pass;
+            }
+            pass = Create(imageFormat, finalLayout, depthFormat);
+            renderPassCache.Add(hash, pass);
+            return pass;
+        }
         /// <summary>
         /// Creates a new renderpass for rendering into a framebuffer
         /// </summary>
@@ -34,7 +49,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="imageLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
-        public static VkRenderPass Create(Format imageFormat, ImageLayout imageLayout, AttachmentLoadOp loadOperation = AttachmentLoadOp.Clear, AttachmentStoreOp storeOperation = AttachmentStoreOp.Store, DepthFormat depthFormat = DepthFormat.Depth32, ImageLayout finalLayout = ImageLayout.PresentSrcKhr)
+        public static VkRenderPass Create(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat = DepthFormat.Depth32)
         {
             uint attachmentCount = 1;
             if (depthFormat != DepthFormat.None)
@@ -51,13 +66,13 @@ namespace Somnium.Framework.Vulkan
             #region color attachment description and reference
             AttachmentReference colorAttachmentReference = new AttachmentReference();
             colorAttachmentReference.Attachment = 0;
-            colorAttachmentReference.Layout = imageLayout;
+            colorAttachmentReference.Layout = ImageLayout.ColorAttachmentOptimal;
 
             AttachmentDescription colorAttachment = new AttachmentDescription();
             colorAttachment.Format = imageFormat;
             colorAttachment.Samples = SampleCountFlags.Count1Bit;
-            colorAttachment.LoadOp = loadOperation;
-            colorAttachment.StoreOp = storeOperation;
+            colorAttachment.LoadOp = AttachmentLoadOp.Load;
+            colorAttachment.StoreOp = AttachmentStoreOp.Store;
 
             //expects an image to be in layout ColorAttachmentOptimal on entering the render pass.
             //However, our images are in ShaderReadOnlyOptimal so they can be read by the shader.
@@ -104,7 +119,7 @@ namespace Somnium.Framework.Vulkan
                 depthAttachment.Format = Converters.DepthFormatToVkFormat[(int)depthFormat];
                 depthAttachment.Flags = AttachmentDescriptionFlags.None;
                 depthAttachment.Samples = SampleCountFlags.Count1Bit;
-                depthAttachment.LoadOp = loadOperation;//AttachmentLoadOp.Clear;
+                depthAttachment.LoadOp = AttachmentLoadOp.Load;
                 depthAttachment.StoreOp = AttachmentStoreOp.Store;
                 depthAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
                 if (Converters.DepthFormatHasStencil(depthFormat))
@@ -157,11 +172,31 @@ namespace Somnium.Framework.Vulkan
                 throw new InitializationException("Failed to create Vulkan Render Pass!");
             }
 
-            VkRenderPass result = new VkRenderPass();
+            VkRenderPass result = new VkRenderPass(GetKey(imageFormat, depthFormat, finalLayout));
             result.handle = renderPass;
             result.hasDepthStencil = depthFormat != DepthFormat.None;
 
             return result;
+        }
+
+        public static uint GetKey(Format imageFormat, DepthFormat depthFormat, ImageLayout finalImageLayout)
+        {
+            unchecked
+            {
+                uint hash = 17;
+                hash = hash * 23 + (uint)imageFormat;
+                hash = hash * 23 + (uint)depthFormat;
+                hash = hash * 23 + (uint)finalImageLayout;
+                return hash;
+            }
+        }
+        public static void DisposeAll()
+        {
+            foreach (var value in renderPassCache.Values)
+            {
+                value.Dispose();
+            }
+            renderPassCache.Clear();
         }
         /// <summary>
         /// Begins the renderpass with data specified in arguments
@@ -215,6 +250,13 @@ namespace Somnium.Framework.Vulkan
             if (handle.Handle != 0)
             {
                 VkEngine.vk.DestroyRenderPass(VkEngine.vkDevice, handle, null);
+            }
+        }
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return (int)hash;
             }
         }
     }

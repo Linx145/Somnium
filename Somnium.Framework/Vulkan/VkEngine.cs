@@ -114,10 +114,10 @@ namespace Somnium.Framework.Vulkan
                 CreateLogicalDevice();
                 CreateCommandPool(window.application);
                 CreateSwapChain(); //also creates image views
-                CreateRenderPasses();
+                //CreateRenderPasses();
                 //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
                 //CreatePipelines(window);
-                swapChain.RecreateFramebuffers(renderPass);
+                swapChain.RecreateFramebuffers();//renderPass);
                 CreateFrames(window.application);
                 //CreateCommandBuffer(window.application);
                 //CreateSynchronizers();
@@ -129,12 +129,11 @@ namespace Somnium.Framework.Vulkan
             vk.ResetFences(vkDevice, 1, in fence);
             recreatedSwapChainThisFrame = false;
 
-            SwapChain potentialNewSwapchain = swapChain.SwapBuffers(presentSemaphore, default);
-            if (potentialNewSwapchain != null)
+            bool swapchainRecreated = swapChain.SwapBuffers(presentSemaphore, default);
+            if (swapchainRecreated)
             {
                 onResized = false;
                 recreatedSwapChainThisFrame = true;
-                swapChain = potentialNewSwapchain;
                 return;
             }
 
@@ -152,13 +151,13 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new ExecutionException("Draw ended while a pipeline is still active!");
             }
-            if (currentRenderPass != null)
+            if (activeRenderPass != null)
             {
-                if (currentRenderPass.begun)
+                if (activeRenderPass.begun)
                 {
-                    currentRenderPass.End(commandBuffer);
+                    activeRenderPass.End(commandBuffer);
                 }
-                currentRenderPass = null;
+                activeRenderPass = null;
             }
             application.Graphics.currentRenderbuffer = null;
             //reset the parameters of all shaders in pipelines
@@ -241,7 +240,7 @@ namespace Somnium.Framework.Vulkan
                 if (!recreatedSwapChainThisFrame)
                 {
                     swapChain.Dispose();
-                    swapChain = SwapChain.Create(window);
+                    SwapChain.Create(window);
                 }
                 if (onResized)
                 {
@@ -530,40 +529,66 @@ namespace Somnium.Framework.Vulkan
             {
                 vk.TryGetDeviceExtension(vkInstance, internalVkDevice, out KhrSwapchainAPI);
             }
-            swapChain = SwapChain.Create(window);
+            SwapChain.Create(window);
         }
         #endregion
 
-        #region render pass
-        public static VkRenderPass currentRenderPass = null;
-
-        public static VkRenderPass renderPass;
+        /*public static VkRenderPass renderPass;
         public static VkRenderPass framebufferRenderPass;
 
         public static void CreateRenderPasses()
         {
-            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store);
+            renderPass = VkRenderPass.Create(swapChain.imageFormat, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.PresentSrcKhr);
             framebufferRenderPass = VkRenderPass.Create(Format.R8G8B8A8Unorm, ImageLayout.ColorAttachmentOptimal, AttachmentLoadOp.Load, AttachmentStoreOp.Store, DepthFormat.Depth32, ImageLayout.ShaderReadOnlyOptimal);
         }
         public static void SetRenderPass(VkRenderPass renderPass, RenderBuffer renderBuffer)
         {
             currentRenderPass = renderPass;
             renderPass.Begin(commandBuffer, swapChain, renderBuffer);
+        }*/
+
+        #region render passes
+        public static VkRenderPass activeRenderPass = null;
+        public static VkRenderPass GetRenderPass(RenderBuffer renderBuffer = null)
+        {
+            Format imageFormat;
+            DepthFormat depthFormat;
+            ImageLayout finalLayout;
+
+            if (renderBuffer != null)
+            {
+                imageFormat = Converters.ImageFormatToVkFormat[(int)renderBuffer.backendTexture.imageFormat];//application.Graphics.currentRenderbuffer.backendTexture.imageFormat;
+                depthFormat = renderBuffer.depthBuffer == null ? DepthFormat.None : renderBuffer.depthBuffer.depthFormat;
+                finalLayout = ImageLayout.ShaderReadOnlyOptimal;
+            }
+            else
+            {
+                imageFormat = swapChain.imageFormat;
+                depthFormat = swapChain.depthFormat;
+                finalLayout = ImageLayout.PresentSrcKhr;
+            }
+
+            var renderPass = VkRenderPass.GetOrCreate(imageFormat, finalLayout, depthFormat);
+            return renderPass;
+        }
+        public static VkRenderPass GetCurrentRenderPass(Application application) => GetRenderPass(application.Graphics.currentRenderbuffer);
+        
+        public static void SetRenderPass(VkRenderPass renderPass, RenderBuffer renderBuffer)
+        {
+            activeRenderPass = renderPass;
+            renderPass.Begin(commandBuffer, swapChain, renderBuffer);
         }
         #endregion
 
         #region pipelines
         public static GenerationalIndex AddPipeline(VkGraphicsPipeline pipeline) => pipelines.Add(pipeline);
-        public static GenerationalIndex AddRenderbufferPipeline(VkGraphicsPipeline pipeline) => renderbufferPipelines.Add(pipeline);
         public static void DestroyPipeline(GenerationalIndex index)
         {
             pipelines[index].Dispose();
             pipelines.Remove(index);
-            renderbufferPipelines[index].Dispose();
-            renderbufferPipelines.Remove(index);
         }
         public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
-        public static VkGraphicsPipeline GetRenderbufferPipeline(GenerationalIndex index) => renderbufferPipelines.Get(index);
+        //public static VkGraphicsPipeline GetRenderbufferPipeline(GenerationalIndex index) => renderbufferPipelines.Get(index);
         #endregion
 
         #region command pools(memory)
@@ -969,8 +994,7 @@ namespace Somnium.Framework.Vulkan
                 }
                 //vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), uint.MaxValue);
                 VkMemory.Dispose();
-                renderPass.Dispose();
-                framebufferRenderPass.Dispose();
+                VkRenderPass.DisposeAll();
                 for (int i = 0; i < frames.Length; i++)
                 {
                     frames[i].Dispose();

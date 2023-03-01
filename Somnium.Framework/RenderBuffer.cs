@@ -67,11 +67,6 @@ namespace Somnium.Framework
                         createInfo.SType = StructureType.FramebufferCreateInfo;
                         createInfo.Width = width;
                         createInfo.Height = height;
-                        if (isBackbuffer)
-                        {
-                            createInfo.RenderPass = VkEngine.renderPass;
-                        }
-                        else createInfo.RenderPass = VkEngine.framebufferRenderPass;
                         createInfo.Layers = 1;
 
                         uint attachmentCount = 1;
@@ -94,6 +89,12 @@ namespace Somnium.Framework
                         createInfo.AttachmentCount = attachmentCount;
 
                         createInfo.PAttachments = imageView;
+
+                        if (isBackbuffer)
+                        {
+                            createInfo.RenderPass = VkEngine.GetRenderPass(null);
+                        }
+                        else createInfo.RenderPass = VkEngine.GetRenderPass(this);
 
                         Framebuffer frameBuffer;
                         if (VkEngine.vk.CreateFramebuffer(VkEngine.vkDevice, in createInfo, null, &frameBuffer) != Result.Success)

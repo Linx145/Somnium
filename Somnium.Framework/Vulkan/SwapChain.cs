@@ -46,6 +46,7 @@ namespace Somnium.Framework.Vulkan
 
         public uint minImageCount;
         public Format imageFormat;
+        public DepthFormat depthFormat;
         public ColorSpaceKHR imageColorSpace;
         public Extent2D imageExtents;
         public uint imageArrayLayers;
@@ -94,6 +95,7 @@ namespace Somnium.Framework.Vulkan
             this.supportDetails = supportDetails;
             this.minImageCount = minImageCount;
             this.imageFormat = imageFormat;
+            this.depthFormat = DepthFormat.Depth32;
             this.imageColorSpace = imageColorSpace;
             this.imageExtents = imageExtents;
             this.presentMode = presentMode;
@@ -109,7 +111,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="fence"></param>
         /// <returns>The updated swapchain where applicable</returns>
         /// <exception cref="ExecutionException"></exception>
-        public SwapChain SwapBuffers(Silk.NET.Vulkan.Semaphore semaphore, Fence fence)
+        public bool SwapBuffers(Silk.NET.Vulkan.Semaphore semaphore, Fence fence)
         {
             Result result = swapchainAPI.AcquireNextImage(device, handle, 1000000000, semaphore, fence, ref currentImageIndex);
 
@@ -118,12 +120,13 @@ namespace Somnium.Framework.Vulkan
                 if (result == Result.ErrorOutOfDateKhr)
                 {
                     Dispose();
-                    return Create(window);
+                    Create(window);
+                    return true;
                     //Recreate(SwapChain.QuerySwapChainSupport(VkEngine.CurrentGPU.Device));
                 }
                 else throw new ExecutionException("Failed to acquire new Vulkan Swapchain Image!");
             }
-            return null;
+            return false;
         }
 
         /// <summary>
@@ -169,7 +172,7 @@ namespace Somnium.Framework.Vulkan
             return createInfo;
         }
 
-        public static SwapChain Create(Window window)
+        public static void Create(Window window)
         {
             SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(VkEngine.CurrentGPU.Device);
 
@@ -189,9 +192,11 @@ namespace Somnium.Framework.Vulkan
                 VkEngine.PreferredPresentMode,
                 VkEngine.WindowSurface);
 
+            VkEngine.swapChain = swapChain;
+
             swapChain.Recreate();
 
-            return swapChain;
+            //return swapChain;
         }
         public void Recreate()
         {
@@ -204,6 +209,7 @@ namespace Somnium.Framework.Vulkan
                 height = point.Y;
             }
 
+            imageExtents = default;
             while (imageExtents.Width == 0 || imageExtents.Height == 0)
             {
                 imageExtents = window.GetSwapChainExtents(QuerySwapChainSupport(VkEngine.CurrentGPU.Device).Capabilities);//swapChainSupport.Capabilities);
@@ -222,12 +228,12 @@ namespace Somnium.Framework.Vulkan
             {
                 swapchainAPI.GetSwapchainImages(device, handle, ref imageCount, ptr);
             }
-            if (VkEngine.renderPass != null)
+            //if (VkEngine.renderPass != null)
             {
-                RecreateFramebuffers(VkEngine.renderPass);
+                RecreateFramebuffers();//VkEngine.renderPass);
             }
         }
-        public unsafe void RecreateFramebuffers(RenderPass renderPass)
+        public unsafe void RecreateFramebuffers()// RenderPass renderPass)
         {
             if (renderTargets != null)
             {
@@ -240,7 +246,7 @@ namespace Somnium.Framework.Vulkan
             for (int i = 0; i < renderTargets.Length; i++)
             {
                 Texture2D backendTexture = new Texture2D(application, images[i].Handle, imageExtents.Width, imageExtents.Height, Converters.VkFormatToImageFormat(imageFormat));
-                DepthBuffer depthBuffer = new DepthBuffer(application, imageExtents.Width, imageExtents.Height, DepthFormat.Depth32);
+                DepthBuffer depthBuffer = new DepthBuffer(application, imageExtents.Width, imageExtents.Height, depthFormat);
                 renderTargets[i] = new RenderBuffer(application, backendTexture, depthBuffer, true);
             }
         }

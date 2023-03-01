@@ -80,8 +80,8 @@ namespace Test
 
         private static void OnLoad()
         {
-            float width = 26f / 16f * 1f;// 16f;
-            float height = 19f / 16f * 1f;// 16f;
+            float width = 26f / 16f * 0.2f;// 16f;
+            float height = 19f / 16f * 0.2f;// 16f;
             vertices = new VertexPositionColorTexture[]
             {
                 new VertexPositionColorTexture(new Vector3(0f, 0f, 1f), Color.White, new Vector2(0, 0)),
@@ -114,7 +114,7 @@ namespace Test
 
             renderBuffer = new RenderBuffer(application, 26, 38, ImageFormat.R8G8B8A8Unorm, DepthFormat.Depth32);
 
-            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, true, false, VertexPositionColorTexture.VertexDeclaration);
 
             width = 5f; //= 13
             height = 5f * (19f / 13f); //=19
@@ -147,7 +147,7 @@ namespace Test
 
             for (int i = 0; i < positions.Length; i++)
             {
-                velocities[i] = new Vector3(rand.NextFloat(-2f, 2f), rand.NextFloat(-2f, 2f), rand.NextFloat(-1f, 1f));
+                velocities[i] = new Vector3(rand.NextFloat(-0.5f, 0.5f), rand.NextFloat(-0.5f, 0.5f), rand.NextFloat(-1f, 1f));
                 positions[i] = new TexturedInstanceVertexData(new Vector3(rand.NextFloat(-20f, 20f), rand.NextFloat(-11.25f, 11.25f), (i) * 0.005f), rand.Next(5));//new Vector3(i * (40f / 64f), j * (22.5f / 64f), 0f);
             }
 #endif
@@ -191,7 +191,7 @@ namespace Test
             instanceBuffer = InstanceBuffer.New<TexturedInstanceVertexData>(application, instanceCount);
             textureArray = new Texture2D[] { texture, texture2, texture3, texture4, texture5 };//, texture2, texture, texture2, texture, texture2 };
 
-            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, VertexPositionColorTexture.VertexDeclaration, TexturedInstanceVertexData.VertexDeclaration);
+            state = new PipelineState(application, CullMode.CullCounterClockwise, PrimitiveType.TriangleList, BlendState.NonPremultiplied, shader, true, false, VertexPositionColorTexture.VertexDeclaration, TexturedInstanceVertexData.VertexDeclaration);
 #endif
 
             #endregion
@@ -221,7 +221,7 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
 
             shader.SetUniform("inputTexture", texture);
             shader.SetUniform("samplerState", texture.samplerState);
-            shader.SetUniform("wvpBlock", viewProjection);
+            shader.SetUniform("Matrices", viewProjection);
             Graphics.SetVertexBuffer(vb, 0);
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.DrawIndexedPrimitives(6, 1);
@@ -239,7 +239,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 
             shader.SetUniform("inputTexture", renderBuffer);
             shader.SetUniform("samplerState", SamplerState.PointClamp);
-            shader.SetUniform("wvpBlock", viewProjection);
+            shader.SetUniform("Matrices", viewProjection);
 
             Graphics.SetPipeline(state);
             Graphics.Clear(Color.Black);

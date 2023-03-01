@@ -1,6 +1,8 @@
 ﻿using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 using System;
+using System.Collections.Generic;
+using System.Reflection.Metadata;
 using System.Threading;
 
 namespace Somnium.Framework
@@ -21,7 +23,8 @@ namespace Somnium.Framework
         public readonly bool depthWrite;
         public readonly bool depthTest;
 
-        public GenerationalIndex handle;
+        //public GenerationalIndex handle;
+        public Dictionary<uint, GenerationalIndex> handles;
 
         public PipelineState(
             Application application,
@@ -42,9 +45,10 @@ namespace Somnium.Framework
             shaders = new Shader[] { shader };
             this.vertices = vertices;
 
-            Construct();
+            handles = new Dictionary<uint, GenerationalIndex>();
+            //Construct();
         }
-        private void Construct()
+        /*private void Construct()
         {
             switch (application.runningBackend)
             {
@@ -54,13 +58,13 @@ namespace Somnium.Framework
                     VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], depthTest, depthWrite, vertices);
                     handle = VkEngine.AddPipeline(pipeline);
 
-                    pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], depthTest, depthWrite, vertices);
-                    VkEngine.AddRenderbufferPipeline(pipeline);
+                    //pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], depthTest, depthWrite, vertices);
+                    //VkEngine.AddRenderbufferPipeline(pipeline);
                     break;
                 default:
                     throw new NotImplementedException();
             }
-        }
+        }*/
         /// <summary>
         /// Public call available in Graphics.SetPipeline
         /// </summary>
@@ -73,8 +77,18 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
+
+                    var renderPass = VkEngine.GetCurrentRenderPass(application);
+                    VkEngine.SetRenderPass(renderPass, application.Graphics.currentRenderbuffer);
                     VkGraphicsPipeline pipeline;
-                    if (application.Graphics.currentRenderbuffer == null)
+                    if (!handles.TryGetValue(renderPass.hash, out var handle))
+                    {
+                        pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, renderPass, shaders[0], depthTest, depthWrite, vertices);
+                        handle = VkEngine.AddPipeline(pipeline);
+                        handles.Add(renderPass.hash, handle);
+                    }
+                    else pipeline = VkEngine.GetPipeline(handle);
+                    /*if (application.Graphics.currentRenderbuffer == null)
                     {
                         pipeline = VkEngine.GetPipeline(handle);
                         VkEngine.SetRenderPass(VkEngine.renderPass, application.Graphics.currentRenderbuffer);
@@ -85,8 +99,8 @@ namespace Somnium.Framework
                         pipeline = VkEngine.GetRenderbufferPipeline(handle);
                         VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, application.Graphics.currentRenderbuffer);
                         //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
-                    }
-                    pipeline.Bind(VkEngine.commandBuffer, renderStageToBindTo);
+                    }*/
+                    pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
                 default:
@@ -100,9 +114,15 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    //dont care about renderbuffer here because we are ultimately only accessing the
-                    //shader of the pipeline, which is shared between both renderbuffered pipeline and regular pipeline
-                    VkGraphicsPipeline pipeline = VkEngine.GetPipeline(handle);
+                    var renderPass = VkEngine.GetCurrentRenderPass(application);
+                    VkGraphicsPipeline pipeline;
+                    if (!handles.TryGetValue(renderPass.hash, out var handle))
+                    {
+                        pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, renderPass, shaders[0], depthTest, depthWrite, vertices);
+                        handle = VkEngine.AddPipeline(pipeline);
+                        handles.Add(renderPass.hash, handle);
+                    }
+                    else pipeline = VkEngine.GetPipeline(handle);
                     pipeline.PushUniformUpdates(VkEngine.commandBuffer, bindType);
                     break;
                 default:
@@ -114,8 +134,8 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.currentRenderPass.End(VkEngine.commandBuffer);
-                    VkEngine.currentRenderPass = null;
+                    VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
+                    VkEngine.activeRenderPass = null;
                     
                     VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
@@ -131,7 +151,11 @@ namespace Somnium.Framework
             switch (application.runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.DestroyPipeline(handle);
+                    foreach (var handle in handles.Values)
+                    {
+                        VkEngine.DestroyPipeline(handle);
+                    }
+                    //VkEngine.DestroyPipeline(handle);
                     break;
                 default:
                     throw new NotImplementedException();

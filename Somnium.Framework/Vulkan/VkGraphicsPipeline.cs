@@ -373,11 +373,14 @@ namespace Somnium.Framework.Vulkan
                 pipelineInfo.PColorBlendState = ptr;
             }
 
+            //if (depthTest || depthWrite)
+            //{
             depthInfo = CreateDepthStencilState(depthTest, depthWrite, CompareOp.LessOrEqual);
             fixed (PipelineDepthStencilStateCreateInfo* ptr = &depthInfo)
             {
                 pipelineInfo.PDepthStencilState = ptr;
             }
+            //}
 
             fixed (PipelineDynamicStateCreateInfo* ptr = &dynamicStatesInfo)
             {
@@ -391,11 +394,16 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public unsafe void Bind(CommandCollection commandBuffer, RenderStage bindType)
+        public unsafe void Bind(RenderBuffer renderbuffer, CommandCollection commandBuffer, RenderStage bindType)
         {
             var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
             vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
-            Viewport viewport = new Viewport(0, 0, application.Window.Size.X, application.Window.Size.Y, 0, 1);
+            Viewport viewport;
+            if (renderbuffer != null)
+            {
+                viewport = new Viewport(0, 0, renderbuffer.width, renderbuffer.height, 0f, 1f);
+            }
+            else viewport = new Viewport(0, 0, application.Window.Size.X, application.Window.Size.Y, 0, 1);
             vk.CmdSetViewport(vkCmdBuffer, 0, 1, viewport.ToVulkanViewport());
             vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
 
