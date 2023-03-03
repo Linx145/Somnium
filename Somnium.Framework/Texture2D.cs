@@ -212,7 +212,7 @@ namespace Somnium.Framework
                     default:
                         throw new NotImplementedException();
                 }
-
+                isDisposed = true;
                 GC.SuppressFinalize(this);
             }
         }

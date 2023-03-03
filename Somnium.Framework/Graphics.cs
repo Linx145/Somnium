@@ -49,7 +49,7 @@ namespace Somnium.Framework
                             //VkEngine.currentRenderPass = VkEngine.framebufferRenderPass;
                         }
 
-                        Clear(clearColor);
+                        Clear(clearColor, targetBuffer == null ? default : new Point((int)targetBuffer.width, (int)targetBuffer.height));
 
                         VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
                         VkEngine.activeRenderPass = null;
@@ -58,13 +58,17 @@ namespace Somnium.Framework
                 default:
                     throw new InvalidOperationException();
             }
+            if (targetBuffer != null)
+            {
+                targetBuffer.hasBeenUsedBefore = true;
+            }
         }
         /// <summary>
         /// Clears the buffer that is currently specified by PipelineState.Begin. Must be called within PipelineState.Begin and End. Otherwise, use ClearBuffer instead
         /// </summary>
         /// <param name="clearColor"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Clear(Color clearColor)
+        public void Clear(Color clearColor, Point clearDimensions = default)
         {
             switch (application.runningBackend)
             {
@@ -88,13 +92,20 @@ namespace Somnium.Framework
 
                         ClearRect* clearAreas = stackalloc ClearRect[clearCount];
                         Extent2D extents;
-                        if (currentRenderbuffer == null)
+                        if (clearDimensions == default)
                         {
-                            extents = VkEngine.swapChain.imageExtents;
+                            if (currentRenderbuffer == null)
+                            {
+                                extents = VkEngine.swapChain.imageExtents;
+                            }
+                            else
+                            {
+                                extents = new Extent2D(currentRenderbuffer.width, currentRenderbuffer.height);
+                            }
                         }
                         else
                         {
-                            extents = new Extent2D(currentRenderbuffer.width, currentRenderbuffer.height);
+                            extents = new Extent2D((uint)clearDimensions.X, (uint)clearDimensions.Y);
                         }
                         for (int i = 0; i < clearCount; i++)
                         {
@@ -108,7 +119,35 @@ namespace Somnium.Framework
                     break;
             }
         }
+        public void SetClipArea(Rectangle rect)
+        {
+            if (currentPipeline == null)
+            {
+                throw new InvalidOperationException("Can only call SetClipArea from within SetPipeline() and EndPipeline()! Otherwise, simply specify the clip area within SetPipeline!");
+            }
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    if (rect == default)
+                    {
+                        Viewport viewport;
+                        if (currentRenderbuffer != null)
+                        {
+                            viewport = new Viewport(0, 0, currentRenderbuffer.width, currentRenderbuffer.height, 0f, 1f);
+                        }
+                        else viewport = new Viewport(0, 0, application.Window.Size.X, application.Window.Size.Y, 0, 1);
 
+                        VkEngine.vk.CmdSetScissor(new CommandBuffer(VkEngine.commandBuffer.handle), 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
+                    }
+                    else
+                    {
+                        VkEngine.vk.CmdSetScissor(new CommandBuffer(VkEngine.commandBuffer.handle), 0, 1, new Rect2D(new Offset2D(rect.X, rect.Y), new Extent2D((uint)rect.Width, (uint)rect.Height)));
+                    }
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
         public void SetRenderbuffer(RenderBuffer renderBuffer)
         {
             switch (application.runningBackend)
@@ -126,15 +165,16 @@ namespace Somnium.Framework
                 default:
                     throw new NotImplementedException();
             }
+            if (renderBuffer != null) renderBuffer.hasBeenUsedBefore = true;
         }
         /// <summary>
         /// Sets and begins a render pipeline state containing the shader to use.
         /// </summary>
         /// <param name="pipelineState"></param>
         /// <param name="autoUpdateUniforms">If true, updates the shaders uniform state as well</param>
-        public void SetPipeline(PipelineState pipelineState)
+        public void SetPipeline(PipelineState pipelineState, Rectangle areaToDrawTo = default)
         {
-            pipelineState.Begin();
+            pipelineState.Begin(RenderStage.Graphics, areaToDrawTo);
             currentPipeline = pipelineState;
         }
         public void EndPipeline()

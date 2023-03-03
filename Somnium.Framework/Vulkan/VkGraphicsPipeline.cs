@@ -394,7 +394,7 @@ namespace Somnium.Framework.Vulkan
             return pipelineInfo;
         }
 
-        public unsafe void Bind(RenderBuffer renderbuffer, CommandCollection commandBuffer, RenderStage bindType)
+        public unsafe void Bind(RenderBuffer renderbuffer, CommandCollection commandBuffer, RenderStage bindType, Rectangle scissorRectangle = default)
         {
             var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
             vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
@@ -405,8 +405,14 @@ namespace Somnium.Framework.Vulkan
             }
             else viewport = new Viewport(0, 0, application.Window.Size.X, application.Window.Size.Y, 0, 1);
             vk.CmdSetViewport(vkCmdBuffer, 0, 1, viewport.ToVulkanViewport());
-            vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
-
+            if (scissorRectangle == default)
+            {
+                vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)viewport.X, (int)viewport.Y), new Extent2D((uint)viewport.Width, (uint)viewport.Height)));
+            }
+            else
+            {
+                vk.CmdSetScissor(vkCmdBuffer, 0, 1, new Rect2D(new Offset2D((int)scissorRectangle.X, (int)scissorRectangle.Y), new Extent2D((uint)scissorRectangle.Width, (uint)scissorRectangle.Height)));
+            }
             //if (autoUpdateUniformsOnBind) PushUniformUpdates(commandBuffer, bindType);
         }
 

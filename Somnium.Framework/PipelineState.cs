@@ -72,7 +72,7 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics)
+        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics, Rectangle scissorRectangle = default)
         {
             switch (application.runningBackend)
             {
@@ -100,7 +100,7 @@ namespace Somnium.Framework
                         VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, application.Graphics.currentRenderbuffer);
                         //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
                     }*/
-                    pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo);
+                    pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo, scissorRectangle);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
                 default:

@@ -109,6 +109,13 @@ namespace Somnium.Framework
             declaration.AddElement(new VertexElement(VertexElementFormat.Vector2, 12));
             VertexPositionTexture.internalVertexDeclaration = declaration;
             allVertexDeclarations.Add(declaration);
+
+            declaration = NewVertexDeclaration<VertexPositionNormalTexture>(backend);
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 0));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector3, 12));
+            declaration.AddElement(new VertexElement(VertexElementFormat.Vector2, 24));
+            VertexPositionNormalTexture.internalVertexDeclaration = declaration;
+            allVertexDeclarations.Add(declaration);
         }
     }
 }

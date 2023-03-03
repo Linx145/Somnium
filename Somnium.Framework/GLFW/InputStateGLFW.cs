@@ -62,6 +62,7 @@ namespace Somnium.Framework.GLFW
         /// </summary>
         internal static void ResetPerFrameInputStates()
         {
+            scroll = default;
             for (int i = 0; i < perFrameKeyStates.values.Length; i++)
             {
                 perFrameKeyStates.values[i] = KeyState.None;

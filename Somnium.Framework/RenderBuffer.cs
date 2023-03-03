@@ -13,6 +13,13 @@ namespace Somnium.Framework
         public readonly uint height;
         public readonly bool isBackbuffer;
 
+        /// <summary>
+        /// Whether the renderbuffer has been cleared and/or drawn to before. A renderbuffer that
+        /// has not been used before should not be drawn, if not an error will arise. 
+        /// It is up to your engine to enforce this error, if not your backend will do it for you.
+        /// </summary>
+        public bool hasBeenUsedBefore { get; internal set; }
+
         public ulong framebufferHandle;
 
         public bool isDisposed { get; private set; } = false;
