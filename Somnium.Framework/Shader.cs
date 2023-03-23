@@ -5,7 +5,6 @@ using Somnium.Framework.Vulkan;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
 using System.Text;
-using FMOD;
 
 namespace Somnium.Framework
 {
@@ -403,6 +402,26 @@ namespace Somnium.Framework
             else shader2Params.Set(uniformName, uniform);
         }
         public void SetUniforms(string uniformName, ReadOnlySpan<Texture2D> uniforms, SetNumber shaderNumber = SetNumber.Either)
+        {
+            CheckUniformSet();
+
+            if (shaderNumber == SetNumber.Either)
+            {
+                if (!shader1Params.Set(uniformName, uniforms))
+                {
+                    if (!shader2Params.Set(uniformName, uniforms))
+                    {
+                        throw new KeyNotFoundException("Could not find uniform of name " + uniformName + " in either shader1parameters or shader2parameters!");
+                    }
+                }
+            }
+            else if (shaderNumber == SetNumber.First)
+            {
+                shader1Params.Set(uniformName, uniforms);
+            }
+            else shader2Params.Set(uniformName, uniforms);
+        }
+        public void SetUniforms(string uniformName, ReadOnlySpan<SamplerState> uniforms, SetNumber shaderNumber = SetNumber.Either)
         {
             CheckUniformSet();
 

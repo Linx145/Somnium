@@ -122,6 +122,15 @@ namespace Somnium.Framework
             }
             return false;
         }
+        public bool Set(string paramName, ReadOnlySpan<SamplerState> samplerStates)
+        {
+            if (map.TryGetValue(paramName, out var index))
+            {
+                Set(index, samplerStates);
+                return true;
+            }
+            return false;
+        }
         public bool Set(string paramName, SamplerState samplerState)
         {
             if (map.TryGetValue(paramName, out var index))
@@ -201,14 +210,15 @@ namespace Somnium.Framework
             }
             else throw new InvalidOperationException("Attempting to set sampler into a non-sampler shader uniform!");
         }
-        public void Set(int paramIndex, SamplerState[] samplerStates)
+        public void Set(int paramIndex, ReadOnlySpan<SamplerState> samplerStates)
         {
             var param = parameters[paramIndex];
             if (param.type == UniformType.sampler)
             {
                 var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].samplers;
                 if (samplerStates.Length != destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's sampler array length!");
-                Array.Copy(samplerStates, destArray, samplerStates.Length);
+                //Array.Copy(samplerStates, destArray, samplerStates.Length);
+                samplerStates.CopyTo(new Span<SamplerState>(destArray, 0, samplerStates.Length));
             }
             else throw new InvalidOperationException("Attempting to set sampler into a non-sampler shader uniform!");
         }

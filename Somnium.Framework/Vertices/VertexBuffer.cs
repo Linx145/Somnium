@@ -43,7 +43,7 @@ namespace Somnium.Framework
                         {
                             T* data;
                             var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(vertexDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
-                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            var stagingMemoryRegion = VkMemory.malloc("Vertex Buffer", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
                             data = stagingMemoryRegion.Bind<T>();
                             vertices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
@@ -88,13 +88,13 @@ namespace Somnium.Framework
                     if (!isDynamic)
                     {
                         Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit);
-                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        memoryRegion = VkMemory.malloc("Vertex Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
                     }
                     else
                     {
                         Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(vertexCount * vertexDeclaration.size), BufferUsageFlags.VertexBufferBit);
-                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        memoryRegion = VkMemory.malloc("Vertex Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
                     }
                     break;

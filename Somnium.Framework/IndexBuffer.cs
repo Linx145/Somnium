@@ -54,10 +54,10 @@ namespace Somnium.Framework
                         {
                             T* data;
                             var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(indexSize * Length), BufferUsageFlags.TransferSrcBit);
-                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            var stagingMemoryRegion = VkMemory.malloc("Index Buffer", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
                             data = stagingMemoryRegion.Bind<T>();
-                            indices.AsSpan().CopyTo(new Span<T>(data + offset, Length));
+                            indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                             stagingMemoryRegion.Unbind();
 
                             //Since there is no distinction between vertex and index buffers in Vulkan
@@ -70,7 +70,8 @@ namespace Somnium.Framework
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            T* data = memoryRegion.Bind<T>();
+                            indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                         }
                         break;
                     default:
@@ -86,12 +87,14 @@ namespace Somnium.Framework
                     if (!isDynamic)
                     {
                         Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(indexCount * indexSize), BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit);
-                        memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        memoryRegion = VkMemory.malloc("Index Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(indexCount * indexSize), BufferUsageFlags.IndexBufferBit);
+                        memoryRegion = VkMemory.malloc("Index Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        handle = buffer.Handle;
                     }
                     break;
                 default:

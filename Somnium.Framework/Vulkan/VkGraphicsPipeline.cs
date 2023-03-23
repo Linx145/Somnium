@@ -291,19 +291,6 @@ namespace Somnium.Framework.Vulkan
             viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
             viewportInfo.ViewportCount = 1;
             viewportInfo.ScissorCount = 1;
-            /*viewportInfo = new PipelineViewportStateCreateInfo();
-            viewportInfo.SType = StructureType.PipelineViewportStateCreateInfo;
-
-            viewportInfo.ViewportCount = 1;
-            fixed (Silk.NET.Vulkan.Viewport* ptr = &viewport)
-            {
-                viewportInfo.PViewports = ptr;
-            }
-            viewportInfo.ScissorCount = 1;
-            fixed (Rect2D* ptr = &scissor)
-            {
-                viewportInfo.PScissors = ptr;
-            }*/
             #endregion
 
             #region create color blending info

@@ -17,7 +17,7 @@ namespace Somnium.Framework
         {
             if (Application.Config.loggingMode == LoggingMode.None) return;
 
-            string messageWithDatetime = dateTime ? message.ToString() + DateTime.Now.ToString() : message.ToString();
+            string messageWithDatetime = dateTime ? '[' + DateTime.Now.ToString() + "] " + message.ToString() : message.ToString();
             if (Application.Config.loggingMode == LoggingMode.Console)
             {
                 Console.WriteLine(messageWithDatetime);
@@ -27,11 +27,11 @@ namespace Somnium.Framework
                 System.Diagnostics.Debug.WriteLine(messageWithDatetime);
             }
         }
-        public static void LogMemoryAllocation(object message)
+        public static void LogMemoryAllocation(string source, object message)
         {
             if (Application.Config.logMemoryAllocations)
             {
-                Log(message.ToString(), false);
+                Log(source + ": " + message.ToString(), false);
             }
         }
     }

@@ -46,7 +46,7 @@ namespace Somnium.Framework
                         for (int i = 0; i < handles.Length; i++)
                         {
                             Buffer buffer = VkEngine.CreateResourceBuffer(instanceDataSize * instanceCount, BufferUsageFlags.VertexBufferBit);
-                            memoryRegions[i] = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            memoryRegions[i] = VkMemory.malloc("Instance Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                             handles[i] = buffer.Handle;
                         }
                     }

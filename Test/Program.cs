@@ -54,14 +54,15 @@ namespace Test
         const int instanceCount = 100000;
 #endif
 
+
+        private static SoundEffect wav;
+        private static SoundEffect ogg;
+
 #if RENDERBUFFERS
         private static RenderBuffer renderBuffer;
 
         private static VertexPositionColorTexture[] vertices2;
         private static VertexBuffer vb2;
-
-        private static SoundEffect wav;
-        private static SoundEffect ogg;
 #endif
 
         [STAThread]
@@ -195,6 +196,8 @@ namespace Test
 #endif
 
             #endregion
+
+            ogg = new SoundEffect(File.ReadAllBytes("Content/Yippee.ogg"));
         }
         private static void Draw(float deltaTime)
         {
@@ -399,6 +402,11 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #elif MULTITEXTURES
             Parallel.For(0, instanceCount, (int i) => { positions[i].position += velocities[i] * deltaTime; });
 #endif
+
+            if (Input.IsKeyPressed(Keys.Space))
+            {
+                sfxInstance = ogg.Play(1f, 1f);
+            }
         }
         private static void Unload()
         {

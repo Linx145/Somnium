@@ -42,6 +42,7 @@ namespace Somnium.Framework
         /// <returns></returns>
         public abstract CommandCollection GetDefaultCommandCollection();
         public abstract void Dispose();
+        public abstract void UpdateInput();
         /// <summary>
         /// Called every tick
         /// </summary>

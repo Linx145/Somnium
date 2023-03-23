@@ -136,7 +136,7 @@ namespace Somnium.Framework
             //create new buffer
             //WARNING: TransferSrcBit and TransferDstBit together may prevent some optimisations, idk
             Buffer newBuffer = VkEngine.CreateResourceBuffer(newMaxSize, BufferUsageFlags.UniformBufferBit | BufferUsageFlags.TransferSrcBit | BufferUsageFlags.TransferDstBit);
-            var newMemory = VkMemory.malloc(newBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            var newMemory = VkMemory.malloc("Uniform Buffer", newBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
             
             //copy old buffer data into new buffer
             Buffer oldBuffer = new Buffer(handle);
@@ -169,7 +169,7 @@ namespace Somnium.Framework
                         if (!isDynamic)
                         {
                             Buffer buffer = VkEngine.CreateResourceBuffer(size, BufferUsageFlags.UniformBufferBit);
-                            memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            memoryRegion = VkMemory.malloc("Uniform Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                             handle = buffer.Handle;
 
                             void* pointer = memoryRegion.Bind();
@@ -180,7 +180,7 @@ namespace Somnium.Framework
                             //dont need TransferDstBit because when we are constructing the buffer for the first time, there
                             //is nothing to transfer from
                             Buffer buffer = VkEngine.CreateResourceBuffer(size, BufferUsageFlags.UniformBufferBit | BufferUsageFlags.TransferSrcBit);
-                            memoryRegion = VkMemory.malloc(buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                            memoryRegion = VkMemory.malloc("Uniform Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
                             handle = buffer.Handle;
 
                             void* pointer = memoryRegion.Bind();

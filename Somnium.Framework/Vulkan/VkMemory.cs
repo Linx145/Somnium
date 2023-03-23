@@ -9,6 +9,8 @@ namespace Somnium.Framework.Vulkan
 {
     public struct AllocatedMemoryRegion
     {
+        public string source;
+
         public readonly AllocatedMemory memory;
         public readonly DeviceMemory handle;
         public readonly ulong start;
@@ -24,8 +26,9 @@ namespace Somnium.Framework.Vulkan
             }
         }
 
-        public AllocatedMemoryRegion(AllocatedMemory memory, DeviceMemory handle, ulong startPosition, ulong memorySize)
+        public AllocatedMemoryRegion(string source, AllocatedMemory memory, DeviceMemory handle, ulong startPosition, ulong memorySize)
         {
+            this.source = source;
             this.memory = memory;
             this.handle = handle;
             start = startPosition;
@@ -59,7 +62,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("", "Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -91,7 +94,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("","Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -122,7 +125,7 @@ namespace Somnium.Framework.Vulkan
                         }
                         else
                         {
-                            Debugger.LogMemoryAllocation("Map memory called to " + this.ToString());
+                            Debugger.LogMemoryAllocation("", "Map memory called to " + this.ToString());
                         }
                     }
                 }
@@ -152,7 +155,7 @@ namespace Somnium.Framework.Vulkan
             }
             if (memory.amountBound == 0)
             {
-                Debugger.LogMemoryAllocation("Unmap memory called to " + this.ToString());
+                Debugger.LogMemoryAllocation("", "Unmap memory called to " + this.ToString());
                 VkEngine.vk.UnmapMemory(VkEngine.vkDevice, handle);
 
                 lock (memory.memoryPtrLock)
@@ -223,7 +226,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="requiredSpace"></param>
         /// <returns>The index of the area with space to fit the memory</returns>
-        public virtual AllocatedMemoryRegion TryAllocate(ulong requiredSpace)
+        public virtual AllocatedMemoryRegion TryAllocate(ulong requiredSpace, string source)
         {
             ulong finalPosition = 0;
             ulong totalSize = maxSize;
@@ -244,12 +247,12 @@ namespace Somnium.Framework.Vulkan
                     {
                         AllocatedMemoryRegion copy = gaps[i];
                         ulong remainder = copy.width - requiredSpace;
-                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(this, handle, gaps[i].start, requiredSpace);
+                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(source, this, handle, gaps[i].start, requiredSpace);
                         regions.Add(result);
                         if (remainder > 0)
                         {
                             //if our memory is smaller than the gap, allocate and shrink the gap
-                            gaps[i] = new AllocatedMemoryRegion(this, handle, copy.start + requiredSpace, remainder);
+                            gaps[i] = new AllocatedMemoryRegion(source, this, handle, copy.start + requiredSpace, remainder);
                         }
                         else if (remainder == 0)
                         {
@@ -269,7 +272,7 @@ namespace Somnium.Framework.Vulkan
                 //in the buffer, but not enough continuous space for us.
                 if (finalPosition + requiredSpace <= maxSize)
                 {
-                    AllocatedMemoryRegion region = new AllocatedMemoryRegion(this, handle, finalPosition, requiredSpace);
+                    AllocatedMemoryRegion region = new AllocatedMemoryRegion(source, this, handle, finalPosition, requiredSpace);
                     regions.Add(region);
                     return region;
                 }
@@ -303,7 +306,7 @@ namespace Somnium.Framework.Vulkan
                         gaps.Add(region);
                     }
 
-                    Debugger.LogMemoryAllocation("Freed memory at " + region.ToString());
+                    Debugger.LogMemoryAllocation(region.source, "Freed memory at " + region.ToString());
                     return;
                 }
             }
@@ -337,14 +340,14 @@ namespace Somnium.Framework.Vulkan
             allocatedMemories = new UnorderedList<AllocatedMemory>();
             this.memoryBits = memoryBits;
         }
-        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize)
+        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize, string source)
         {
             for (int i = 0; i < allocatedMemories.Count; i++)
             {
-                var result = allocatedMemories[i].TryAllocate(requiredSpace);
+                var result = allocatedMemories[i].TryAllocate(requiredSpace, source);
                 if (result != default)
                 {
-                    Debugger.LogMemoryAllocation("Allocated memory at " + result.ToString());
+                    Debugger.LogMemoryAllocation(source, "Allocated memory at " + result.ToString());
                     return result;
                 }
             }
@@ -367,14 +370,14 @@ namespace Somnium.Framework.Vulkan
             }
 
             AllocatedMemory allocatedMemory = new AllocatedMemory(deviceMemory, sizeToAllocate);
-            Debugger.LogMemoryAllocation("Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
+            Debugger.LogMemoryAllocation(source, "Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
             allocatedMemories.Add(allocatedMemory);
-            AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace); //we dont allocate the sizeToAllocate: That's the size for the buffer
+            AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace, source); //we dont allocate the sizeToAllocate: That's the size for the buffer
             if (region == default)
             {
                 throw new AssetCreationException("Failed to allocate memory in new buffer!");
             }
-            Debugger.LogMemoryAllocation("Allocated memory at " + region.ToString());
+            Debugger.LogMemoryAllocation(region.source, "Allocated memory at " + region.ToString());
             return region;
         }
         public void FreeMemory(AllocatedMemory allocatedMemory)
@@ -422,12 +425,12 @@ namespace Somnium.Framework.Vulkan
         /// <param name="memoryPropertyFlags">What properties the allocated memory should possess</param>
         ///<param name="autoBind">Whether to automatically bind the buffer to the memory region</param>
         /// <returns></returns>
-        public static unsafe AllocatedMemoryRegion malloc(Buffer buffer, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
+        public static unsafe AllocatedMemoryRegion malloc(string source, Buffer buffer, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
         {
             MemoryRequirements memoryRequirements;
             VkEngine.vk.GetBufferMemoryRequirements(VkEngine.vkDevice, buffer, &memoryRequirements);
 
-            AllocatedMemoryRegion memoryRegion = malloc(memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForBuffersInMiB * 1024 * 1024));
+            AllocatedMemoryRegion memoryRegion = malloc(source, memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForBuffersInMiB * 1024 * 1024));
 
             if (autoBind)
             {
@@ -446,14 +449,14 @@ namespace Somnium.Framework.Vulkan
         /// <param name="memoryPropertyFlags">What properties the allocated memory should possess</param>
         ///<param name="autoBind">Whether to automatically bind the buffer to the memory region</param>
         /// <returns></returns>
-        public static unsafe AllocatedMemoryRegion malloc(Image image, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
+        public static unsafe AllocatedMemoryRegion malloc(string source, Image image, MemoryPropertyFlags memoryPropertyFlags, bool autoBind = true)
         {
             MemoryRequirements memoryRequirements;
             VkEngine.vk.GetImageMemoryRequirements(VkEngine.vkDevice, image, &memoryRequirements);
 
             //ensure the thing fits nicely into GPU alignment requirements by making it a multiple of 1024
             memoryRequirements.Size = (ulong)(Mathf.Ceiling(memoryRequirements.Size / 1024f) * 1024);
-            AllocatedMemoryRegion memoryRegion = malloc(memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForImagesInMiB * 1024 * 1024)); //we malloc a much larger DeviceMemory size for potentially image-holding buffers
+            AllocatedMemoryRegion memoryRegion = malloc(source, memoryRequirements, memoryPropertyFlags, (ulong)(Application.memoryForImagesInMiB * 1024 * 1024)); //we malloc a much larger DeviceMemory size for potentially image-holding buffers
 
             if (autoBind)
             {
@@ -465,13 +468,13 @@ namespace Somnium.Framework.Vulkan
 
             return memoryRegion;
         }
-        public static unsafe AllocatedMemoryRegion malloc(MemoryRequirements memoryRequirements, MemoryPropertyFlags memoryPropertyFlags, ulong memoryCreationSize = 65536)
+        public static unsafe AllocatedMemoryRegion malloc(string source, MemoryRequirements memoryRequirements, MemoryPropertyFlags memoryPropertyFlags, ulong memoryCreationSize = 65536)
         {
             uint memoryTypeIndex = Utils.FindMemoryType(memoryRequirements.MemoryTypeBits, memoryPropertyFlags, VkEngine.CurrentGPU);
             
             if (!memoryPools.WithinLength(memoryTypeIndex) || memoryPools[memoryTypeIndex] == null)
             {
-                Debugger.LogMemoryAllocation("Created new Memory Pool at index " + memoryTypeIndex + " for bit types " + memoryRequirements.MemoryTypeBits);
+                Debugger.LogMemoryAllocation(source, "Created new Memory Pool at index " + memoryTypeIndex + " for bit types " + memoryRequirements.MemoryTypeBits);
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex, memoryRequirements.MemoryTypeBits));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
@@ -479,7 +482,7 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InvalidOperationException("Attempted to use memory pool with type bits " + pool.memoryBits + " for type bits " + memoryRequirements.MemoryTypeBits);
             }
-            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize);
+            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize, source);
 
             return memoryRegion;
         }

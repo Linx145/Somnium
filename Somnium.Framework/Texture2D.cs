@@ -132,12 +132,12 @@ namespace Somnium.Framework
                         if (data != null && data.Length > 0 && imageBelongsToMe)
                         {
                             //set data into image using a staging buffer
-                            memoryRegion = VkMemory.malloc(image, MemoryPropertyFlags.DeviceLocalBit);
+                            memoryRegion = VkMemory.malloc("Texture2D", image, MemoryPropertyFlags.DeviceLocalBit);
 
                             if (!usedForRenderTarget)
                             {
                                 var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferSrcBit);
-                                var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                                var stagingMemoryRegion = VkMemory.malloc("Texture2D", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
                                 byte* stagingData = stagingMemoryRegion.Bind<byte>();
                                 //stagingMemoryRegion.Bind(&stagingData);

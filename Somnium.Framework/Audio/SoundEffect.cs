@@ -34,8 +34,9 @@ namespace Somnium.Framework.Audio
         {
             CREATESOUNDEXINFO exinfo = new CREATESOUNDEXINFO();
             exinfo.cbsize = MarshalHelper.SizeOf(typeof(CREATESOUNDEXINFO));
+            exinfo.length = (uint)data.Length;
 
-            var result = API.createSound(data, MODE.DEFAULT, ref exinfo, out sound);
+            var result = API.createSound(data, MODE.OPENMEMORY, ref exinfo, out sound);
             if (result != RESULT.OK)
             {
                 throw new AssetCreationException("Failed to create sound! Error: " + result.ToString());

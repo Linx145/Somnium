@@ -141,10 +141,12 @@ namespace Somnium.Framework
                 delta = updateStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalUpdatePeriod)
                 {
+                    Window.UpdateInput();
+
                     updateStopwatch.Restart();
-                    AudioEngine.Update();
                     UpdateCallback?.Invoke((float)delta);
                 }
+                AudioEngine.Update();
 
                 delta = drawStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalRenderPeriod)
@@ -173,6 +175,7 @@ namespace Somnium.Framework
                     {
                         VkEngine.EndDraw(this);
                     }
+                    PostEndDrawCallback?.Invoke((float)delta);
                     Window.frameNumber++;
                     if (Window.frameNumber >= Config.maxSimultaneousFrames)
                     {
@@ -210,6 +213,7 @@ namespace Somnium.Framework
         public Action OnLoadCallback;
         public Action<float> UpdateCallback;
         public Action<float> DrawCallback;
+        public Action<float> PostEndDrawCallback;
         public Action UnloadCallback;
 
         public void Dispose()

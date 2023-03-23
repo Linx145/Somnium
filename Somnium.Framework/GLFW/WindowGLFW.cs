@@ -265,7 +265,15 @@ namespace Somnium.Framework.GLFW
             InputStateGLFW.scroll.X = (float)offsetX;
             InputStateGLFW.scroll.Y = (float)offsetY;
         }
-#endregion
+        #endregion
+        public override void UpdateInput()
+        {
+            InputStateGLFW.ResetPerFrameInputStates();
+            //finally, reset per state key frames
+
+            //and poll events such as clicking window close/minimize buttons, etc
+            Glfw.PollEvents();
+        }
         public override void Update()
         {
             if (GLContext != null)
@@ -285,10 +293,6 @@ namespace Somnium.Framework.GLFW
                 }
             }
 
-            //finally, reset per state key frames
-            InputStateGLFW.ResetPerFrameInputStates();
-            //and poll events such as clicking window close/minimize buttons, etc
-            Glfw.PollEvents();
         }
         public override IGLContext GetGLContext() => GLContext;
         public override CommandCollection GetDefaultCommandCollection()

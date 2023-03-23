@@ -203,17 +203,13 @@ namespace Somnium.Framework
             return (turnSpeed * currentVelocity + totalDistanceToCover) / (turnSpeed + 1f);
         }
 
-        public static float distance(float x1, float y1, float x2, float y2)
+        public static float Distance(float x1, float y1, float x2, float y2)
         {
             return (float)Math.Sqrt(((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)));
         }
-        public static float distance(Point pos1, Point pos2)
+        public static float Distance(Point pos1, Point pos2)
         {
-            return distance(pos1.X, pos1.Y, pos2.X, pos2.Y);
-        }
-        public static float distance(Vector2 pos1, Vector2 pos2)
-        {
-            return (float)Math.Sqrt(((pos2.X - pos1.X) * (pos2.X - pos1.X)) + ((pos2.Y - pos1.Y) * (pos2.Y - pos1.Y)));//distance(pos1.X, pos1.Y, pos2.X, pos2.Y);
+            return Distance(pos1.X, pos1.Y, pos2.X, pos2.Y);
         }
 
         public static float moveTowards(float currentPosition, float targetPosition, float currentVelocity, float maxVelocity, float acceleration, float decceleration = 0f)
@@ -401,15 +397,15 @@ namespace Somnium.Framework
             else return current;
         }
 
-        public static float approach(float value, float toApproach, float amount)
+        public static float Approach(float value, float toApproach, float amount)
         {
             float result = value;
             result += (toApproach - value) * amount;
             return result;
         }
-        public static Vector2 approach(Vector2 value, Vector2 toApproach, float amount)
+        public static Vector2 Approach(Vector2 value, Vector2 toApproach, float amount)
         {
-            return new Vector2(approach(value.X, toApproach.X, amount), approach(value.Y, toApproach.Y, amount));
+            return new Vector2(Approach(value.X, toApproach.X, amount), Approach(value.Y, toApproach.Y, amount));
         }
         public static float transformX(float positionX, float positionY, Matrix4x4 matrix)
         {
