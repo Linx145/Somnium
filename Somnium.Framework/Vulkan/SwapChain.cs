@@ -200,19 +200,19 @@ namespace Somnium.Framework.Vulkan
         }
         public void Recreate()
         {
-            int width = 0, height = 0;
-            //glfwGetFramebufferSize(window, &width, &height);
+            int width = 0; int height = 0;
+
             while (width == 0 || height == 0)
             {
-                Point point = window.GetFramebufferExtents();
-                width = point.X;
-                height = point.Y;
+                width = application.Window.Size.X;
+                height = application.Window.Size.Y;
             }
 
+            var swapchainCapabilities = QuerySwapChainSupport(VkEngine.CurrentGPU.Device).Capabilities;
             imageExtents = default;
             while (imageExtents.Width == 0 || imageExtents.Height == 0)
             {
-                imageExtents = window.GetSwapChainExtents(QuerySwapChainSupport(VkEngine.CurrentGPU.Device).Capabilities);//swapChainSupport.Capabilities);
+                imageExtents = window.GetSwapChainExtents(swapchainCapabilities);//swapChainSupport.Capabilities);
             }
             //wait until it's safe to recreate swapchain (IE: When it's not in use)
             vk.DeviceWaitIdle(device);
@@ -262,6 +262,7 @@ namespace Somnium.Framework.Vulkan
             {
                 swapchainAPI.DestroySwapchain(device, handle, null);
             }
+            Debugger.LogMemoryAllocation("Swapchain", "Swapchain disposed successfully");
         }
 
         public static SurfaceFormatKHR FindSurfaceWith(ColorSpaceKHR colorSpace, Format format, SurfaceFormatKHR[] toChooseFrom)

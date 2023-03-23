@@ -43,10 +43,7 @@ namespace Somnium.Framework
         public abstract CommandCollection GetDefaultCommandCollection();
         public abstract void Dispose();
         public abstract void UpdateInput();
-        /// <summary>
-        /// Called every tick
-        /// </summary>
-        public abstract void Update();
+        public abstract void UpdateWindowControls();
         /// <summary>
         /// Called when the window is resized, with arguments being 1)the resized window, 2)the new window width, 3)the new window height
         /// </summary>

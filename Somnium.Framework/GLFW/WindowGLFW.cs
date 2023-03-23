@@ -205,7 +205,7 @@ namespace Somnium.Framework.GLFW
             internalSize.X = width;
             internalSize.Y = height;
 
-            Console.WriteLine("Window resized. New size: " + internalSize);
+            Debugger.Log("Window resized. New size: " + internalSize);
 
             base.OnResized(this, width, height);
         }
@@ -269,30 +269,12 @@ namespace Somnium.Framework.GLFW
         public override void UpdateInput()
         {
             InputStateGLFW.ResetPerFrameInputStates();
+        }
+        public override void UpdateWindowControls()
+        {
             //finally, reset per state key frames
-
             //and poll events such as clicking window close/minimize buttons, etc
             Glfw.PollEvents();
-        }
-        public override void Update()
-        {
-            if (GLContext != null)
-            {
-                if (VSyncChanged)
-                {
-                    if (handle != null)
-                    {
-                        Glfw.SwapInterval(0);
-                    }
-                    VSyncChanged = false;
-                }
-
-                if (VSync)
-                {
-                    Glfw.SwapBuffers(handle);
-                }
-            }
-
         }
         public override IGLContext GetGLContext() => GLContext;
         public override CommandCollection GetDefaultCommandCollection()
@@ -332,7 +314,9 @@ namespace Somnium.Framework.GLFW
             }
             else
             {
-                SomniumGLFW.API.GetFramebufferSize(handle, out int width, out int height);
+                //SomniumGLFW.API.GetFramebufferSize(handle, out int width, out int height);
+                int width = Size.X;
+                int height = Size.Y;
                 Extent2D extents = new Extent2D((uint)width, (uint)height);
 
                 extents.Width = Math.Clamp(extents.Width, capabilities.MinImageExtent.Width, capabilities.MaxImageExtent.Width);

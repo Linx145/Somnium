@@ -136,6 +136,7 @@ namespace Somnium.Framework
                             throw new NotImplementedException();
                     }
                 }
+                Debugger.LogMemoryAllocation("RenderBuffer", "Renderbuffer disposed successfully");
                 isDisposed = true;
             }
         }

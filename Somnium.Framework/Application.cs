@@ -1,10 +1,13 @@
-﻿using Somnium.Framework.Vulkan;
-using Somnium.Framework.GLFW;
-using System.Diagnostics;
-using System;
-using Silk.NET.Core;
+﻿using Silk.NET.Core;
+using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
 using Somnium.Framework.Audio;
+using Somnium.Framework.GLFW;
+using Somnium.Framework.Vulkan;
+using System;
+using System.Diagnostics;
+using System.Reflection.Metadata;
+using System.Threading;
 
 namespace Somnium.Framework
 {
@@ -34,6 +37,12 @@ namespace Somnium.Framework
 
             public static bool logUniformBufferAllocations = false;
         }
+
+        /// <summary>
+        /// Whether rendering + The Draw Callback should be done on a separate thread
+        /// </summary>
+        public bool runRenderOnSeparateThread { get; private set; }
+        private Thread renderThread;
         /// <summary>
         /// The name of your app.
         /// </summary>
@@ -46,10 +55,6 @@ namespace Somnium.Framework
         /// Used to keep track of deltaTime for update calls.
         /// </summary>
         public Stopwatch updateStopwatch;
-        /// <summary>
-        /// Used to keep track of deltaTime for draw calls.
-        /// </summary>
-        public Stopwatch drawStopwatch;
 
         //TODO: Allow applications to have multiple windows
         public Window Window;
@@ -67,19 +72,12 @@ namespace Somnium.Framework
 
         public double FramesPerSecond
         {
-            get => internalRenderPeriod <= double.Epsilon ? 0 : 1 / internalRenderPeriod;
-            set => internalRenderPeriod = value <= double.Epsilon ? 0 : 1 / value;
-        }
-
-        public double UpdatesPerSecond
-        {
             get => internalUpdatePeriod <= float.Epsilon ? 0 : 1f / internalUpdatePeriod;
             set => internalUpdatePeriod = value <= float.Epsilon ? 0 : 1f / value;
         }
 
         public bool loaded { get; private set; }
         private double internalUpdatePeriod;
-        private double internalRenderPeriod;
 
         public Backends runningBackend { get; private set; }
 
@@ -92,7 +90,7 @@ namespace Somnium.Framework
         /// <param name="preferredBackend">The preferred backend. (In the future) should the backend not be available, Somnium will automatically choose the next best backend for the app.</param>
         /// <param name="maxSimultaneousFrames">The maximum rendering frames to be processed at a time, for use in the Double Buffering technique to boost FPS in Vulkan, DX12 and Metal</param>
         /// <returns></returns>
-        public static Application New(Application instance, string AppName, Point windowSize, string title, Backends preferredBackend, uint maxSimultaneousFrames = 2)
+        public static Application New(Application instance, string AppName, Point windowSize, string title, Backends preferredBackend, uint maxSimultaneousFrames = 2, bool runRenderOnSeparateThread = true)
         {
             if (maxSimultaneousFrames == 0 || maxSimultaneousFrames > 3)
             {
@@ -100,6 +98,7 @@ namespace Somnium.Framework
             }
             Application app = instance ?? new Application();
             app.AppName = AppName;
+            app.runRenderOnSeparateThread = runRenderOnSeparateThread;
             Config.maxSimultaneousFrames = maxSimultaneousFrames;
 
             //TODO: check for preferredBackend compatibility
@@ -112,6 +111,16 @@ namespace Somnium.Framework
 
             return app;
         }
+        public Action InitializeCallback;
+        public Action OnLoadCallback;
+        public Action<float> UpdateCallback;
+        public Action<float> DrawCallback;
+        public Action<float> PostEndDrawCallback;
+        public Action UnloadCallback;
+        public Action SubmitRenderItemsCallback;
+
+        double delta;
+
         public void Start()
         {
             switch (runningBackend)
@@ -126,9 +135,8 @@ namespace Somnium.Framework
             InitializeCallback?.Invoke();
 
             updateStopwatch = new Stopwatch();
-            drawStopwatch = new Stopwatch();
             updateStopwatch.Start();
-            drawStopwatch.Start();
+
             while (!Window.ShouldClose)
             {
                 if (!loaded)
@@ -136,53 +144,67 @@ namespace Somnium.Framework
                     OnLoadCallback?.Invoke();
                     loaded = true;
                 }
-                double delta;
-
                 delta = updateStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalUpdatePeriod)
                 {
                     Window.UpdateInput();
+                    Window.UpdateWindowControls();
+                    while (Window.Size.X == 0 || Window.Size.Y == 0)
+                    {
+                        Thread.Sleep(0);
+                        Window.UpdateWindowControls();
+                    }
 
                     updateStopwatch.Restart();
                     UpdateCallback?.Invoke((float)delta);
+
+                    if (!runRenderOnSeparateThread)
+                    {
+                        SubmitRenderItemsCallback?.Invoke();
+
+                        DoRender();
+                    }
+                    else
+                    {
+                        if (allowSubmitRenderItems == null)
+                        {
+                            allowSubmitRenderItems = new ManualResetEventSlim(true);
+                        }
+                        //pause the main thread until the (previous frame's) render has been completed
+                        allowSubmitRenderItems.Wait();
+                        //only then can we update the renderitem list via calling SubmitRenderItemsCallback
+                        SubmitRenderItemsCallback?.Invoke();
+
+                        if (renderThread == null)
+                        {
+                            allowDraw = new ManualResetEventSlim();
+                            renderThread = new Thread(new ThreadStart(RenderThreadLoop));
+                            renderThread.IsBackground = true;
+                            renderThread.Start();
+                        }
+                        else allowDraw.Set();
+                    }
+
+                    /*if (VSyncChanged)
+                    {
+                        if (handle != null)
+                        {
+                            Glfw.SwapInterval(0);
+                        }
+                        VSyncChanged = false;
+                    }
+
+                    if (VSync)
+                    {
+                        Glfw.SwapBuffers(handle);
+                    }*/
                 }
                 AudioEngine.Update();
-
-                delta = drawStopwatch.Elapsed.TotalSeconds;
-                if (delta >= internalRenderPeriod)
-                {
-                    drawStopwatch.Restart();
-                    if (runningBackend == Backends.OpenGL)
-                    {
-                        var glContext = Window.GetGLContext();
-                        if (glContext != null)
-                        {
-                            glContext.MakeCurrent();
-                        }
-                    }
-                    else if (runningBackend == Backends.Vulkan)
-                    {
-                        VkEngine.BeginDraw();
-                    }
-
-                    DrawCallback?.Invoke((float)delta);
-
-                    if (Graphics.currentRenderbuffer != null)
-                    {
-                        throw new ExecutionException("Renderbuffer target must be set to null(default) by the end of the draw loop!");
-                    }
-                    if (runningBackend == Backends.Vulkan)
-                    {
-                        VkEngine.EndDraw(this);
-                    }
-                    PostEndDrawCallback?.Invoke((float)delta);
-                    Window.frameNumber++;
-                    if (Window.frameNumber >= Config.maxSimultaneousFrames)
-                    {
-                        Window.frameNumber = 0;
-                    }
-                }
-                Window.Update();
+            }
+            if (runRenderOnSeparateThread)
+            {
+                //allow it to die
+                allowDraw.Set();
             }
             //where applicable, we need to wait for the graphics API to finish rendering before shutting down
             //to avoid disposing things that are being used
@@ -209,16 +231,60 @@ namespace Somnium.Framework
                     break;
             }
         }
-        public Action InitializeCallback;
-        public Action OnLoadCallback;
-        public Action<float> UpdateCallback;
-        public Action<float> DrawCallback;
-        public Action<float> PostEndDrawCallback;
-        public Action UnloadCallback;
 
         public void Dispose()
         {
             Window.Dispose();
+        }
+
+        private static ManualResetEventSlim allowDraw;
+        private static ManualResetEventSlim allowSubmitRenderItems;
+
+        public void DoRender()
+        {
+            if (runningBackend == Backends.OpenGL)
+            {
+                var glContext = Window.GetGLContext();
+                if (glContext != null)
+                {
+                    glContext.MakeCurrent();
+                }
+            }
+            else if (runningBackend == Backends.Vulkan)
+            {
+                VkEngine.BeginDraw();
+            }
+
+            DrawCallback?.Invoke((float)delta);
+
+            if (Graphics.currentRenderbuffer != null)
+            {
+                throw new ExecutionException("Renderbuffer target must be set to null(default) by the end of the draw loop!");
+            }
+            if (runningBackend == Backends.Vulkan)
+            {
+                VkEngine.EndDraw(this);
+            }
+            PostEndDrawCallback?.Invoke((float)delta);
+            Window.frameNumber++;
+            if (Window.frameNumber >= Config.maxSimultaneousFrames)
+            {
+                Window.frameNumber = 0;
+            }
+        }
+        public void RenderThreadLoop()
+        {
+            while (!Window.ShouldClose)
+            {
+                //prevent the render items from being modified
+                allowSubmitRenderItems.Reset();
+                DoRender();
+                //when we are finished rendering, allow items to be modified again
+                allowSubmitRenderItems.Set();
+
+                allowDraw.Wait();
+                allowDraw.Reset();
+            }
         }
     }
 }
