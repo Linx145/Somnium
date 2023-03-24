@@ -294,8 +294,6 @@ namespace Somnium.Framework.Vulkan
             #endregion
 
             #region create color blending info
-            float[] blendConstants = new float[4] { 1f, 1f, 1f, 1f };
-
             colorBlendingInfo = new PipelineColorBlendStateCreateInfo();
             colorBlendingInfo.SType = StructureType.PipelineColorBlendStateCreateInfo;
             colorBlendingInfo.LogicOpEnable = false;

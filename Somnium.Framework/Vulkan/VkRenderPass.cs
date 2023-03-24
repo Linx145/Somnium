@@ -21,6 +21,7 @@ namespace Somnium.Framework.Vulkan
         public bool hasDepthStencil;
         public uint hash;
         RenderPass handle;
+        public ImageLayout finalLayout;
         private VkRenderPass(uint hash)
         {
             this.hash = hash;
@@ -46,7 +47,7 @@ namespace Somnium.Framework.Vulkan
         /// Creates a new renderpass for rendering into a framebuffer
         /// </summary>
         /// <param name="imageFormat">The image format for the render pass to handle. Corresponds to the image format of the swapchain that will be feeding this renderpass</param>
-        /// <param name="imageLayout">The layout to change the image into when entering and exiting the renderpass</param>
+        /// <param name="finalLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
         public static VkRenderPass Create(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat = DepthFormat.Depth32)
@@ -175,6 +176,7 @@ namespace Somnium.Framework.Vulkan
             VkRenderPass result = new VkRenderPass(GetKey(imageFormat, depthFormat, finalLayout));
             result.handle = renderPass;
             result.hasDepthStencil = depthFormat != DepthFormat.None;
+            result.finalLayout = finalLayout;
 
             return result;
         }
@@ -216,8 +218,11 @@ namespace Somnium.Framework.Vulkan
             beginInfo.RenderPass = handle;
             //we need to do this for every time we begin the command buffer as the
             //image that we output (and thus the next call's input) will be in the wrong format
-            var imageToTransition = renderTarget == null ? swapchain.images[swapchain.currentImageIndex] : new Image(renderTarget.backendTexture.imageHandle);
-            VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
+            //var imageToTransition = renderTarget == null ? swapchain.images[swapchain.currentImageIndex] : new Image(renderTarget.backendTexture.imageHandle);
+            Texture2D imageToTransition = renderTarget == null ? swapchain.renderTargets[swapchain.currentImageIndex].backendTexture : renderTarget.backendTexture;
+
+            VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
+
             if (renderTarget == null)
             {
                 beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
@@ -232,7 +237,7 @@ namespace Somnium.Framework.Vulkan
             beginInfo.PClearValues = null;
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
-
+            imageToTransition.imageLayout = finalLayout;
             begun = true;
         }
         public void End(CommandCollection cmdBuffer)

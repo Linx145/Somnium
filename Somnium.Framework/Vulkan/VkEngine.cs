@@ -806,6 +806,14 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region images
+        public static void TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandBuffer bufferToUse)
+        {
+            if (image.imageLayout == newLayout)
+            {
+                return;
+            }
+            TransitionImageLayout(new Image(image.imageHandle), aspectFlags, image.imageLayout, newLayout, bufferToUse);
+        }
         public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandBuffer bufferToUse)
         {
             ImageMemoryBarrier barrier = new ImageMemoryBarrier();
@@ -950,6 +958,46 @@ namespace Somnium.Framework.Vulkan
             }
             //EndTransientCommandBuffer(queue, transientBuffer, commandPool);
         }
+        public static void StaticCopyImageToBuffer(Texture2D from, Buffer to, CommandBuffer commandBuffer = default)
+        {
+            bool destroyBuffer = false;
+            CommandBuffer transientBuffer;
+            if (commandBuffer.Handle == IntPtr.Zero)
+            {
+                destroyBuffer = true;
+                transientBuffer = CreateTransientCommandBuffer(true);
+            }
+            else transientBuffer = commandBuffer;
+
+            BufferImageCopy bufferImageCopy = new BufferImageCopy();
+            //we are also copying to a transient buffer
+            bufferImageCopy.BufferOffset = 0;
+            //only set values other than 0 if the image buffer is not tightly packed
+            bufferImageCopy.BufferRowLength = 0;
+            bufferImageCopy.BufferImageHeight = 0;
+
+            bufferImageCopy.ImageSubresource.AspectMask = ImageAspectFlags.ColorBit;
+            bufferImageCopy.ImageSubresource.MipLevel = 0;
+            bufferImageCopy.ImageSubresource.BaseArrayLayer = 0;
+            bufferImageCopy.ImageSubresource.LayerCount = 1;
+
+            bufferImageCopy.ImageOffset = default;
+            bufferImageCopy.ImageExtent = new Extent3D((uint)from.Width, (uint)from.Height, 1);
+
+            vk.CmdCopyImageToBuffer(
+                transientBuffer,
+                new Image(from.imageHandle),
+                ImageLayout.TransferSrcOptimal,
+                to,
+                1,
+                &bufferImageCopy
+                );
+
+            if (destroyBuffer)
+            {
+                EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
+            }
+        }
         public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
         {
             var transientBuffer = CreateTransientCommandBuffer(true);
@@ -967,7 +1015,7 @@ namespace Somnium.Framework.Vulkan
             bufferImageCopy.ImageSubresource.LayerCount = 1;
 
             bufferImageCopy.ImageOffset = default;
-            bufferImageCopy.ImageExtent = new Extent3D((uint)to.Width, (uint)to.Height, 1);
+            bufferImageCopy.ImageExtent = new Extent3D(to.Width, to.Height, 1);
 
             vk.CmdCopyBufferToImage(
                 transientBuffer,

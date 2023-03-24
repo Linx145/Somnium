@@ -17,6 +17,7 @@ int main()
         auto result = NFD_OpenDialogMultiple("vert,frag", NULL, &nfdFilePaths);
         if (result != nfdresult_t::NFD_OKAY)
         {
+            std::getchar();
             return 0;
         }
 
@@ -28,6 +29,7 @@ int main()
         if (pathsCount > 2)
         {
             std::cerr << "Error: Cannot have more than 2 shader sources per file! These should be either vertex+fragment or tessellation control+tessellation evaluaton." << std::endl;
+            std::getchar();
             return 0;
         }
 
@@ -61,12 +63,14 @@ int main()
 
             Somnium::ShaderCompileResult compileResult;
 
-                compileResult.byteCode = Somnium::CompileSpirvBinary(compiler, inputFilePath.filename().string().c_str(), GLShaderType, allLines);
+            compileResult.byteCode = Somnium::CompileSpirvBinary(compiler, inputFilePath.filename().string().c_str(), GLShaderType, allLines);
 
             compileResult.type = somniumShaderType;
 
             if (compileResult.byteCode.size() == 0)
             {
+                std::getchar();
+
                 return -1;
             }
 

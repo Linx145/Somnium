@@ -13,6 +13,7 @@ namespace Somnium.Framework
         public readonly DepthFormat depthFormat;
 
         #region Vulkan
+        public ImageLayout layout;
         public ulong imageViewHandle;
         public AllocatedMemoryRegion memoryRegion;
         #endregion
@@ -65,6 +66,8 @@ namespace Somnium.Framework
                         memoryRegion = VkMemory.malloc("Depth Buffer", image, MemoryPropertyFlags.DeviceLocalBit);
 
                         VkEngine.TransitionImageLayout(image, ImageAspectFlags.DepthBit, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal, new CommandBuffer(null));
+
+                        layout = ImageLayout.DepthStencilAttachmentOptimal;
 
                         ImageViewCreateInfo viewInfo = new ImageViewCreateInfo();
                         viewInfo.SType = StructureType.ImageViewCreateInfo;

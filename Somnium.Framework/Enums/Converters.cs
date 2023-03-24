@@ -12,7 +12,8 @@ public static class Converters
         Format.R32G32B32Sfloat,
         Format.R32G32B32A32Sfloat,
         Format.R32Sint,
-        Format.R8G8B8A8Unorm
+        Format.R8G8B8A8Unorm,
+        Format.R32Uint
             /*case VertexElementFormat.Float:
                 return Format.R32Sfloat;
 
@@ -54,7 +55,8 @@ public static class Converters
         Format.B8G8R8A8SNorm,
         Format.B8G8R8A8Srgb,
         Format.R16G16B16A16Sfloat,
-        Format.R32G32B32A32Sfloat
+        Format.R32G32B32A32Sfloat,
+        Format.R32Uint
     };
     public static ImageFormat VkFormatToImageFormat(Format vkFormat)
     {
@@ -72,6 +74,8 @@ public static class Converters
                 return ImageFormat.B8G8R8A8SNorm;
             case Format.B8G8R8A8Srgb:
                 return ImageFormat.B8G8R8A8Srgb;
+            case Format.R32Uint:
+                return ImageFormat.R32Uint;
             default:
                 throw new NotImplementedException();
         }

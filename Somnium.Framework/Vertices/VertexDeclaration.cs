@@ -7,7 +7,7 @@ namespace Somnium.Framework
 {
     public enum VertexElementFormat
     {
-        Float, Vector2, Vector3, Vector4, Int, Color
+        Float, Vector2, Vector3, Vector4, Int, Color, UInt
     }
     public enum VertexElementInputRate
     {

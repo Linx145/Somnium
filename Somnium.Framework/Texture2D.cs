@@ -26,6 +26,7 @@ namespace Somnium.Framework
         public readonly ImageFormat imageFormat;
 
         #region Vulkan
+        public ImageLayout imageLayout;
         public ulong imageViewHandle;
         public AllocatedMemoryRegion memoryRegion;
         #endregion
@@ -68,20 +69,56 @@ namespace Somnium.Framework
             this.usedForRenderTarget = usedForRenderTarget;
 
             Construct();
-
         }
 
-        public Span<byte> GetData()
+        /// <summary>
+        /// Reads a texture's worth of images. Warning: Very slow, don't do this every frame
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public unsafe Span<T> GetData<T>() where T : unmanaged
         {
-            return data.AsSpan();
-        }
-        public void SetColor(int colorIndex, Color color)
-        {
-            int size = 4;
-            data[colorIndex * size] = color.R;
-            data[colorIndex * size + 1] = color.G;
-            data[colorIndex * size + 2] = color.B;
-            data[colorIndex * size + 3] = color.A;
+            if (!constructed)
+            {
+                throw new InvalidOperationException("Cannot retrieve data from texture2d that has yet to be constructed!");
+            }
+            //if our data array is empty or we are a render target, that means we need to update
+            //our data array 
+            if (usedForRenderTarget || data == null)
+            {
+                switch (application.runningBackend)
+                {
+                    case Backends.Vulkan:
+                        {
+                            if (data == null)
+                            {
+                                data = new byte[Width * Height * sizeof(T)];
+                            }
+
+                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferDstBit);
+                            var stagingMemoryRegion = VkMemory.malloc("Texture2D staging", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+
+                            var img = new Image(imageHandle);
+                            var original = imageLayout;
+                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferSrcOptimal, new CommandBuffer(null));
+                            VkEngine.StaticCopyImageToBuffer(this, stagingBuffer);
+                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.TransferSrcOptimal, original, new CommandBuffer(null));
+
+                            byte* stagingData = stagingMemoryRegion.Bind<byte>();
+                            new Span<byte>(stagingData, data.Length).CopyTo(data);
+                            stagingMemoryRegion.Unbind();
+
+                            VkEngine.DestroyResourceBuffer(stagingBuffer);
+                            stagingMemoryRegion.Free();
+                        }
+                        break;
+                }
+            }
+            int size = sizeof(T);
+            fixed (void* ptr = &data[0])
+            {
+                return new Span<T>(ptr, data.Length / size);
+            }
         }
         public void Construct()
         {
@@ -112,10 +149,12 @@ namespace Somnium.Framework
                             createInfo.InitialLayout = ImageLayout.Undefined;
                             if (usedForRenderTarget)
                             {
-                                createInfo.Usage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
+                                createInfo.Usage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.TransferSrcBit | ImageUsageFlags.SampledBit;
                             }
-                            else createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
-                            
+                            else
+                            {
+                                createInfo.Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
+                            }
                             createInfo.SharingMode = SharingMode.Exclusive;
                             createInfo.Samples = SampleCountFlags.Count1Bit;
                             createInfo.Flags = ImageCreateFlags.None;
@@ -137,17 +176,18 @@ namespace Somnium.Framework
                             if (!usedForRenderTarget)
                             {
                                 var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferSrcBit);
-                                var stagingMemoryRegion = VkMemory.malloc("Texture2D", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                                var stagingMemoryRegion = VkMemory.malloc("Texture2D staging", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
                                 byte* stagingData = stagingMemoryRegion.Bind<byte>();
                                 //stagingMemoryRegion.Bind(&stagingData);
                                 data.AsSpan().CopyTo(new Span<byte>(stagingData, data.Length));
                                 stagingMemoryRegion.Unbind();
 
-                                VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, new CommandBuffer(null));
+                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, new CommandBuffer(null));
                                 VkEngine.StaticCopyBufferToImage(stagingBuffer, this);
+                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
 
-                                VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
+                                imageLayout = ImageLayout.ShaderReadOnlyOptimal;
 
                                 VkEngine.DestroyResourceBuffer(stagingBuffer);
                                 //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
@@ -160,7 +200,9 @@ namespace Somnium.Framework
                         }
                         else
                         {
-                            VkEngine.TransitionImageLayout(new Image(imageHandle), ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(null));
+                            VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(null));
+
+                            imageLayout = ImageLayout.ColorAttachmentOptimal;
                         }
 
                         //create image view
@@ -191,6 +233,8 @@ namespace Somnium.Framework
                 default:
                     throw new Exception();
             }
+            constructed = true;
+            data = null;
         }
         public void Dispose()
         {
