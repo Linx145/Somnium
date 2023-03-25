@@ -48,23 +48,6 @@ namespace Somnium.Framework
             handles = new Dictionary<uint, GenerationalIndex>();
             //Construct();
         }
-        /*private void Construct()
-        {
-            switch (application.runningBackend)
-            {
-                case Backends.Vulkan:
-                    if (shaders.Length != 1) throw new NotImplementedException();
-
-                    VkGraphicsPipeline pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.renderPass, shaders[0], depthTest, depthWrite, vertices);
-                    handle = VkEngine.AddPipeline(pipeline);
-
-                    //pipeline = new VkGraphicsPipeline(application, cullMode, blendState, primitiveType, VkEngine.framebufferRenderPass, shaders[0], depthTest, depthWrite, vertices);
-                    //VkEngine.AddRenderbufferPipeline(pipeline);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        }*/
         /// <summary>
         /// Public call available in Graphics.SetPipeline
         /// </summary>
@@ -88,18 +71,7 @@ namespace Somnium.Framework
                         handles.Add(renderPass.hash, handle);
                     }
                     else pipeline = VkEngine.GetPipeline(handle);
-                    /*if (application.Graphics.currentRenderbuffer == null)
-                    {
-                        pipeline = VkEngine.GetPipeline(handle);
-                        VkEngine.SetRenderPass(VkEngine.renderPass, application.Graphics.currentRenderbuffer);
-                        //VkEngine.renderPass.Begin(VkEngine.commandBuffer, VkEngine.swapChain, renderTarget);
-                    }
-                    else
-                    {
-                        pipeline = VkEngine.GetRenderbufferPipeline(handle);
-                        VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, application.Graphics.currentRenderbuffer);
-                        //VkEngine.framebufferRenderPass.Begin(VkEngine.commandBuffer, null, renderTarget);
-                    }*/
+
                     pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo, scissorRectangle);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;

@@ -226,7 +226,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="requiredSpace"></param>
         /// <returns>The index of the area with space to fit the memory</returns>
-        public virtual AllocatedMemoryRegion TryAllocate(ulong requiredSpace, string source)
+        public virtual AllocatedMemoryRegion TryAllocate(ulong requiredSpace, ulong alignment, string source)
         {
             ulong finalPosition = 0;
             ulong totalSize = maxSize;
@@ -236,6 +236,7 @@ namespace Somnium.Framework.Vulkan
                 //get the maximum extents of the area of filled device memory
                 finalPosition = Math.Max(finalPosition, regions[i].start + regions[i].width);
             }
+            finalPosition = finalPosition + (alignment - finalPosition % alignment);
             if (requiredSpace <= totalSize)
             {
                 for (int i = gaps.Count - 1; i >= 0; i--)
@@ -340,11 +341,11 @@ namespace Somnium.Framework.Vulkan
             allocatedMemories = new UnorderedList<AllocatedMemory>();
             this.memoryBits = memoryBits;
         }
-        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize, string source)
+        public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize, ulong alignment, string source)
         {
             for (int i = 0; i < allocatedMemories.Count; i++)
             {
-                var result = allocatedMemories[i].TryAllocate(requiredSpace, source);
+                var result = allocatedMemories[i].TryAllocate(requiredSpace, alignment, source);
                 if (result != default)
                 {
                     Debugger.LogMemoryAllocation(source, "Allocated memory at " + result.ToString());
@@ -372,7 +373,7 @@ namespace Somnium.Framework.Vulkan
             AllocatedMemory allocatedMemory = new AllocatedMemory(deviceMemory, sizeToAllocate);
             Debugger.LogMemoryAllocation(source, "Created new memory for device " + deviceMemory.Handle + " with size " + sizeToAllocate);
             allocatedMemories.Add(allocatedMemory);
-            AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace, source); //we dont allocate the sizeToAllocate: That's the size for the buffer
+            AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace, alignment, source); //we dont allocate the sizeToAllocate: That's the size for the buffer
             if (region == default)
             {
                 throw new AssetCreationException("Failed to allocate memory in new buffer!");
@@ -482,7 +483,8 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InvalidOperationException("Attempted to use memory pool with type bits " + pool.memoryBits + " for type bits " + memoryRequirements.MemoryTypeBits);
             }
-            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize, source);
+            
+            AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize, memoryRequirements.Alignment, source);
 
             return memoryRegion;
         }

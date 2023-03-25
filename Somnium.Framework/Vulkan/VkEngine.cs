@@ -283,7 +283,7 @@ namespace Somnium.Framework.Vulkan
             vkApplicationInfo.PEngineName = Utils.StringToBytePtr(EngineName, out engineNamePtr);
             vkApplicationInfo.ApplicationVersion = new Version32(1, 0, 0);
             vkApplicationInfo.EngineVersion = new Version32(0, 1, 0);
-            vkApplicationInfo.ApiVersion = Vk.Version12;
+            vkApplicationInfo.ApiVersion = Vk.Version13;
 
             InstanceCreateInfo vkInstanceCreateInfo = new InstanceCreateInfo();
             vkInstanceCreateInfo.SType = StructureType.InstanceCreateInfo;
@@ -806,13 +806,37 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region images
-        public static void TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandBuffer bufferToUse)
+        public static void AwaitImageFinishModifying(Texture2D texture)
+        {
+            ImageMemoryBarrier barrier = new ImageMemoryBarrier();
+            barrier.SType = StructureType.ImageMemoryBarrier;
+            barrier.PNext = null;
+            var srcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+            barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            var dstStageMask = PipelineStageFlags.FragmentShaderBit;
+            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+            barrier.OldLayout = ImageLayout.Undefined;
+            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;//renderBuffer.backendTexture.imageLayout;
+
+            barrier.Image = new Image(texture.imageHandle);
+            barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;
+            barrier.SubresourceRange.BaseMipLevel = 0;
+            barrier.SubresourceRange.LevelCount = 1;
+            barrier.SubresourceRange.BaseArrayLayer = 0;
+            barrier.SubresourceRange.LayerCount = 1;
+
+            vk.CmdPipelineBarrier(new CommandBuffer(commandBuffer.handle), srcStageMask, dstStageMask, DependencyFlags.None, 0, null, 0, null, 1, &barrier);
+
+            texture.imageLayout = ImageLayout.ShaderReadOnlyOptimal;
+        }
+        public static bool TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandBuffer bufferToUse)
         {
             if (image.imageLayout == newLayout)
             {
-                return;
+                return false;
             }
             TransitionImageLayout(new Image(image.imageHandle), aspectFlags, image.imageLayout, newLayout, bufferToUse);
+            return true;
         }
         public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandBuffer bufferToUse)
         {
@@ -958,16 +982,9 @@ namespace Somnium.Framework.Vulkan
             }
             //EndTransientCommandBuffer(queue, transientBuffer, commandPool);
         }
-        public static void StaticCopyImageToBuffer(Texture2D from, Buffer to, CommandBuffer commandBuffer = default)
+        public static void StaticCopyImageToBuffer(Texture2D from, Buffer to)
         {
-            bool destroyBuffer = false;
-            CommandBuffer transientBuffer;
-            if (commandBuffer.Handle == IntPtr.Zero)
-            {
-                destroyBuffer = true;
-                transientBuffer = CreateTransientCommandBuffer(true);
-            }
-            else transientBuffer = commandBuffer;
+            var transientBuffer = CreateTransientCommandBuffer(true);
 
             BufferImageCopy bufferImageCopy = new BufferImageCopy();
             //we are also copying to a transient buffer
@@ -993,10 +1010,7 @@ namespace Somnium.Framework.Vulkan
                 &bufferImageCopy
                 );
 
-            if (destroyBuffer)
-            {
-                EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
-            }
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
         public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
         {

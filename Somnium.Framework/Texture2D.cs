@@ -90,9 +90,10 @@ namespace Somnium.Framework
                 {
                     case Backends.Vulkan:
                         {
-                            if (data == null)
+                            int expectedDataSize = (int)Width * (int)Height * sizeof(T);
+                            if (data == null || data.Length < expectedDataSize)
                             {
-                                data = new byte[Width * Height * sizeof(T)];
+                                data = new byte[expectedDataSize];
                             }
 
                             var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(data.LongLength), BufferUsageFlags.TransferDstBit);

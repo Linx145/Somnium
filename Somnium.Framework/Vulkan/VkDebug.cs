@@ -62,13 +62,11 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new Exception("failed to set up debug messenger!");
             }
-            Console.WriteLine("Debug Messenger setup");
         }
         internal static void DestroyDebugMessenger()
         {
             debugUtils?.DestroyDebugUtilsMessenger(VkEngine.vkInstance, messenger, null);
             debugUtils?.Dispose();
-            Console.WriteLine("Debug messenger destroyed");
         }
     }
 }

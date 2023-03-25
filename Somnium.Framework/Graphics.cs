@@ -148,6 +148,15 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
+        public void AwaitImageFinishModifying(Texture2D image)
+        {
+            switch (application.runningBackend)
+            {
+                case Backends.Vulkan:
+                    VkEngine.AwaitImageFinishModifying(image);
+                    break;
+            }
+        }
         public void SetRenderbuffer(RenderBuffer renderBuffer)
         {
             switch (application.runningBackend)

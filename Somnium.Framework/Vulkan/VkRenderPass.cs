@@ -21,6 +21,7 @@ namespace Somnium.Framework.Vulkan
         public bool hasDepthStencil;
         public uint hash;
         RenderPass handle;
+        RenderBuffer renderingToBuffer;
         public ImageLayout finalLayout;
         private VkRenderPass(uint hash)
         {
@@ -75,16 +76,8 @@ namespace Somnium.Framework.Vulkan
             colorAttachment.LoadOp = AttachmentLoadOp.Load;
             colorAttachment.StoreOp = AttachmentStoreOp.Store;
 
-            //expects an image to be in layout ColorAttachmentOptimal on entering the render pass.
-            //However, our images are in ShaderReadOnlyOptimal so they can be read by the shader.
-            //why are our images entering the render pass?
-            //The only image entering our render pass should be the swapchain image right?
-
-            //however, after rendering once, the swapchain image would have been in PresentSrcKhr
-            //so we will need to transition the image back
-            //into color attachment optimal since we are not (and cannot be) using Undefined
             colorAttachment.InitialLayout = ImageLayout.ColorAttachmentOptimal;
-            colorAttachment.FinalLayout = finalLayout;//ImageLayout.ColorAttachmentOptimal;
+            colorAttachment.FinalLayout = finalLayout;
         
             attachments[0] = colorAttachment;
 
@@ -98,7 +91,7 @@ namespace Somnium.Framework.Vulkan
             colorDependency.DstSubpass = 0;
 
             colorDependency.SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            colorDependency.SrcAccessMask = 0;
+            colorDependency.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
 
             colorDependency.DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
             colorDependency.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
@@ -148,7 +141,7 @@ namespace Somnium.Framework.Vulkan
                 depthDependency.DstSubpass = 0;
 
                 depthDependency.SrcStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit;
-                depthDependency.SrcAccessMask = 0;
+                depthDependency.SrcAccessMask = AccessFlags.DepthStencilAttachmentWriteBit;
 
                 depthDependency.DstStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit;
                 depthDependency.DstAccessMask = AccessFlags.DepthStencilAttachmentWriteBit;
@@ -223,6 +216,7 @@ namespace Somnium.Framework.Vulkan
 
             VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
 
+            renderingToBuffer = renderTarget;
             if (renderTarget == null)
             {
                 beginInfo.Framebuffer = swapchain.CurrentFramebuffer;
@@ -246,7 +240,61 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new InvalidOperationException("Render pass not yet begun!");
             }
-            vk.CmdEndRenderPass(new CommandBuffer(cmdBuffer.handle));
+            var vkCommandBuffer = new CommandBuffer(cmdBuffer.handle);
+            vk.CmdEndRenderPass(vkCommandBuffer);
+
+            if (renderingToBuffer != null)
+            {
+                /*ImageMemoryBarrier barrier = new ImageMemoryBarrier();
+                barrier.SType = StructureType.ImageMemoryBarrier;
+                barrier.PNext = null;
+                var srcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+                barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+                var dstStageMask = PipelineStageFlags.FragmentShaderBit;
+                barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+                barrier.OldLayout = renderingToBuffer.backendTexture.imageLayout;
+                barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+
+                barrier.Image = new Image(renderingToBuffer.backendTexture.imageHandle);
+                barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;// ImageAspectFlags.ColorBit;
+                barrier.SubresourceRange.BaseMipLevel = 0;
+                barrier.SubresourceRange.LevelCount = 1;
+                barrier.SubresourceRange.BaseArrayLayer = 0;
+                barrier.SubresourceRange.LayerCount = 1;
+
+                VkEngine.vk.CmdPipelineBarrier(new CommandBuffer(cmdBuffer.handle), srcStageMask, dstStageMask, DependencyFlags.None, 0, null, 0, null, 1, &barrier);//.CmdPipelineBarrier(new CommandBuffer(VkEngine.commandBuffer.handle), PipelineStageFlags.TopOfPipeBit, PipelineStageFlags.BottomOfPipeBit, DependencyFlags.None, null, null, span);
+
+                renderingToBuffer.backendTexture.imageLayout = ImageLayout.ShaderReadOnlyOptimal;
+                */
+
+                /*ImageMemoryBarrier2 barrier = new ImageMemoryBarrier2();
+                barrier.SType = StructureType.ImageMemoryBarrier2;
+                barrier.SrcStageMask = PipelineStageFlags2.ColorAttachmentOutputBit;
+                barrier.SrcAccessMask = AccessFlags2.ColorAttachmentWriteBit;
+                barrier.DstStageMask = PipelineStageFlags2.FragmentShaderBit;
+                barrier.DstAccessMask = AccessFlags2.ShaderReadBit;
+                barrier.OldLayout = ImageLayout.ColorAttachmentOptimal;
+                barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+
+                barrier.Image = new Image(renderingToBuffer.backendTexture.imageHandle);
+                barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;// ImageAspectFlags.ColorBit;
+                barrier.SubresourceRange.BaseMipLevel = 0;
+                barrier.SubresourceRange.LevelCount = 1;
+                barrier.SubresourceRange.BaseArrayLayer = 0;
+                barrier.SubresourceRange.LayerCount = 1;
+
+                DependencyInfo dependencyInfo = new DependencyInfo();
+                dependencyInfo.SType = StructureType.DependencyInfo;
+                dependencyInfo.PNext = null;
+                dependencyInfo.PBufferMemoryBarriers = null;
+                dependencyInfo.PMemoryBarriers = null;
+                dependencyInfo.PImageMemoryBarriers = &barrier;
+                dependencyInfo.ImageMemoryBarrierCount = 1;
+
+                VkEngine.vk.CmdPipelineBarrier2(new CommandBuffer(cmdBuffer.handle), in dependencyInfo);//.CmdPipelineBarrier(new CommandBuffer(VkEngine.commandBuffer.handle), PipelineStageFlags.TopOfPipeBit, PipelineStageFlags.BottomOfPipeBit, DependencyFlags.None, null, null, span);
+                */
+                renderingToBuffer = null;
+            }
 
             begun = false;
         }

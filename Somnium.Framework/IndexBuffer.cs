@@ -87,7 +87,7 @@ namespace Somnium.Framework
                     if (!isDynamic)
                     {
                         Buffer buffer = VkEngine.CreateResourceBuffer((ulong)(indexCount * indexSize), BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit);
-                        memoryRegion = VkMemory.malloc("Index Buffer", buffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                        memoryRegion = VkMemory.malloc("Index Buffer", buffer, MemoryPropertyFlags.HostCoherentBit);
                         handle = buffer.Handle;
                     }
                     else
