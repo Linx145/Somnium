@@ -1729,12 +1729,12 @@ namespace Somnium.Framework
         /// <returns>Multiplication result.</returns>
         public static Color operator *(Color value, float scale)
         {
-            return new Color((int)(value.R * scale), (int)(value.G * scale), (int)(value.B * scale), (int)(value.A * scale));
+            return new Color(value.R, value.G, value.B, (int)(value.A * scale));
         }
 
-        public static Color operator *(float scale, Color value)
+        public Color MultAll(float scale)
         {
-            return new Color((int)(value.R * scale), (int)(value.G * scale), (int)(value.B * scale), (int)(value.A * scale));
+            return new Color((int)(R * scale), (int)(G * scale), (int)(B * scale), (int)(A * scale));
         }
 
         /// <summary>

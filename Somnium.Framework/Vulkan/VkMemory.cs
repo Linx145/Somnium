@@ -236,7 +236,8 @@ namespace Somnium.Framework.Vulkan
                 //get the maximum extents of the area of filled device memory
                 finalPosition = Math.Max(finalPosition, regions[i].start + regions[i].width);
             }
-            finalPosition = finalPosition + (alignment - finalPosition % alignment);
+            if (finalPosition != 0)
+                finalPosition = finalPosition + (alignment - finalPosition % alignment);
             if (requiredSpace <= totalSize)
             {
                 for (int i = gaps.Count - 1; i >= 0; i--)
@@ -247,17 +248,29 @@ namespace Somnium.Framework.Vulkan
                     if (requiredSpace <= gaps[i].width)
                     {
                         AllocatedMemoryRegion copy = gaps[i];
-                        ulong remainder = copy.width - requiredSpace;
-                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(source, this, handle, gaps[i].start, requiredSpace);
+                        gaps.RemoveAt(i);
+                        ulong copyStart = copy.start;
+                        ulong offset = (alignment - copyStart % alignment);
+                        copyStart = copyStart + offset;
+                        if (copyStart > copy.start)
+                        {
+                            //if the offset required for our memory is greater than the original gap's start,
+                            //we need another gap
+                            //gaps.Add(new AllocatedMemoryRegion(source, this, handle, copy.start, offset));
+                            AddGap(new AllocatedMemoryRegion(source, this, handle, copy.start, offset));
+                        }
+                        long remainder = (long)copy.width - (long)requiredSpace - (long)offset;
+                        AllocatedMemoryRegion result = new AllocatedMemoryRegion(source, this, handle, copyStart, requiredSpace);
                         regions.Add(result);
                         if (remainder > 0)
                         {
                             //if our memory is smaller than the gap, allocate and shrink the gap
-                            gaps[i] = new AllocatedMemoryRegion(source, this, handle, copy.start + requiredSpace, remainder);
+                            AddGap(new AllocatedMemoryRegion(source, this, handle, copyStart + requiredSpace, (ulong)remainder));
+                            //gaps.Add(new AllocatedMemoryRegion(source, this, handle, copyStart + requiredSpace, (ulong)remainder));
                         }
                         else if (remainder == 0)
                         {
-                            gaps.RemoveAt(i);
+                            //gaps.RemoveAt(i);
                         }
                         else
                         {
@@ -281,6 +294,30 @@ namespace Somnium.Framework.Vulkan
             //if either there is not enough space or not enough continuous space, we return 'null'
             return default;
         }
+
+        public void AddGap(AllocatedMemoryRegion gap)
+        {
+            ulong newWidth = gap.width;
+            ulong newStart = gap.start;
+
+            for (int i = gaps.Count - 1; i >= 0 ; i--)
+            {
+                if (gaps[i].start == gap.start + gap.width)
+                {
+                    newWidth += gaps[i].width;
+                    gaps.RemoveAt(i);
+                }
+                else if (gaps[i].start + gaps[i].width == gap.start)
+                {
+                    newWidth += gaps[i].width;
+                    newStart = gaps[i].start;
+                    gaps.RemoveAt(i);
+                }
+            }
+
+            gaps.Add(new AllocatedMemoryRegion(gap.source, this, handle, newStart, newWidth));
+        }
+
         public virtual void Free(AllocatedMemoryRegion region, bool suppressErrors = false)
         {
             if (region.handle.Handle != handle.Handle)
@@ -304,12 +341,18 @@ namespace Somnium.Framework.Vulkan
                     //because there is nothing superceding us
                     if (region.start != finalPosition)
                     {
-                        gaps.Add(region);
+                        AddGap(region);
+                        //gaps.Add(region);
                     }
 
                     Debugger.LogMemoryAllocation(region.source, "Freed memory at " + region.ToString());
                     return;
                 }
+            }
+            //merge gaps
+            for (int i = 0; i < gaps.Count; i++)
+            {
+
             }
             if (!suppressErrors) throw new System.Collections.Generic.KeyNotFoundException("Could not locate memory region of starting position " + region.start + " in the pool!");
         }
@@ -343,6 +386,7 @@ namespace Somnium.Framework.Vulkan
         }
         public AllocatedMemoryRegion AllocateMemory(VkGPU GPU, ulong requiredSpace, ulong memoryCreationSize, ulong alignment, string source)
         {
+            //requiredSpace = requiredSpace + (alignment - requiredSpace % alignment);
             for (int i = 0; i < allocatedMemories.Count; i++)
             {
                 var result = allocatedMemories[i].TryAllocate(requiredSpace, alignment, source);
@@ -376,6 +420,7 @@ namespace Somnium.Framework.Vulkan
             AllocatedMemoryRegion region = allocatedMemory.TryAllocate(requiredSpace, alignment, source); //we dont allocate the sizeToAllocate: That's the size for the buffer
             if (region == default)
             {
+                Debugger.LogMemoryAllocation(source, "Attempted allocation for space of " + requiredSpace);
                 throw new AssetCreationException("Failed to allocate memory in new buffer!");
             }
             Debugger.LogMemoryAllocation(region.source, "Allocated memory at " + region.ToString());

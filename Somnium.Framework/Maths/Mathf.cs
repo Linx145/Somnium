@@ -81,6 +81,8 @@ namespace Somnium.Framework
         }
         public static Vector2 RotateAbout(Vector2 thisPoint, Vector2 pivot, float s, float c)
         {
+            if (thisPoint == pivot)
+                return thisPoint;
             // translate point back to origin:
             thisPoint -= pivot;
 
@@ -95,6 +97,9 @@ namespace Somnium.Framework
         }
         public static Vector2 RotateAbout(Vector2 thisPoint, Vector2 pivot, float angle)
         {
+            if (thisPoint == pivot)
+                return thisPoint;
+
             float s = Sin(angle);
             float c = Cos(angle);
             return RotateAbout(thisPoint, pivot, s, c);
@@ -407,6 +412,25 @@ namespace Somnium.Framework
         {
             return new Vector2(Approach(value.X, toApproach.X, amount), Approach(value.Y, toApproach.Y, amount));
         }
+        public static float ApproachAngle(this float curAngle, float targetAngle, float maxChange)
+        {
+            curAngle = WrapAngle(curAngle);
+            targetAngle = WrapAngle(targetAngle);
+            if (curAngle < targetAngle)
+            {
+                if (targetAngle - curAngle > (float)Math.PI)
+                {
+                    curAngle += MathF.PI * 2f;
+                }
+            }
+            else if (curAngle - targetAngle > (float)Math.PI)
+            {
+                curAngle -= MathF.PI * 2f;
+            }
+            curAngle += Clamp(targetAngle - curAngle, -maxChange, maxChange);
+            return WrapAngle(curAngle);
+        }
+
         public static float transformX(float positionX, float positionY, Matrix4x4 matrix)
         {
             return (positionX * matrix.M11) + (positionY * matrix.M21) + matrix.M41;

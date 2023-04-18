@@ -175,7 +175,7 @@ namespace Somnium.Framework.GLFW
             Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
             Glfw.SetCursorPosCallback(window.handle, new GlfwCallbacks.CursorPosCallback(window.MousePositionCallback));
             Glfw.SetScrollCallback(window.handle, new GlfwCallbacks.ScrollCallback(window.MouseScrollCallback));
-            
+
             window.initialized = true;
             return window;
         }
@@ -275,6 +275,18 @@ namespace Somnium.Framework.GLFW
             //finally, reset per state key frames
             //and poll events such as clicking window close/minimize buttons, etc
             Glfw.PollEvents();
+        }
+        public unsafe void SetIcon(Texture2D texture)
+        {
+            Silk.NET.GLFW.Image image = new Silk.NET.GLFW.Image();
+            image.Width = (int)texture.Width;
+            image.Height = (int)texture.Height;
+            Span<byte> bytes = texture.GetData<byte>();
+            fixed (byte* ptr = &bytes[0])
+            {
+                image.Pixels = ptr;
+            }
+            Glfw.SetWindowIcon(handle, 1, &image);
         }
         public override IGLContext GetGLContext() => GLContext;
         public override CommandCollection GetDefaultCommandCollection()

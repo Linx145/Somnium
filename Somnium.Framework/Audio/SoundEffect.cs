@@ -24,7 +24,7 @@ namespace Somnium.Framework.Audio
             exinfo.cbsize = MarshalHelper.SizeOf(typeof(CREATESOUNDEXINFO));
 
             string fullPath = Path.GetFullPath(filePath);
-            var result = API.createSound(fullPath, MODE.DEFAULT, ref exinfo, out sound);//(fullPath, MODE.DEFAULT, ref createInfo, out sound);
+            var result = API.createSound(fullPath, MODE.DEFAULT | MODE.LOOP_NORMAL, ref exinfo, out sound);//(fullPath, MODE.DEFAULT, ref createInfo, out sound);
             if (result != RESULT.OK)
             {
                 throw new AssetCreationException("Failed to create sound! Error: " + result.ToString());
@@ -36,7 +36,7 @@ namespace Somnium.Framework.Audio
             exinfo.cbsize = MarshalHelper.SizeOf(typeof(CREATESOUNDEXINFO));
             exinfo.length = (uint)data.Length;
 
-            var result = API.createSound(data, MODE.OPENMEMORY, ref exinfo, out sound);
+            var result = API.createSound(data, MODE.OPENMEMORY | MODE.LOOP_NORMAL, ref exinfo, out sound);
             if (result != RESULT.OK)
             {
                 throw new AssetCreationException("Failed to create sound! Error: " + result.ToString());
@@ -71,6 +71,7 @@ namespace Somnium.Framework.Audio
             }
             var instance = new SoundEffectInstance(channel, generation, this);
 
+            instance.LoopCount = 0;
             if (volume != 1f) instance.Volume = volume;
             if (pitch != 1f) instance.Pitch = pitch;
 

@@ -237,8 +237,18 @@ namespace Somnium.Framework
             Window.Dispose();
         }
 
-        private static ManualResetEventSlim allowDraw;
-        private static ManualResetEventSlim allowSubmitRenderItems;
+        /// <summary>
+        /// When Set(), Draw Commands may be recorded and presented to screen.
+        /// <br>Wait on to pause the current thread until the drawing thread may execute</br>
+        /// <br>Operations during Draw should only be read operations</br>
+        /// </summary>
+        public static ManualResetEventSlim allowDraw;
+        /// <summary>
+        /// When Set(), RenderItems or the equivalent may be submitted into your engine's renderer.
+        /// <br>Wait on to pause the current thread until drawing is done</br>
+        /// <br>Operations during render item submission can be both read/write operations</br>
+        /// </summary>
+        public static ManualResetEventSlim allowSubmitRenderItems;
 
         public void DoRender()
         {

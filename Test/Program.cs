@@ -1,6 +1,9 @@
 ﻿using Somnium.Framework;
 using System.Numerics;
 using Somnium.Framework.Audio;
+using Somnium.Framework.Vulkan;
+using System.IO;
+using StbImageWriteSharp;
 
 namespace Test
 {
@@ -68,7 +71,7 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 3))
+            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 3, false))
             {
                 application.OnLoadCallback = OnLoad;
                 application.UpdateCallback = Update;
@@ -363,6 +366,31 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             {
                 application.Window.Title = string.Concat("Test ", MathF.Round(1f / deltaTime).ToString());
                 recordTime -= 0.2f;
+            }
+
+            if (Input.IsKeyPressed(Keys.PrintScreen))
+            {
+                Texture2D backbufferTexture = VkEngine.swapChain.renderTargets[application.Window.frameNumber].backendTexture;
+                Span<Color> span = backbufferTexture.GetData<Color>();
+
+                for (int i = 0; i < span.Length; i++)
+                {
+                    byte R = span[i].R;
+                    span[i].R = span[i].B;
+                    span[i].B = R;
+                }
+
+                unsafe
+                {
+                    fixed (Color* ptr = span)
+                    {
+                        using (FileStream fs = File.Create(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) + "/test.png"))
+                        {
+                            ImageWriter writer = new ImageWriter();
+                            writer.WritePng((byte*)ptr, (int)backbufferTexture.Width, (int)backbufferTexture.Height, ColorComponents.RedGreenBlueAlpha, fs);
+                        }
+                    }
+                }
             }
 
 #if RENDERBUFFERS

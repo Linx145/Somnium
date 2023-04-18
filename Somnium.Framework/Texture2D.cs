@@ -101,7 +101,7 @@ namespace Somnium.Framework
 
                             var img = new Image(imageHandle);
                             var original = imageLayout;
-                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferSrcOptimal, new CommandBuffer(null));
+                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, original, ImageLayout.TransferSrcOptimal, new CommandBuffer(null));
                             VkEngine.StaticCopyImageToBuffer(this, stagingBuffer);
                             VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.TransferSrcOptimal, original, new CommandBuffer(null));
 

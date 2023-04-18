@@ -559,7 +559,7 @@ namespace Somnium.Framework.Vulkan
             {
                 imageFormat = Converters.ImageFormatToVkFormat[(int)renderBuffer.backendTexture.imageFormat];//application.Graphics.currentRenderbuffer.backendTexture.imageFormat;
                 depthFormat = renderBuffer.depthBuffer == null ? DepthFormat.None : renderBuffer.depthBuffer.depthFormat;
-                finalLayout = ImageLayout.ShaderReadOnlyOptimal;
+                finalLayout = ImageLayout.ColorAttachmentOptimal; //ImageLayout.ShaderReadOnlyOptimal;
             }
             else
             {
@@ -815,7 +815,7 @@ namespace Somnium.Framework.Vulkan
             barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
             var dstStageMask = PipelineStageFlags.FragmentShaderBit;
             barrier.DstAccessMask = AccessFlags.ShaderReadBit;
-            barrier.OldLayout = ImageLayout.Undefined;
+            barrier.OldLayout = texture.imageLayout;
             barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;//renderBuffer.backendTexture.imageLayout;
 
             barrier.Image = new Image(texture.imageHandle);

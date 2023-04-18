@@ -49,7 +49,7 @@ namespace Somnium.Framework.Audio
             get
             {
                 uint expectedGeneration = AudioEngine.ChannelGenerations[channel.handle];
-                return generation == expectedGeneration && expectedGeneration != 0;
+                return generation == expectedGeneration && expectedGeneration != 0 && IsPlaying;
             }
         }
         public float Volume
@@ -185,6 +185,7 @@ namespace Somnium.Framework.Audio
         public float GetPlaybackPosition()
         {
             var result = channel.getPosition(out var ms, TIMEUNIT.MS);
+            
             if (result != RESULT.OK)
             {
                 throw new ExecutionException("Failed to get FMOD sound playback position! Error: " + result);

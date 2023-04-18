@@ -41,7 +41,7 @@ namespace Somnium.Framework
                         {
                             var renderpass = VkRenderPass.GetOrCreate(
                                 Converters.ImageFormatToVkFormat[(int)targetBuffer.backendTexture.imageFormat],
-                                ImageLayout.ShaderReadOnlyOptimal,
+                                ImageLayout.ColorAttachmentOptimal,
                                 targetBuffer.depthBuffer == null ? DepthFormat.None : targetBuffer.depthBuffer.depthFormat);
                             VkEngine.SetRenderPass(renderpass, targetBuffer);
                             VkEngine.activeRenderPass = renderpass;
