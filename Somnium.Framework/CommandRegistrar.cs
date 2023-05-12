@@ -1,10 +1,8 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+#endif
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Somnium.Framework
 {
@@ -36,6 +34,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -57,6 +56,7 @@ namespace Somnium.Framework
                         handle = result.Handle;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -65,6 +65,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -74,6 +75,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }

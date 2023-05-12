@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Somnium.Framework
+﻿namespace Somnium.Framework
 {
     public struct Viewport
     {
@@ -24,10 +18,11 @@ namespace Somnium.Framework
             this.minDepth = minDepth;
             this.maxDepth = maxDepth;
         }
-
+#if VULKAN
         public Silk.NET.Vulkan.Viewport ToVulkanViewport()
         {
             return new Silk.NET.Vulkan.Viewport(X, Y, Width, Height, minDepth, maxDepth);
         }
+#endif
     }
 }

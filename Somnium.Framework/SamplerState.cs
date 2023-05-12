@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using System.Collections.Generic;
 
@@ -44,6 +46,7 @@ namespace Somnium.Framework
             }
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -81,6 +84,7 @@ namespace Somnium.Framework
                         handle = sampler.Handle;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -89,12 +93,14 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
                         VkEngine.vk.DestroySampler(VkEngine.vkDevice, new Sampler(handle), null);
                     }
                         break;
+#endif
                 default:
                     throw new NotImplementedException();
             }

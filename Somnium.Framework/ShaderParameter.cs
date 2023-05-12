@@ -1,10 +1,9 @@
 ﻿using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
-using StbImageSharp;
+#endif
 using System;
 using System.Collections.Generic;
-
-using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
@@ -159,6 +158,7 @@ namespace Somnium.Framework
 
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         unsafe
                         {
@@ -170,6 +170,7 @@ namespace Somnium.Framework
                             }
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -365,16 +366,19 @@ namespace Somnium.Framework
 
         public bool mutated;
 
-
+#if VULKAN
         #region Vulkan
         public DescriptorBufferInfo vkBufferInfo;
         public DescriptorImageInfo[] vkImageInfos;
         #endregion
+#endif
 
         public StagingMutableState(UniformBuffer uniformBuffer)
         {
+#if VULKAN
             vkBufferInfo = default;
             vkImageInfos = null;
+#endif
             mutated = false;
             this.uniformBuffer = uniformBuffer;
             textures = null;
@@ -382,8 +386,10 @@ namespace Somnium.Framework
         }
         public StagingMutableState(Texture2D[] textures)
         {
+#if VULKAN
             vkBufferInfo = default;
             vkImageInfos = new DescriptorImageInfo[textures.Length];
+#endif
             mutated = false;
             uniformBuffer = null;
             this.textures = textures;
@@ -391,8 +397,10 @@ namespace Somnium.Framework
         }
         public StagingMutableState(SamplerState[] samplers)
         {
+#if VULKAN
             vkBufferInfo = default;
             vkImageInfos = new DescriptorImageInfo[samplers.Length];
+#endif
             mutated = false;
             uniformBuffer = null;
             textures = null;

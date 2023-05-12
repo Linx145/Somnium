@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework;
 using System;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ namespace Somnium.Framework.Vulkan
             for (int i = 0; i < attributeDescriptions.Length; i++)
             {
                 attributeDescriptions[i].Binding = (uint)i;//declaration.elements[i].binding;
-                attributeDescriptions[i].Format = Converters.FormatFromVertexElementFormat[(int)declaration.elements[i].format];
+                attributeDescriptions[i].Format = Converters.VertexFormatToVkFormat[(int)declaration.elements[i].format];
                 //attributeDescriptions[i].Location = declaration.elements[i].location;
                 //attributeDescriptions[i].Format = FromVertexElementFormat(declaration.elements[i].format);
                 attributeDescriptions[i].Offset = declaration.elements[i].offset;
@@ -35,3 +36,4 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+#endif

@@ -31,6 +31,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -92,6 +93,7 @@ namespace Somnium.Framework
                         imageViewHandle = depthImageView.Handle;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -100,6 +102,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -109,6 +112,7 @@ namespace Somnium.Framework
                         memoryRegion.Free();
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }

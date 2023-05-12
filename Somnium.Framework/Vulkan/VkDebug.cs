@@ -1,4 +1,5 @@
-﻿using Silk.NET.Core;
+﻿#if VULKAN
+using Silk.NET.Core;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using System.Runtime.InteropServices;
@@ -70,3 +71,4 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+#endif

@@ -1,6 +1,4 @@
-﻿using Silk.NET.Vulkan;
-using Somnium.Framework.Vulkan;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System;
 
 namespace Somnium.Framework
@@ -67,15 +65,11 @@ namespace Somnium.Framework
             {
                 throw new InvalidOperationException("Cannot create new vertex declaration after initialization!");
             }
-            if (backend == Backends.Vulkan)
-            {
-                VertexDeclaration declaration = new VertexDeclaration();
-                declaration.size = size;
-                declaration.inputRate = inputRate;
+            VertexDeclaration declaration = new VertexDeclaration();
+            declaration.size = size;
+            declaration.inputRate = inputRate;
 
-                return declaration;
-            }
-            else throw new NotImplementedException();
+            return declaration;
         }
 
         public static void AddDefaultVertexDeclarations(Backends backend)

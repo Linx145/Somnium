@@ -64,6 +64,8 @@ namespace Somnium.Framework
                     }
                 }
 #endif
+
+#if VULKAN
                 if (application.runningBackend == Backends.Vulkan)
                 {
                     if (isDynamic)
@@ -81,6 +83,7 @@ namespace Somnium.Framework
                         dynamicOffset = filledBufferExtents;
                     }
                 }
+#endif
                 *(T*)((byte*)bindingPoint + offset) = data;
                 //new Span<T>((void*)bindingPoint, 1)[0] = data;
             }
@@ -89,6 +92,7 @@ namespace Somnium.Framework
         {
             unsafe
             {
+#if VULKAN
                 if (application.runningBackend == Backends.Vulkan)
                 {
                     if (isDynamic)
@@ -104,6 +108,7 @@ namespace Somnium.Framework
                         }
                         dynamicOffset = filledBufferExtents;
                     }
+#endif
                 }
                 //int sizeofT = sizeof(T);
                 T* ptr = (T*)((byte*)bindingPoint + offset);
@@ -163,6 +168,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -188,6 +194,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -197,6 +204,7 @@ namespace Somnium.Framework
             if (isDisposed) throw new InvalidOperationException("Uniform buffer already disposed!");
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -205,6 +213,7 @@ namespace Somnium.Framework
                         VkEngine.DestroyResourceBuffer(new Buffer(handle));
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }

@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Core.Contexts;
+#if VULKAN
 using Silk.NET.Vulkan;
+#endif
 using System;
 
 namespace Somnium.Framework
@@ -94,10 +96,12 @@ namespace Somnium.Framework
         #endregion
 
         #region Vulkan
+#if VULKAN
         public abstract byte** GetRequiredExtensions(out uint Count);
         public abstract Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities);
         public abstract Point GetFramebufferExtents();
         public abstract SurfaceKHR CreateWindowSurfaceVulkan();
-        #endregion
+#endif
+#endregion
     }
 }

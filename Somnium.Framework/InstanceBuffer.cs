@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -38,6 +40,7 @@ namespace Somnium.Framework
             if (constructed) throw new InvalidOperationException("Buffer already constructed!");
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -51,6 +54,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -70,34 +74,18 @@ namespace Somnium.Framework
 
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
-                        /*if (!isDynamic)
-                        {
-                            T* data;
-                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(instanceDataDeclaration.size * Length), BufferUsageFlags.TransferSrcBit);
-                            var stagingMemoryRegion = VkMemory.malloc(stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
-
-                            data = stagingMemoryRegion.Bind<T>();
-                            instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
-                            stagingMemoryRegion.Unbind();
-
-                            VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(vertexCount * vertexDeclaration.size));
-
-                            VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
-                            stagingMemoryRegion.Free();
-                        }
-                        else*/
-                        {
                             //make sure the thing is bound
                             T* data = memoryRegions[application.Window.frameNumber].Bind<T>();
                             new ReadOnlySpan<T>(instanceData, 0, Length).CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                             //instanceData.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
-                        }
                         //no need to call unbind
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -109,6 +97,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         unsafe
                         {
@@ -121,6 +110,7 @@ namespace Somnium.Framework
                             }
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }

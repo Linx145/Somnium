@@ -67,6 +67,7 @@ namespace Somnium.Framework
             }
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -112,6 +113,7 @@ namespace Somnium.Framework
                     }
                     constructed = true;
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -126,12 +128,14 @@ namespace Somnium.Framework
                 {
                     switch (application.runningBackend)
                     {
+#if VULKAN
                         case Backends.Vulkan:
                             unsafe
                             {
                                 VkEngine.vk.DestroyFramebuffer(VkEngine.vkDevice, new Framebuffer(framebufferHandle), null);
                             }
                             break;
+#endif
                         default:
                             throw new NotImplementedException();
                     }

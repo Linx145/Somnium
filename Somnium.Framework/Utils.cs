@@ -1,6 +1,8 @@
 ﻿using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using System.Runtime.InteropServices;
 
@@ -20,6 +22,7 @@ namespace Somnium.Framework
             ptr = intPtr;
             return (byte**)intPtr;
         }
+#if VULKAN
         public static uint FindMemoryType(uint typeFilter, MemoryPropertyFlags properties, VkGPU gpu)
         {
             PhysicalDeviceMemoryProperties memoryProperties;
@@ -34,5 +37,6 @@ namespace Somnium.Framework
             }
             throw new InitializationException("Vulkan memory type not found!");
         }
+#endif
     }
 }

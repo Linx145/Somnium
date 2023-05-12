@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Silk.NET.Core;
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -65,10 +66,10 @@ namespace Somnium.Framework.Vulkan
             {
                 vertices[i] = new VkVertex(vertexTypes[i]);
             }
-            this.cullMode = Converters.CullModeToFlags[(int)cullMode];
+            this.cullMode = Converters.CullModeToVkFlags[(int)cullMode];
             this.frontFaceMode = FrontFace.Clockwise;
             this.blendState = blendState;
-            this.topology = Converters.PrimitiveTypeToTopology[(int)primitiveType];
+            this.topology = Converters.PrimitiveTypeToVkTopology[(int)primitiveType];
             if (this.topology == PrimitiveTopology.LineList || this.topology == PrimitiveTopology.LineStrip || this.topology == PrimitiveTopology.LineListWithAdjacency)
             {
                 this.polygonMode = PolygonMode.Line;
@@ -96,7 +97,7 @@ namespace Somnium.Framework.Vulkan
                 default:
                     this.shaderStages = new PipelineShaderStageCreateInfo[]
                     {
-                        CreateShaderStage(Converters.ShaderTypeToFlags[(int)shader.type], new ShaderModule(shader.shaderHandle))
+                        CreateShaderStage(Converters.ShaderTypeToVkFlags[(int)shader.type], new ShaderModule(shader.shaderHandle))
                     };
                     break;
             }
@@ -382,7 +383,7 @@ namespace Somnium.Framework.Vulkan
         public unsafe void Bind(RenderBuffer renderbuffer, CommandCollection commandBuffer, RenderStage bindType, Rectangle scissorRectangle = default)
         {
             var vkCmdBuffer = new CommandBuffer(commandBuffer.handle);
-            vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToBindPoint[(int)bindType], handle);
+            vk.CmdBindPipeline(vkCmdBuffer, Converters.RenderStageToVkBindPoint[(int)bindType], handle);
             Viewport viewport;
             if (renderbuffer != null)
             {
@@ -416,7 +417,7 @@ namespace Somnium.Framework.Vulkan
 
                 vk.CmdBindDescriptorSets(
 new CommandBuffer(commandBuffer.handle),
-Converters.RenderStageToBindPoint[(int)bindType],
+Converters.RenderStageToVkBindPoint[(int)bindType],
 pipelineLayout,
 0,
 1,
@@ -485,3 +486,4 @@ null);
         }
     }
 }
+#endif

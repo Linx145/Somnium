@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -29,3 +30,4 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+#endif

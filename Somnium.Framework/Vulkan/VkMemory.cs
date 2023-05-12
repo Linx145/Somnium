@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -542,3 +543,4 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+#endif

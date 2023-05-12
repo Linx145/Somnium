@@ -1,8 +1,8 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using System.Collections.Generic;
-using System.Reflection.Metadata;
 using System.Threading;
 
 namespace Somnium.Framework
@@ -59,6 +59,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
 
                     var renderPass = VkEngine.GetCurrentRenderPass(application);
@@ -75,6 +76,7 @@ namespace Somnium.Framework
                     pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo, scissorRectangle);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -85,6 +87,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     var renderPass = VkEngine.GetCurrentRenderPass(application);
                     VkGraphicsPipeline pipeline;
@@ -97,6 +100,7 @@ namespace Somnium.Framework
                     else pipeline = VkEngine.GetPipeline(handle);
                     pipeline.PushUniformUpdates(VkEngine.commandBuffer, bindType);
                     break;
+#endif
                 default:
                     break;
             }
@@ -105,6 +109,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
                     VkEngine.activeRenderPass = null;
@@ -112,6 +117,7 @@ namespace Somnium.Framework
                     VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -122,6 +128,7 @@ namespace Somnium.Framework
             //do not dispose shaders
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     foreach (var handle in handles.Values)
                     {
@@ -129,6 +136,7 @@ namespace Somnium.Framework
                     }
                     //VkEngine.DestroyPipeline(handle);
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }

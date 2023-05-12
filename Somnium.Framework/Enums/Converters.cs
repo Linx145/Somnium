@@ -1,40 +1,12 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
+#endif
 using System;
 
 namespace Somnium.Framework;
 
 public static class Converters
 {
-    public static readonly Format[] FormatFromVertexElementFormat = new Format[]
-    {
-        Format.R32Sfloat,
-        Format.R32G32Sfloat,
-        Format.R32G32B32Sfloat,
-        Format.R32G32B32A32Sfloat,
-        Format.R32Sint,
-        Format.R8G8B8A8Unorm,
-        Format.R32Uint
-            /*case VertexElementFormat.Float:
-                return Format.R32Sfloat;
-
-            case VertexElementFormat.Vector2:
-                return Format.R32G32Sfloat;
-
-            case VertexElementFormat.Vector3:
-                return Format.R32G32B32Sfloat;
-
-            case VertexElementFormat.Vector4:
-                return Format.R32G32B32A32Sfloat;
-        }*/
-    };
-    public static readonly Format[] DepthFormatToVkFormat = new Format[]
-    {
-        Format.Undefined,
-        Format.D16Unorm,
-        Format.D16UnormS8Uint,
-        Format.D24UnormS8Uint,
-        Format.D32Sfloat
-    };
     public static bool DepthFormatHasStencil(DepthFormat depthFormat)
     {
         switch (depthFormat)
@@ -46,6 +18,26 @@ public static class Converters
                 return false;
         }
     }
+
+#if VULKAN
+    public static readonly Format[] VertexFormatToVkFormat = new Format[]
+{
+        Format.R32Sfloat,
+        Format.R32G32Sfloat,
+        Format.R32G32B32Sfloat,
+        Format.R32G32B32A32Sfloat,
+        Format.R32Sint,
+        Format.R8G8B8A8Unorm,
+        Format.R32Uint
+};
+    public static readonly Format[] DepthFormatToVkFormat = new Format[]
+    {
+        Format.Undefined,
+        Format.D16Unorm,
+        Format.D16UnormS8Uint,
+        Format.D24UnormS8Uint,
+        Format.D32Sfloat
+    };
     public static readonly Format[] ImageFormatToVkFormat = new Format[]
     {
         Format.R8G8B8A8Unorm,
@@ -99,7 +91,7 @@ public static class Converters
     /// <summary>
     /// Converts the Somnium.Framework generic PrimitiveType to the Vulkan specific PrimitiveTopology
     /// </summary>
-    public static readonly PrimitiveTopology[] PrimitiveTypeToTopology = new PrimitiveTopology[]
+    public static readonly PrimitiveTopology[] PrimitiveTypeToVkTopology = new PrimitiveTopology[]
     {
             PrimitiveTopology.TriangleList,
             PrimitiveTopology.TriangleStrip,
@@ -111,7 +103,7 @@ public static class Converters
             PrimitiveTopology.LineStripWithAdjacency,
     };
 
-    public static readonly ShaderStageFlags[] ShaderTypeToFlags = new ShaderStageFlags[]
+    public static readonly ShaderStageFlags[] ShaderTypeToVkFlags = new ShaderStageFlags[]
     {
             ShaderStageFlags.None,
             ShaderStageFlags.VertexBit,
@@ -123,14 +115,14 @@ public static class Converters
             ShaderStageFlags.ComputeBit
     };
 
-    public static readonly CullModeFlags[] CullModeToFlags = new CullModeFlags[]
+    public static readonly CullModeFlags[] CullModeToVkFlags = new CullModeFlags[]
     {
             CullModeFlags.BackBit,
             CullModeFlags.FrontBit,
             CullModeFlags.None
     };
 
-    public static readonly PipelineBindPoint[] RenderStageToBindPoint = new PipelineBindPoint[]
+    public static readonly PipelineBindPoint[] RenderStageToVkBindPoint = new PipelineBindPoint[]
     {
             PipelineBindPoint.Graphics,
             PipelineBindPoint.Compute,
@@ -158,4 +150,5 @@ public static class Converters
             DescriptorType.Sampler,
             DescriptorType.CombinedImageSampler
     };
+#endif
 }

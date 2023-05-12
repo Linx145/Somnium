@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -28,6 +30,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -55,6 +58,7 @@ namespace Somnium.Framework
                         VkEngine.activeRenderPass = null;
                     }
                     break;
+#endif
                 default:
                     throw new InvalidOperationException();
             }
@@ -72,6 +76,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -115,6 +120,7 @@ namespace Somnium.Framework
                         VkEngine.vk.CmdClearAttachments(VkEngine.commandBuffer, (uint)clearCount, clearAttachments, (uint)clearCount, clearAreas);
                     }
                     break;
+#endif
                 default:
                     break;
             }
@@ -127,6 +133,7 @@ namespace Somnium.Framework
             }
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     if (rect == default)
                     {
@@ -144,6 +151,7 @@ namespace Somnium.Framework
                         VkEngine.vk.CmdSetScissor(new CommandBuffer(VkEngine.commandBuffer.handle), 0, 1, new Rect2D(new Offset2D(rect.X, rect.Y), new Extent2D((uint)rect.Width, (uint)rect.Height)));
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -152,8 +160,12 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     VkEngine.AwaitImageFinishModifying(image);
+                    break;
+#endif
+                default:
                     break;
             }
         }
@@ -161,6 +173,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -171,6 +184,7 @@ namespace Somnium.Framework
                         currentRenderbuffer = renderBuffer;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -218,6 +232,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         Buffer vkBuffer = new Buffer(buffer.handles[application.Window.frameNumber]);
                         fixed (ulong* ptr = noOffset)
@@ -225,6 +240,7 @@ namespace Somnium.Framework
                             VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -236,6 +252,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         Buffer vkBuffer = new Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
@@ -243,6 +260,7 @@ namespace Somnium.Framework
                             VkEngine.vk.CmdBindVertexBuffers(new CommandBuffer(VkEngine.commandBuffer.handle), bindingPoint, 1, &vkBuffer, noOffset.AsSpan());
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -254,6 +272,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         Buffer vkBuffer = new Buffer(buffer.handle);
                         fixed (ulong* ptr = noOffset)
@@ -261,6 +280,7 @@ namespace Somnium.Framework
                             VkEngine.vk.CmdBindIndexBuffer(new CommandBuffer(VkEngine.commandBuffer.handle), vkBuffer, 0, IndexType.Uint16);
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -272,10 +292,12 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         ResetPipelineShaders();
                         VkEngine.vk.CmdDraw(new CommandBuffer(VkEngine.commandBuffer.handle), vertexCount, instanceCount, firstVertex, firstInstance);
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -287,10 +309,12 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         ResetPipelineShaders();
                         VkEngine.vk.CmdDrawIndexed(new CommandBuffer(VkEngine.commandBuffer.handle), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -298,17 +322,6 @@ namespace Somnium.Framework
         }
         private void ResetPipelineShaders()
         {
-            /*bool updateUniforms = false;
-            for (int i = 0; i < currentPipeline.shaders.Length; i++)
-            {
-                if (currentPipeline.shaders[i].uniformHasBeenSet)
-                {
-                    updateUniforms = true;
-                }
-                currentPipeline.shaders[i].uniformHasBeenSet = false;
-            }
-            //at least one uniform has been updated, so we need to update our descriptors
-            if (updateUniforms) SendUpdatedUniforms();*/
             SendUpdatedUniforms();
 
             //need to update using the old descriptorForThisDrawCall state

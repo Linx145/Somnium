@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using System;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -58,3 +59,4 @@ namespace Somnium.Framework.Vulkan
         }
     }
 }
+#endif

@@ -1,5 +1,7 @@
 ﻿using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using System.Reflection.Emit;
 
@@ -25,12 +27,14 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
                         VkEngine.vk.ResetCommandBuffer(new CommandBuffer(handle), CommandBufferResetFlags.None);
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -39,6 +43,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -55,6 +60,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -63,6 +69,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -72,6 +79,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default: 
                     throw new NotImplementedException();
             }
@@ -80,6 +88,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -97,7 +106,8 @@ namespace Somnium.Framework
                         handle = result.Handle;
                     }
                     break;
-               default:
+#endif
+                default:
                     throw new NotImplementedException();
             }
         }

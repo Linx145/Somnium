@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Core;
-using Silk.NET.GLFW;
+#if VULKAN
 using Silk.NET.Vulkan;
+#endif
 using Somnium.Framework.Audio;
 using Somnium.Framework.GLFW;
 using Somnium.Framework.Vulkan;
@@ -124,9 +125,13 @@ namespace Somnium.Framework
         {
             switch (runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     VkEngine.Initialize(Window, AppName, useDebugLayers);
                     break;
+#endif
+                default:
+                    throw new NotImplementedException();
             }
             AudioEngine.Initialize();
             SamplerState.AddDefaultSamplerStates(this);
@@ -196,6 +201,7 @@ namespace Somnium.Framework
             //to avoid disposing things that are being used
             switch (runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -207,13 +213,20 @@ namespace Somnium.Framework
                         VkEngine.vk.WaitForFences(VkEngine.vkDevice, (uint)Config.maxSimultaneousFrames, fences, new Bool32(true), uint.MaxValue);
                     }
                     break;
+#endif
+                default:
+                    break;
             }
             UnloadCallback?.Invoke();
             AudioEngine.Shutdown();
             switch (runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     VkEngine.Shutdown();
+                    break;
+#endif
+                default:
                     break;
             }
         }
@@ -246,10 +259,12 @@ namespace Somnium.Framework
                     glContext.MakeCurrent();
                 }
             }
+#if VULKAN
             else if (runningBackend == Backends.Vulkan)
             {
                 VkEngine.BeginDraw();
             }
+#endif
 
             DrawCallback?.Invoke((float)delta);
 
@@ -257,10 +272,12 @@ namespace Somnium.Framework
             {
                 throw new ExecutionException("Renderbuffer target must be set to null(default) by the end of the draw loop!");
             }
+#if VULKAN
             if (runningBackend == Backends.Vulkan)
             {
                 VkEngine.EndDraw(this);
             }
+#endif
             PostEndDrawCallback?.Invoke((float)delta);
             Window.frameNumber++;
             if (Window.frameNumber >= Config.maxSimultaneousFrames)

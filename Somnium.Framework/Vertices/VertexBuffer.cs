@@ -1,6 +1,7 @@
-﻿using Silk.NET.Core.Native;
+﻿#if VULKAN
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -16,8 +17,10 @@ namespace Somnium.Framework
         public VertexDeclaration vertexDeclaration { get; private set; }
 
         #region Vulkan
+#if VULKAN
         AllocatedMemoryRegion memoryRegion;
-        #endregion
+#endif
+#endregion
 
         public VertexBuffer(Application application, VertexDeclaration vertexType, int vertexCount, bool isDynamic)
         {
@@ -38,6 +41,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         if (!isDynamic)
                         {
@@ -60,6 +64,7 @@ namespace Somnium.Framework
                             vertices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -69,6 +74,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     if (!isDynamic)
                     {
@@ -76,6 +82,7 @@ namespace Somnium.Framework
                     }
                     else throw new NotImplementedException();
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -84,6 +91,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     if (!isDynamic)
                     {
@@ -98,6 +106,7 @@ namespace Somnium.Framework
                         handle = buffer.Handle;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -106,6 +115,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -117,7 +127,8 @@ namespace Somnium.Framework
                         }
                         //VkEngine.vk.FreeMemory(VkEngine.vkDevice, deviceMemory, null);
                     }
-                    break; 
+                    break;
+#endif
                 default: 
                     throw new NotImplementedException();
             }

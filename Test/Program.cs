@@ -2,7 +2,6 @@
 using System.Numerics;
 using Somnium.Framework.Audio;
 using Somnium.Framework.Vulkan;
-using System.IO;
 using StbImageWriteSharp;
 
 namespace Test

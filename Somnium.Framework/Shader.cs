@@ -1,7 +1,9 @@
 ﻿using System;
+#if VULKAN
 using Silk.NET.Vulkan;
-using System.IO;
 using Somnium.Framework.Vulkan;
+#endif
+using System.IO;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
 using System.Text;
@@ -118,6 +120,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     if (type == ShaderType.VertexAndFragment || type == ShaderType.Tessellation)
                     {
@@ -184,6 +187,7 @@ namespace Somnium.Framework
                         }
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -195,6 +199,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         unsafe
                         {
@@ -208,7 +213,7 @@ namespace Somnium.Framework
                                 binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
                                 //If the binding points to a variable in the shader that is an array, this would be that array's length
                                 binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader1Params!.shaderType];
+                                binding.StageFlags = Converters.ShaderTypeToVkFlags[(int)shader1Params!.shaderType];
 
                                 *(bindings + value.binding) = binding;
                             }
@@ -222,7 +227,7 @@ namespace Somnium.Framework
                                     binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
                                     //If the binding points to a variable in the shader that is an array, this would be that array's length
                                     binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                    binding.StageFlags = Converters.ShaderTypeToFlags[(int)shader2Params!.shaderType];
+                                    binding.StageFlags = Converters.ShaderTypeToVkFlags[(int)shader2Params!.shaderType];
 
                                     *(bindings + value.binding) = binding;
                                 }
@@ -252,11 +257,13 @@ namespace Somnium.Framework
                             #endregion
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
             }
         }
+#if VULKAN
         private unsafe void CheckUniformSet()
         {
             if (!uniformHasBeenSet)
@@ -292,6 +299,7 @@ namespace Somnium.Framework
                 uniformHasBeenSet = true;
             }
         }
+#endif
         public bool HasUniform(string uniformName, SetNumber shaderNumber = SetNumber.Either)
         {
             if (shaderNumber == SetNumber.Either)
@@ -487,6 +495,7 @@ namespace Somnium.Framework
         /// </summary>
         public void SyncUniformsWithGPU()
         {
+#if VULKAN
             unsafe void UpdateForParams(ShaderParameterCollection paramsCollection)
             {
                 foreach (var param in paramsCollection.GetParameters())
@@ -604,9 +613,11 @@ namespace Somnium.Framework
                 VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, descriptorSetWrites.AsReadonlySpan(), 0, null);
                 descriptorSetWrites.Clear();
             }
+#endif
 
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     {
                         if (shader1Params != null)
@@ -619,6 +630,7 @@ namespace Somnium.Framework
                         }
                         break;
                     }
+#endif
                 default:
                     break;
             }
@@ -889,6 +901,7 @@ namespace Somnium.Framework
                 shader2Params?.Dispose();
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         unsafe
                         {
@@ -910,6 +923,7 @@ namespace Somnium.Framework
                             }  
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }

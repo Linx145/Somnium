@@ -1,5 +1,7 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -49,6 +51,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         if (!isDynamic)
                         {
@@ -74,6 +77,7 @@ namespace Somnium.Framework
                             indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
                         }
                         break;
+#endif
                     default:
                         throw new NotImplementedException();
                 }
@@ -83,6 +87,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     if (!isDynamic)
                     {
@@ -97,6 +102,7 @@ namespace Somnium.Framework
                         handle = buffer.Handle;
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -105,6 +111,7 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     unsafe
                     {
@@ -118,6 +125,7 @@ namespace Somnium.Framework
                         //VkEngine.vk.FreeMemory(VkEngine.vkDevice, deviceMemory, null);
                     }
                     break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
