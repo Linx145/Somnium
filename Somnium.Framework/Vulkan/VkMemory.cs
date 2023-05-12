@@ -524,10 +524,10 @@ namespace Somnium.Framework.Vulkan
                 memoryPools.Insert(memoryTypeIndex, new MemoryPool(memoryTypeIndex, memoryRequirements.MemoryTypeBits));
             }
             MemoryPool pool = memoryPools[memoryTypeIndex];
-            if (pool.memoryBits != memoryRequirements.MemoryTypeBits)
+            /*if (pool.memoryBits != memoryRequirements.MemoryTypeBits)
             {
                 throw new InvalidOperationException("Attempted to use memory pool with type bits " + pool.memoryBits + " for type bits " + memoryRequirements.MemoryTypeBits);
-            }
+            }*/
             
             AllocatedMemoryRegion memoryRegion = pool.AllocateMemory(VkEngine.CurrentGPU, memoryRequirements.Size, memoryCreationSize, memoryRequirements.Alignment, source);
 

@@ -95,6 +95,36 @@ namespace Somnium.Framework.GLFW
                 }
             }
         }
+        public override bool UserCanResize
+        {
+            get
+            {
+                return Glfw.GetWindowAttrib(handle, WindowAttributeGetter.Resizable);
+            }
+            set
+            {
+                Glfw.SetWindowAttrib(handle, WindowAttributeSetter.Resizable, value);
+            }
+        }
+        /*public override bool Fullscreen
+        {
+            set
+            {
+                unsafe
+                {
+                    Monitor* monitor = Glfw.GetPrimaryMonitor();
+                    if (value)
+                    {
+                        Glfw.GetMonitorWorkarea(monitor, out int x, out int y, out int w, out int h);
+                        Glfw.SetWindowMonitor(handle, monitor, x, y, w, h, Glfw.DontCare);
+                    }
+                    else
+                    {
+                        Glfw.SetWindowMonitor(handle, null, 0, 0, );
+                    }
+                }
+            }
+        }*/
         private bool internalIsMinimized = false;
         public override bool VSync
         {
@@ -225,6 +255,10 @@ namespace Somnium.Framework.GLFW
         #region input callbacks
         public unsafe void OnKeyPressed(WindowHandle* handle, Silk.NET.GLFW.Keys key, int scanCode, InputAction inputAction, KeyModifiers modifiers)
         {
+            if (key == Silk.NET.GLFW.Keys.Unknown)
+            {
+                return;
+            }
             if (inputAction == InputAction.Press)
             {
                 InputStateGLFW.keysDown.Insert((uint)key, true);

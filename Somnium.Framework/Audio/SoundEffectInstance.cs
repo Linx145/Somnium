@@ -199,6 +199,10 @@ namespace Somnium.Framework.Audio
                 RESULT result;
                 if ((result = channel.isPlaying(out var playing)) != RESULT.OK)
                 {
+                    if (result == RESULT.ERR_INVALID_HANDLE)
+                    {
+                        return false;
+                    }
                     throw new ExecutionException("Error getting playing state of FMOD sound! Error: " + result.ToString());
                 }
                 return playing;

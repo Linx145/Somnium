@@ -6,7 +6,6 @@ using Somnium.Framework.GLFW;
 using Somnium.Framework.Vulkan;
 using System;
 using System.Diagnostics;
-using System.Reflection.Metadata;
 using System.Threading;
 
 namespace Somnium.Framework
@@ -94,7 +93,7 @@ namespace Somnium.Framework
         {
             if (maxSimultaneousFrames == 0 || maxSimultaneousFrames > 3)
             {
-                throw new ArgumentOutOfRangeException("Max simultaneous frames must be between 1-3!");
+                throw new ArgumentOutOfRangeException("Max simultaneous frames must be from 1-3 inclusive!");
             }
             Application app = instance ?? new Application();
             app.AppName = AppName;
@@ -121,12 +120,12 @@ namespace Somnium.Framework
 
         double delta;
 
-        public void Start()
+        public void Start(bool useDebugLayers = true)
         {
             switch (runningBackend)
             {
                 case Backends.Vulkan:
-                    VkEngine.Initialize(Window, AppName);
+                    VkEngine.Initialize(Window, AppName, useDebugLayers);
                     break;
             }
             AudioEngine.Initialize();
@@ -143,6 +142,7 @@ namespace Somnium.Framework
                 {
                     OnLoadCallback?.Invoke();
                     loaded = true;
+                    updateStopwatch.Restart();
                 }
                 delta = updateStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalUpdatePeriod)
@@ -184,20 +184,6 @@ namespace Somnium.Framework
                         }
                         else allowDraw.Set();
                     }
-
-                    /*if (VSyncChanged)
-                    {
-                        if (handle != null)
-                        {
-                            Glfw.SwapInterval(0);
-                        }
-                        VSyncChanged = false;
-                    }
-
-                    if (VSync)
-                    {
-                        Glfw.SwapBuffers(handle);
-                    }*/
                 }
                 AudioEngine.Update();
             }

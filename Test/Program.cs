@@ -77,6 +77,7 @@ namespace Test
                 application.UpdateCallback = Update;
                 application.DrawCallback = Draw;
                 application.UnloadCallback = Unload;
+                application.FramesPerSecond = 60;
                 Graphics = application.Graphics;
                 application.Start();
             }

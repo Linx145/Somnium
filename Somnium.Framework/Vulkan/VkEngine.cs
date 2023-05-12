@@ -97,6 +97,7 @@ namespace Somnium.Framework.Vulkan
             window = forWindow;
             if (!initialized)
             {
+                internalEnableValidationLayers = enableValidationLayers;
                 window.onResized += OnResized;
                 window.onMoved += OnMoved;
 

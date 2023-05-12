@@ -69,6 +69,9 @@ namespace Somnium.Framework
         /// </summary>
         public abstract bool VSync { get; set; }
 
+        public abstract bool UserCanResize { get; set; }
+        //public abstract bool Fullscreen { get; set; }
+
         protected void OnMaximize(Window window, int width, int height)
         {
             onResized?.Invoke(window, width, height);
