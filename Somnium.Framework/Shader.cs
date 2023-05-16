@@ -6,7 +6,9 @@ using Somnium.Framework.Vulkan;
 using System.IO;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -653,39 +655,188 @@ namespace Somnium.Framework
                 mainPtr = IntPtr.Zero;
             }
         }
+
+        static void AddUniforms(ShaderParameterCollection collection, List<ShaderParamUniformData> uniforms)
+        {
+            for (int i = 0; i < uniforms.Count; i++)
+            {
+                var uniform = uniforms[i];
+                collection.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
+            }
+        }
+        static void AddImages(ShaderParameterCollection collection, List<ShaderParamImageData> images)
+        {
+            for (int i = 0; i < images.Count; i++)
+            {
+                var image = images[i];
+                collection.AddTexture2DParameter(image.name, image.binding, image.arrayLength);
+            }
+        }
+        static void AddSamplers(ShaderParameterCollection collection, List<ShaderParamSamplerData> samplers)
+        {
+            for (int i = 0; i < samplers.Count; i++)
+            {
+                var sampler = samplers[i];
+                collection.AddSamplerParameter(sampler.name, sampler.binding, sampler.arrayLength);
+            }
+        }
+
+        public static Shader FromStream(Application application, Stream stream)
+        {
+            JsonDocument doc = JsonDocument.Parse(stream, default);
+
+            List<byte> firstShaderBytes = new List<byte>();
+            List<byte> secondShaderBytes = new List<byte>();
+
+            if (doc.RootElement.TryGetProperty("shadertype1", out var vertElement)
+                && doc.RootElement.TryGetProperty("shadertype2", out var fragElement)) //vertex shader
+            {
+                var vertexUniforms = new List<ShaderParamUniformData>();
+                var fragmentUniforms = new List<ShaderParamUniformData>();
+
+                var vertexImages = new List<ShaderParamImageData>();
+                var fragmentImages = new List<ShaderParamImageData>();
+
+                var vertexSamplers = new List<ShaderParamSamplerData>();
+                var fragmentSamplers = new List<ShaderParamSamplerData>();
+
+                JsonElement elem;
+                if (vertElement.TryGetProperty("uniforms", out elem))
+                {
+                    foreach (var uniformObj in elem.EnumerateArray())
+                    {
+                        vertexUniforms.Add(new ShaderParamUniformData(
+                            uniformObj.GetProperty("name").GetString(),
+                            uniformObj.GetProperty("set").GetUInt32(),
+                            uniformObj.GetProperty("binding").GetUInt32(),
+                            uniformObj.GetProperty("stride").GetUInt32(),
+                            uniformObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+                if (fragElement.TryGetProperty("uniforms", out elem))
+                {
+                    foreach (var uniformObj in elem.EnumerateArray())
+                    {
+                        fragmentUniforms.Add(new ShaderParamUniformData(
+                            uniformObj.GetProperty("name").GetString(),
+                            uniformObj.GetProperty("set").GetUInt32(),
+                            uniformObj.GetProperty("binding").GetUInt32(),
+                            uniformObj.GetProperty("stride").GetUInt32(),
+                            uniformObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+
+                if (vertElement.TryGetProperty("images", out elem))
+                {
+                    foreach (var imageObj in elem.EnumerateArray())
+                    {
+                        vertexImages.Add(new ShaderParamImageData(
+                            imageObj.GetProperty("name").GetString(),
+                            imageObj.GetProperty("set").GetUInt32(),
+                            imageObj.GetProperty("binding").GetUInt32(),
+                            imageObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+                if (fragElement.TryGetProperty("images", out elem))
+                {
+                    foreach (var imageObj in elem.EnumerateArray())
+                    {
+                        fragmentImages.Add(new ShaderParamImageData(
+                            imageObj.GetProperty("name").GetString(),
+                            imageObj.GetProperty("set").GetUInt32(),
+                            imageObj.GetProperty("binding").GetUInt32(),
+                            imageObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+
+                if (vertElement.TryGetProperty("samplers", out elem))
+                {
+                    foreach (var samplerObj in elem.EnumerateArray())
+                    {
+                        vertexSamplers.Add(new ShaderParamSamplerData(
+                            samplerObj.GetProperty("name").GetString(),
+                            samplerObj.GetProperty("set").GetUInt32(),
+                            samplerObj.GetProperty("binding").GetUInt32(),
+                            samplerObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+                if (fragElement.TryGetProperty("samplers", out elem))
+                {
+                    foreach (var samplerObj in elem.EnumerateArray())
+                    {
+                        fragmentSamplers.Add(new ShaderParamSamplerData(
+                            samplerObj.GetProperty("name").GetString(),
+                            samplerObj.GetProperty("set").GetUInt32(),
+                            samplerObj.GetProperty("binding").GetUInt32(),
+                            samplerObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                }
+
+                if (application.runningBackend == Backends.Vulkan)
+                {
+                    byte[] bytes = new byte[4];
+                    foreach (var obj in vertElement.GetProperty("spirv").EnumerateArray())
+                    {
+                        Unsafe.As<byte, uint>(ref bytes[0]) = obj.GetUInt32();
+                        firstShaderBytes.Add(bytes[0]);
+                        firstShaderBytes.Add(bytes[1]);
+                        firstShaderBytes.Add(bytes[2]);
+                        firstShaderBytes.Add(bytes[3]);
+                    }
+                    foreach (var obj in fragElement.GetProperty("spirv").EnumerateArray())
+                    {
+                        Unsafe.As<byte, uint>(ref bytes[0]) = obj.GetUInt32();
+                        secondShaderBytes.Add(bytes[0]);
+                        secondShaderBytes.Add(bytes[1]);
+                        secondShaderBytes.Add(bytes[2]);
+                        secondShaderBytes.Add(bytes[3]);
+                    }
+
+                    Shader result;
+                    result = new Shader(application, firstShaderBytes.ToArray(), secondShaderBytes.ToArray());
+
+                    AddUniforms(result.shader1Params, vertexUniforms);
+                    AddUniforms(result.shader2Params, fragmentUniforms);
+
+                    AddSamplers(result.shader1Params, vertexSamplers);
+                    AddSamplers(result.shader2Params, fragmentSamplers);
+
+                    AddImages(result.shader1Params, vertexImages);
+                    AddImages(result.shader2Params, fragmentImages);
+
+                    result.ConstructParams();
+
+                    return result;
+                }
+                else throw new NotImplementedException();
+            }
+            else throw new NotSupportedException("Unknown shader combination in file!");
+        }
+        public static Shader FromFile(Application application, string filePath)
+        {
+            using (FileStream fs = File.OpenRead(filePath))
+                return FromStream(application, fs);
+        }
+        public static Shader FromBytes(Application application, byte[] bytes)
+        {
+            using (MemoryStream ms = new MemoryStream(bytes))
+                return FromStream(application, ms);
+        }
+
         /// <summary>
         /// Loads a shader from a stream containing a Somnium Engine .shader file.
         /// </summary>
         /// <param name="application"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static Shader FromStream(Application application, Stream stream)
+        public static Shader FromStreamOld(Application application, Stream stream)
         {
-            void AddUniforms(ShaderParameterCollection collection, List<ShaderParamUniformData> uniforms)
-            {
-                for (int i = 0; i < uniforms.Count; i++)
-                {
-                    var uniform = uniforms[i];
-                    collection.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
-                }
-            }
-            void AddImages(ShaderParameterCollection collection, List<ShaderParamImageData> images)
-            {
-                for (int i = 0; i < images.Count; i++)
-                {
-                    var image = images[i];
-                    collection.AddTexture2DParameter(image.name, image.binding, image.arrayLength);
-                }
-            }
-            void AddSamplers(ShaderParameterCollection collection, List<ShaderParamSamplerData> samplers)
-            {
-                for (int i = 0; i < samplers.Count; i++)
-                {
-                    var sampler = samplers[i];
-                    collection.AddSamplerParameter(sampler.name, sampler.binding, sampler.arrayLength);
-                }
-            }
-
             using (BinaryReader reader = new BinaryReader(stream))
             {
                 uint version = reader.ReadUInt32();
@@ -866,17 +1017,17 @@ namespace Somnium.Framework
         /// <param name="application"></param>
         /// <param name="filePath"></param>
         /// <returns></returns>
-        public static Shader FromFile(Application application, string filePath)
+        public static Shader FromFileOld(Application application, string filePath)
         {
             using (FileStream fs = File.OpenRead(filePath))
-                return FromStream(application, fs);
+                return FromStreamOld(application, fs);
             /*byte[] bytes = File.ReadAllBytes(filePath);
             return new Shader(application, type, bytes);*/
         }
-        public static Shader FromBytes(Application application, byte[] bytes)
+        public static Shader FromBytesOld(Application application, byte[] bytes)
         {
             using (MemoryStream ms = new MemoryStream(bytes))
-                return FromStream(application, ms);
+                return FromStreamOld(application, ms);
         }
         /// <summary>
         /// Creates a new shader from the specified file paths. Up to you to add and compile the shader uniforms yourself.
