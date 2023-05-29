@@ -24,6 +24,6 @@ Current features
 - UI framework
 </br>
 Planned features
+
 - Multithread the ECS down to the entity level
 - WebGPU support
-- 
