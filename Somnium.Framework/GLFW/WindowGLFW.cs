@@ -34,7 +34,7 @@ namespace Somnium.Framework.GLFW
             }
             set
             {
-                if (handle != null) Glfw.SetWindowSize(handle, Size.X, Size.Y);
+                if (handle != null) Glfw.SetWindowSize(handle, value.X, value.Y);
                 internalSize = value;
             }
         }

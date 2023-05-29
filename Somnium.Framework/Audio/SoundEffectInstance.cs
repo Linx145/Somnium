@@ -196,8 +196,8 @@ namespace Somnium.Framework.Audio
         {
             get
             {
-                RESULT result;
-                if ((result = channel.isPlaying(out var playing)) != RESULT.OK)
+                RESULT result = channel.isPlaying(out var playing);
+                if (result != RESULT.OK)
                 {
                     if (result == RESULT.ERR_INVALID_HANDLE)
                     {
