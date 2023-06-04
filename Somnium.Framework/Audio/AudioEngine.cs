@@ -8,6 +8,7 @@ namespace Somnium.Framework.Audio
     public static class AudioEngine
     {
 #if FMOD
+        private static SYSTEM_CALLBACK callback;
         public static FMOD.System API;
         internal static Dictionary<IntPtr, uint> ChannelGenerations = new Dictionary<IntPtr, uint>();
         public static void Initialize()
@@ -22,7 +23,8 @@ namespace Somnium.Framework.Audio
             {
                 throw new InitializationException("FMOD initialization error: " + result);
             }
-            result = API.setCallback(new SYSTEM_CALLBACK(LogCallback), SYSTEM_CALLBACK_TYPE.ERROR);
+            //callback = new SYSTEM_CALLBACK(LogCallback);
+            //result = API.setCallback(callback, SYSTEM_CALLBACK_TYPE.ERROR);
         }
         public static void Update()
         {
@@ -34,9 +36,10 @@ namespace Somnium.Framework.Audio
         public static unsafe RESULT LogCallback(IntPtr systemPtr, SYSTEM_CALLBACK_TYPE callbackType, IntPtr commandData1, IntPtr commandData2, IntPtr userData)
         {
             ERRORCALLBACK_INFO* errorCallbackInfo = (ERRORCALLBACK_INFO*)(commandData1);
-            Console.WriteLine("Caught fmod error!");
-            Console.WriteLine("function: " + (string)errorCallbackInfo->functionname);
-            Console.WriteLine("params: " + (string)errorCallbackInfo->functionparams);
+            //Console.WriteLine("Caught fmod error!");
+            //Console.WriteLine("function: " + (string)errorCallbackInfo->functionname);
+            //Console.WriteLine("params: " + (string)errorCallbackInfo->functionparams);
+            Debugger.Log("Caught fmod error, function: " + (string)errorCallbackInfo->functionname + ", RESULT: " + (errorCallbackInfo->result).ToString());
             return RESULT.ERR_INVALID_PARAM;
         }
         public static void Shutdown()

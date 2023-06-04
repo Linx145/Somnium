@@ -5,7 +5,7 @@ using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Somnium.Framework.Vulkan
 {
-    public class FrameData : IDisposable
+    public class VkFrameData : IDisposable
     {
         /// <summary>
         /// waited on in the GPU for when presenting the queue
@@ -29,7 +29,7 @@ namespace Somnium.Framework.Vulkan
 
         public bool isDisposed { get; private set; }
 
-        public FrameData(Application application)//Semaphore presentSemaphore, Semaphore renderSemaphore, CommandPool commandPool)
+        public VkFrameData(Application application)//Semaphore presentSemaphore, Semaphore renderSemaphore, CommandPool commandPool)
         {
             commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
             commandBuffer = new CommandCollection(application, commandPool, true);

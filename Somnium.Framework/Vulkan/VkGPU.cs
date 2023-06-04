@@ -12,10 +12,10 @@ namespace Somnium.Framework.Vulkan
         public Limits limits;
         public string Name;
 
-        public Queue AllPurposeQueue;
-        public Queue DedicatedGraphicsQueue;
-        public Queue DedicatedComputeQueue;
-        public Queue DedicatedTransferQueue;
+        public VkCommandQueue AllPurposeQueue;
+        public VkCommandQueue DedicatedGraphicsQueue;
+        public VkCommandQueue DedicatedComputeQueue;
+        public VkCommandQueue DedicatedTransferQueue;
 
         public VkGPU(PhysicalDevice device, string name, QueueProperties queueInfo)
         {
@@ -66,8 +66,11 @@ namespace Somnium.Framework.Vulkan
         public void GetCreatedQueueIndices(Device createdDevice)
         {
             LogicalDevice = createdDevice;
-            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out AllPurposeQueue);
-            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetTransferQueue(in Device)!.Value, 0, out DedicatedTransferQueue);
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out var allPurposeQueue);
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetTransferQueue(in Device)!.Value, 0, out var dedicatedTransferQueue);
+
+            AllPurposeQueue = new VkCommandQueue(allPurposeQueue);
+            DedicatedTransferQueue = new VkCommandQueue(dedicatedTransferQueue);
         }
 
         public unsafe static VkGPU SelectGPU()

@@ -50,7 +50,7 @@ namespace Somnium.Framework.Vulkan
 
         private static GenerationalArray<VkGraphicsPipeline> pipelines = new GenerationalArray<VkGraphicsPipeline>(null);
         private static GenerationalArray<VkGraphicsPipeline> renderbufferPipelines = new GenerationalArray<VkGraphicsPipeline>(null);
-        public static FrameData[] frames;
+        public static VkFrameData[] frames;
 
         public static HashSet<ulong> allResourceBuffers = new HashSet<ulong>();
 
@@ -68,14 +68,14 @@ namespace Somnium.Framework.Vulkan
                 return ref frames[window.frameNumber].fence;
             }
         }
-        public static ref Semaphore presentSemaphore
+        public static ref Semaphore awaitPresentCompleteSemaphore
         {
             get
             {
                 return ref frames[window.frameNumber].presentSemaphore;
             }
         }
-        public static ref Semaphore renderSemaphore
+        public static ref Semaphore awaitRenderCompleteSemaphore
         {
             get
             {
@@ -127,11 +127,13 @@ namespace Somnium.Framework.Vulkan
         }
         public static void BeginDraw()
         {
-            vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), 1000000000);
+            //wait for the previous frame to finish drawing
+            vk.WaitForFences(vkDevice, 1, in fence, new Bool32(true), ulong.MaxValue);
             vk.ResetFences(vkDevice, 1, in fence);
             recreatedSwapChainThisFrame = false;
-
-            bool swapchainRecreated = swapChain.SwapBuffers(presentSemaphore, default);
+            
+            //swap the swapchain backbuffers as long as the previous frame has finished presenting
+            bool swapchainRecreated = swapChain.SwapBuffers(awaitPresentCompleteSemaphore, default);
             if (swapchainRecreated)
             {
                 onResized = false;
@@ -197,14 +199,15 @@ namespace Somnium.Framework.Vulkan
             PipelineStageFlags waitFlag = PipelineStageFlags.ColorAttachmentOutputBit;
             submitInfo.PWaitDstStageMask = &waitFlag;
 
+            //flag previous presentation to complete before we submit the queue
             submitInfo.WaitSemaphoreCount = 1;
-            fixed (Semaphore* ptr = &presentSemaphore)
+            fixed (Semaphore* ptr = &awaitPresentCompleteSemaphore)
             {
                 submitInfo.PWaitSemaphores = ptr;
             }
-
+            //flag awaitRenderCompleteSemaphore as complete on completing our queue shenanigans
             submitInfo.SignalSemaphoreCount = 1;
-            fixed (Semaphore* ptr = &renderSemaphore)
+            fixed (Semaphore* ptr = &awaitRenderCompleteSemaphore)
             {
                 submitInfo.PSignalSemaphores = ptr;
             }
@@ -213,10 +216,13 @@ namespace Somnium.Framework.Vulkan
             CommandBuffer cmdBuffer = new CommandBuffer(commandBuffer.handle);
             submitInfo.PCommandBuffers = &cmdBuffer;
 
+            //lock it until the queue is finished submitting (next frame)
+            CurrentGPU.AllPurposeQueue.externalLock.EnterWriteLock();
             if (vk.QueueSubmit(CurrentGPU.AllPurposeQueue, 1, in submitInfo, fence) != Result.Success)
             {
                 throw new ExecutionException("Error submitting Vulkan Queue!");
             }
+            CurrentGPU.AllPurposeQueue.externalLock.ExitWriteLock();
 
             //and present it to the window
             PresentInfoKHR presentInfo = new PresentInfoKHR();
@@ -226,8 +232,9 @@ namespace Somnium.Framework.Vulkan
             {
                 presentInfo.PSwapchains = ptr;
             }
+            //wait for the render to be completed before we present
             presentInfo.WaitSemaphoreCount = 1;
-            fixed (Semaphore* ptr = &renderSemaphore)
+            fixed (Semaphore* ptr = &awaitRenderCompleteSemaphore)
             {
                 presentInfo.PWaitSemaphores = ptr;
             }
@@ -401,7 +408,7 @@ namespace Somnium.Framework.Vulkan
             {
                 fixed (byte* supportedNamePtr = allSupported[i].LayerName)
                 {
-                    string? str = Marshal.PtrToStringAnsi((IntPtr)supportedNamePtr);
+                    string str = Marshal.PtrToStringAnsi((IntPtr)supportedNamePtr);
 
                     for (int j = 0; j < validationLayersToUse.Length; j++)
                     {
@@ -641,7 +648,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="commandBuffer"></param>
         /// <exception cref="ExecutionException"></exception>
-        public static void EndTransientCommandBuffer(Queue queueToSubmitTo, CommandBuffer commandBuffer, CommandPool commandPool)
+        public static void EndTransientCommandBuffer(VkCommandQueue queueToSubmitTo, CommandBuffer commandBuffer, CommandPool commandPool)
         {
             vk.EndCommandBuffer(commandBuffer);
 
@@ -650,11 +657,19 @@ namespace Somnium.Framework.Vulkan
             submitInfo.CommandBufferCount = 1;
             submitInfo.PCommandBuffers = &commandBuffer;
 
+            //wait for rendering to complete if there is rendering ongoing
+            //this is needed if the rendering is on a different thread as potential asset(texture) loading operations
+            //do not reset fence here
+            //vk.ResetFences(vkDevice, 1, in fence);
+
+            queueToSubmitTo.externalLock.EnterWriteLock();
             if (vk.QueueSubmit(queueToSubmitTo, 1, in submitInfo, new Fence(null)) != Result.Success)
             {
                 throw new ExecutionException("Error submitting transfer queue!");
             }
+            //wait for transient command buffer to finish doing work on queue
             vk.QueueWaitIdle(queueToSubmitTo);
+            queueToSubmitTo.externalLock.ExitWriteLock();
 
             //finally, delete our transient command buffer
             vk.FreeCommandBuffers(vkDevice, commandPool, 1, in commandBuffer);
@@ -664,10 +679,10 @@ namespace Somnium.Framework.Vulkan
         #region simultaneous frames
         public static void CreateFrames(Application application)
         {
-            frames = new FrameData[Application.Config.maxSimultaneousFrames];
+            frames = new VkFrameData[Application.Config.maxSimultaneousFrames];
             for (int i = 0; i < Application.Config.maxSimultaneousFrames; i++)
             {
-                frames[i] = new FrameData(application);
+                frames[i] = new VkFrameData(application);
             }
         }
         #endregion
@@ -728,10 +743,6 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region synchronization
-        //public static Semaphore presentSemaphore;
-        //public static Semaphore renderSemaphore;
-        //public static Fence fence;
-
         private static SemaphoreCreateInfo semaphoreCreateInfo;
         private static FenceCreateInfo fenceCreateInfo;
         public static Semaphore CreateSemaphore()
@@ -861,7 +872,7 @@ namespace Somnium.Framework.Vulkan
             PipelineStageFlags sourceStage = PipelineStageFlags.TopOfPipeBit;
             PipelineStageFlags destinationStage = PipelineStageFlags.BottomOfPipeBit;
 
-            Queue queue;
+            VkCommandQueue queue;
 
             queue = CurrentGPU.AllPurposeQueue;
 

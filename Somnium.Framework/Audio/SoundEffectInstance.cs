@@ -48,7 +48,10 @@ namespace Somnium.Framework.Audio
         {
             get
             {
-                uint expectedGeneration = AudioEngine.ChannelGenerations[channel.handle];
+                if (!AudioEngine.ChannelGenerations.TryGetValue(channel.handle, out var expectedGeneration))
+                {
+                    return false;
+                }
                 return generation == expectedGeneration && expectedGeneration != 0 && IsPlaying;
             }
         }
@@ -197,14 +200,6 @@ namespace Somnium.Framework.Audio
             get
             {
                 RESULT result = channel.isPlaying(out var playing);
-                if (result != RESULT.OK)
-                {
-                    if (result == RESULT.ERR_INVALID_HANDLE)
-                    {
-                        return false;
-                    }
-                    throw new ExecutionException("Error getting playing state of FMOD sound! Error: " + result.ToString());
-                }
                 return playing;
             }
         }
