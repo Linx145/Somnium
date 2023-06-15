@@ -7,6 +7,7 @@ using Somnium.Framework.GLFW;
 using Somnium.Framework.Vulkan;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace Somnium.Framework
@@ -101,7 +102,21 @@ namespace Somnium.Framework
             app.runRenderOnSeparateThread = runRenderOnSeparateThread;
             Config.maxSimultaneousFrames = maxSimultaneousFrames;
 
-            //TODO: check for preferredBackend compatibility
+            if (preferredBackend == Backends.ChooseBest)
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    app.runningBackend = Backends.DX12;
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    app.runningBackend = Backends.Metal;
+                }
+                else
+                {
+                    app.runningBackend = Backends.Vulkan;
+                }
+            }
             app.runningBackend = preferredBackend;
 
             Input.instance = new InputStateGLFW();
@@ -121,18 +136,29 @@ namespace Somnium.Framework
 
         double delta;
 
-        public void Start(bool useDebugLayers = true)
+        private void InitializeWithPreferredBackend(bool useDebugLayers)
         {
+            //If Vulkan fails, fall back to DX12/Metal
+            //If DX12/Metal fails, fall back to DX11/Metal
             switch (runningBackend)
             {
 #if VULKAN
                 case Backends.Vulkan:
-                    VkEngine.Initialize(Window, AppName, useDebugLayers);
+                    bool success = VkEngine.Initialize(Window, AppName, useDebugLayers);
+                    if (!success)
+                    {
+                        runningBackend = Backends.OpenGL;
+                        InitializeWithPreferredBackend(useDebugLayers);
+                    }
                     break;
 #endif
                 default:
                     throw new NotImplementedException();
             }
+        }
+        public void Start(bool useDebugLayers = true)
+        {
+            InitializeWithPreferredBackend(useDebugLayers);
             AudioEngine.Initialize();
             SamplerState.AddDefaultSamplerStates(this);
             VertexDeclaration.AddDefaultVertexDeclarations(runningBackend);
@@ -251,6 +277,7 @@ namespace Somnium.Framework
 
         public void DoRender()
         {
+#if OPENGL
             if (runningBackend == Backends.OpenGL)
             {
                 var glContext = Window.GetGLContext();
@@ -259,8 +286,9 @@ namespace Somnium.Framework
                     glContext.MakeCurrent();
                 }
             }
+#endif
 #if VULKAN
-            else if (runningBackend == Backends.Vulkan)
+            if (runningBackend == Backends.Vulkan)
             {
                 VkEngine.BeginDraw();
             }

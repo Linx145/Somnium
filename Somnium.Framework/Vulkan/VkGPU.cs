@@ -73,14 +73,17 @@ namespace Somnium.Framework.Vulkan
             DedicatedTransferQueue = new VkCommandQueue(dedicatedTransferQueue);
         }
 
-        public unsafe static VkGPU SelectGPU()
+        public unsafe static bool SelectGPU(out VkGPU GPU)
         {
             uint deviceCount = 0;
             VkEngine.vk.EnumeratePhysicalDevices(VkEngine.vkInstance, ref deviceCount, null);
 
             if (deviceCount == 0)
             {
-                throw new InitializationException("No GPU found!");
+                Debugger.Log("No GPU Found!");
+                GPU = default;
+                return false;
+                //throw new InitializationException("No GPU found!");
             }
 
             PhysicalDevice[] devices = new PhysicalDevice[deviceCount];
@@ -110,9 +113,13 @@ namespace Somnium.Framework.Vulkan
             }
             if (selectedIndex < 0)
             {
-                throw new InitializationException("No GPU was selected!");
+                Debugger.Log("No GPU was selected!");
+                GPU = default;
+                return false;
+                //throw new InitializationException("No GPU was selected!");
             }
-            return new VkGPU(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
+            GPU = new VkGPU(devices[selectedIndex], "", selectedQueueProperties);//devices[selectedIndex];
+            return true;
         }
         public unsafe static bool IsDeviceSuitable(in PhysicalDevice device, ref int score, out QueueProperties queueProperties)
         {

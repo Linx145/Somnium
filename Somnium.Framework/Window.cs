@@ -6,7 +6,7 @@ using System;
 
 namespace Somnium.Framework
 {
-    public abstract unsafe class Window : IDisposable
+    public abstract unsafe class Window : IDisposable, INativeWindowSource
     {
         /// <summary>
         /// Whether the window has been initialized.
@@ -74,6 +74,8 @@ namespace Somnium.Framework
         public abstract bool VSync { get; set; }
 
         public abstract bool UserCanResize { get; set; }
+        public abstract INativeWindow Native { get; }
+
         //public abstract bool Fullscreen { get; set; }
 
         protected void OnMaximize(Window window, int width, int height)
@@ -92,6 +94,7 @@ namespace Somnium.Framework
         {
             onMinimizationChanged?.Invoke(window, isMinimized);
         }
+        public abstract Point GetFramebufferExtents();
 
         #region OpenGL
         public abstract IGLContext GetGLContext();
@@ -101,8 +104,7 @@ namespace Somnium.Framework
 #if VULKAN
         public abstract byte** GetRequiredExtensions(out uint Count);
         public abstract Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities);
-        public abstract Point GetFramebufferExtents();
-        public abstract SurfaceKHR CreateWindowSurfaceVulkan();
+        public abstract bool CreateWindowSurfaceVulkan(out SurfaceKHR surface);
 #endif
 #endregion
     }

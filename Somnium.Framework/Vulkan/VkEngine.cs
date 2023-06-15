@@ -93,7 +93,7 @@ namespace Somnium.Framework.Vulkan
         public static bool initialized { get; private set; }
         internal static bool recreatedSwapChainThisFrame = false;
         private static bool onResized;
-        public static unsafe void Initialize(Window forWindow, string AppName, bool enableValidationLayers = true)
+        public static unsafe bool Initialize(Window forWindow, string AppName, bool enableValidationLayers = true)
         {
             window = forWindow;
             if (!initialized)
@@ -107,23 +107,35 @@ namespace Somnium.Framework.Vulkan
 
                 vk = Vk.GetApi();
 
-                CreateInstance();
+                bool result;
+                result = CreateInstance();
+                if (!result)
+                {
+                    return false;
+                }
                 if (ValidationLayersActive)
                 {
                     VkDebug.InitializeDebugMessenger(window);
                 }
-                CreateSurface();
-                CreateLogicalDevice();
+                result = CreateSurface();
+                if (!result)
+                {
+                    return false;
+                }
+                result = CreateLogicalDevice();
+                if (!result)
+                {
+                    return false;
+                }
+
                 CreateCommandPool(window.application);
-                CreateSwapChain(); //also creates image views
-                //CreateRenderPasses();
-                //VertexDeclaration.RegisterAllVertexDeclarations(Backends.Vulkan);
-                //CreatePipelines(window);
-                swapChain.RecreateFramebuffers();//renderPass);
+                CreateSwapChain();
+                swapChain.RecreateFramebuffers();
                 CreateFrames(window.application);
-                //CreateCommandBuffer(window.application);
-                //CreateSynchronizers();
+
+                return true;
             }
+            else throw new InvalidOperationException("Vulkan already initialized!");
         }
         public static void BeginDraw()
         {
@@ -283,7 +295,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="window">The window that should be used</param>
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="InitializationException"></exception>
-        private static void CreateInstance()
+        private static bool CreateInstance()
         {
             ApplicationInfo vkApplicationInfo = new ApplicationInfo();
             vkApplicationInfo.SType = StructureType.ApplicationInfo;
@@ -333,22 +345,32 @@ namespace Somnium.Framework.Vulkan
             {
                 if (creationResult == Result.ErrorExtensionNotPresent)
                 {
-                    throw new InitializationException("One or more extensions were not found!");
+                    Debugger.Log("One or more extensions were not found!");
+                    //throw new InitializationException("One or more extensions were not found!");
                 }
-                else throw new InitializationException("Vulkan failed to create instance! Check device for compatibility");
-            }            
+                else Debugger.Log("Vulkan failed to create instance! Check device for compatibility");//throw new InitializationException("Vulkan failed to create instance! Check device for compatibility");
+                return false;
+            }
+            return true;
         }
         #endregion
 
         #region surface creation
-        private static void CreateSurface()
+        private static bool CreateSurface()
         {
             //windowSurface = window.CreateWindowSurfaceVulkan();
             if (!vk.TryGetInstanceExtension(vkInstance, out KhrSurfaceAPI))
             {
-                throw new InitializationException("KHR_surface extension missing!");
+                Debugger.Log("KHR_surface extension missing!");
+                return false;
+                //throw new InitializationException("KHR_surface extension missing!");
             }
-            internalWindowSurface = window.CreateWindowSurfaceVulkan();
+            if (!window.CreateWindowSurfaceVulkan(out internalWindowSurface))
+            {
+                Debugger.Log("Failed to create Vulkan surface for window!");
+                return false;
+            }
+            return true;
         }
         #endregion
 
@@ -471,9 +493,12 @@ namespace Somnium.Framework.Vulkan
         /// Locates a suitable GPU based on code in the module VulkanGPUs and creates a logical device to interface with it
         /// </summary>
         /// <exception cref="InitializationException"></exception>
-        private static void CreateLogicalDevice()
+        private static bool CreateLogicalDevice()
         {
-            VkGPU GPU = VkGPU.SelectGPU();
+            if (!VkGPU.SelectGPU(out VkGPU GPU))
+            {
+                return false;
+            }
 
             var queueCreateInfos = GPU.GetQueuesToCreate();
 
@@ -493,9 +518,12 @@ namespace Somnium.Framework.Vulkan
 
             if (result != Result.Success)
             {
-                throw new InitializationException("Failed to create Vulkan logical device!");
+                Debugger.Log("Failed to create Vulkan logical device!");
+                return false;
+                //throw new InitializationException("Failed to create Vulkan logical device!");
             }
             CurrentGPU = GPU;
+            return true;
         }
         #endregion
 

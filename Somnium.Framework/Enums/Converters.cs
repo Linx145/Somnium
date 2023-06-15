@@ -1,6 +1,9 @@
 ﻿#if VULKAN
 using Silk.NET.Vulkan;
 #endif
+#if WGPU
+using Silk.NET.WebGPU;
+#endif
 using System;
 
 namespace Somnium.Framework;
@@ -18,6 +21,31 @@ public static class Converters
                 return false;
         }
     }
+
+#if WGPU
+    public static readonly VertexFormat[] VertexFormatToWgpuFormat = new VertexFormat[]
+    {
+        VertexFormat.Float32,
+        VertexFormat.Float32x2,
+        VertexFormat.Float32x3,
+        VertexFormat.Float32x4,
+        VertexFormat.Sint32,
+        VertexFormat.Unorm8x4,
+        VertexFormat.Uint32,
+    };
+    public static readonly VertexFormat[] ImageFormatToWgpuFormat = new VertexFormat[]
+    {
+        VertexFormat.Unorm8x4,
+        VertexFormat.Snorm8x4,
+        VertexFormat.Snorm8x4,
+        VertexFormat.Unorm8x4,
+        VertexFormat.Snorm8x4,
+        VertexFormat.Snorm8x4,
+        VertexFormat.Float16x4,
+        VertexFormat.Float32x4,
+        VertexFormat.Uint32
+    };
+#endif
 
 #if VULKAN
     public static readonly Format[] VertexFormatToVkFormat = new Format[]

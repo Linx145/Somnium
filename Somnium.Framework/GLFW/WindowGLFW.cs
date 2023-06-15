@@ -2,7 +2,9 @@
 using Silk.NET.Core.Native;
 using Silk.NET.GLFW;
 using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+#endif
 using System;
 
 namespace Somnium.Framework.GLFW
@@ -26,6 +28,7 @@ namespace Somnium.Framework.GLFW
         }
 
         #region properties
+        public override INativeWindow Native => new GlfwNativeWindow(SomniumGLFW.API, handle);
         public override Point Size
         {
             get
@@ -142,11 +145,13 @@ namespace Somnium.Framework.GLFW
                 internalVSync = value;
             }
         }
+#if VULKAN
         public override byte** GetRequiredExtensions(out uint count)
         {
             return Glfw.GetRequiredInstanceExtensions(out count);
         }
-        #endregion
+#endif
+#endregion
 
         private Point internalSize;
         private Point internalPosition;
@@ -179,11 +184,9 @@ namespace Somnium.Framework.GLFW
                     Glfw.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
                     Glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
                     break;
-                case Backends.Vulkan:
+                default:
                     Glfw.WindowHint(WindowHintClientApi.ClientApi, ClientApi.NoApi);
                     break;
-                default:
-                    throw new NotImplementedException();
             }
 
             window.handle = Glfw.CreateWindow(windowSize.X, windowSize.Y, title, null, null);
@@ -331,22 +334,29 @@ namespace Somnium.Framework.GLFW
         {
             switch (application.runningBackend)
             {
+#if VULKAN
                 case Backends.Vulkan:
                     return VkEngine.commandBuffer;
+#endif
                 default:
                     throw new NotImplementedException();
             }
         }
-        public override SurfaceKHR CreateWindowSurfaceVulkan()
+#if VULKAN
+        public override bool CreateWindowSurfaceVulkan(out SurfaceKHR surface)
         {
             VkNonDispatchableHandle surfaceHandle;
             Result result = (Result)Glfw.CreateWindowSurface(VkEngine.vkInstance.ToHandle(), handle, null, &surfaceHandle);
             if (result != Result.Success)
             {
-                throw new InitializationException("Failed to create Vulkan surface for window!");
+                surface = default;
+                return false;
+                //throw new InitializationException("Failed to create Vulkan surface for window!");
             }
-            return surfaceHandle.ToSurface();
+            surface = surfaceHandle.ToSurface();
+            return true;
         }
+#endif
         public override Point GetFramebufferExtents()
         {
             int width;
@@ -356,6 +366,7 @@ namespace Somnium.Framework.GLFW
 
             return new Point(width, height);
         }
+#if VULKAN
         public override Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities)
         {
             if (capabilities.CurrentExtent.Width != int.MaxValue)
@@ -375,6 +386,7 @@ namespace Somnium.Framework.GLFW
                 return extents;
             }
         }
+#endif
         public override void Dispose()
         {
             if (handle != null)

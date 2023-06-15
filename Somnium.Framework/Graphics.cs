@@ -169,6 +169,19 @@ namespace Somnium.Framework
                     break;
             }
         }
+        public void AwaitGraphicsIdle()
+        {
+            switch (application.runningBackend)
+            {
+#if VULKAN
+                case Backends.Vulkan:
+                    VkEngine.vk.QueueWaitIdle(VkEngine.CurrentGPU.AllPurposeQueue);
+                    break;
+#endif
+                default:
+                    break;
+            }
+        }
         public void SetRenderbuffer(RenderBuffer renderBuffer)
         {
             switch (application.runningBackend)
