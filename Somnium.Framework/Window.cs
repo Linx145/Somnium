@@ -46,6 +46,8 @@ namespace Somnium.Framework
         public abstract void Dispose();
         public abstract void UpdateInput();
         public abstract void UpdateWindowControls();
+        public abstract void Maximize();
+        public abstract void SetIcon(Texture2D texture);
         /// <summary>
         /// Called when the window is resized, with arguments being 1)the resized window, 2)the new window width, 3)the new window height
         /// </summary>

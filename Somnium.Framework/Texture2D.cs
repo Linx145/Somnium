@@ -14,6 +14,7 @@ namespace Somnium.Framework
         public uint Height { get; private set; }
         public bool isDisposed { get; private set; }
         public bool constructed { get; private set; }
+        private bool storeData;
         /// <summary>
         /// Whether the Texture2D owns the image handle, and hence should destroy it when we are disposed.
         /// False in cases where the image is passed already-created into the texture2D from a third party/graphics API primitive object, such as a swapchain
@@ -44,7 +45,7 @@ namespace Somnium.Framework
 
             Construct();
         }
-        public Texture2D(Application application, byte[] data, uint Width, uint Height, SamplerState samplerState, ImageFormat imageFormat, bool usedForRenderTarget = false)
+        public Texture2D(Application application, byte[] data, uint Width, uint Height, SamplerState samplerState, ImageFormat imageFormat, bool usedForRenderTarget = false, bool storeData = false)
         {
             this.imageFormat = imageFormat;
             this.application = application;
@@ -54,6 +55,7 @@ namespace Somnium.Framework
             this.samplerState = samplerState;
             imageBelongsToMe = true;
             this.usedForRenderTarget = usedForRenderTarget;
+            this.storeData = storeData;
 
             Construct();
         }
@@ -237,7 +239,8 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
             constructed = true;
-            data = null;
+            if (!storeData)
+                data = null;
         }
         public void Dispose()
         {
@@ -272,21 +275,21 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static Texture2D FromStream(Application application, Stream stream, SamplerState samplerState, ImageFormat format = ImageFormat.R8G8B8A8Unorm)
+        public static Texture2D FromStream(Application application, Stream stream, SamplerState samplerState, ImageFormat format = ImageFormat.R8G8B8A8Unorm, bool storeData = false)
         {
             ImageResult result = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
-            return new Texture2D(application, result.Data, (uint)result.Width, (uint)result.Height, samplerState, format);
+            return new Texture2D(application, result.Data, (uint)result.Width, (uint)result.Height, samplerState, format, false, storeData);
         }
         /// <summary>
         /// Loads a texture from the following formats: .png, .jpg, .bmp, .tga
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static Texture2D FromFile(Application application, string fileName, SamplerState samplerState, ImageFormat format = ImageFormat.R8G8B8A8Unorm)
+        public static Texture2D FromFile(Application application, string fileName, SamplerState samplerState, ImageFormat format = ImageFormat.R8G8B8A8Unorm, bool storeData = false)
         {
             using (FileStream fs = File.OpenRead(fileName))
             {
-                return FromStream(application, fs, samplerState, format);
+                return FromStream(application, fs, samplerState, format, storeData);
             }
         }
 #endregion

@@ -350,12 +350,7 @@ namespace Somnium.Framework.Vulkan
                     return;
                 }
             }
-            //merge gaps
-            for (int i = 0; i < gaps.Count; i++)
-            {
-
-            }
-            if (!suppressErrors) throw new System.Collections.Generic.KeyNotFoundException("Could not locate memory region of starting position " + region.start + " in the pool!");
+            //if (!suppressErrors) throw new System.Collections.Generic.KeyNotFoundException("Could not locate memory region of starting position " + region.start + " in the pool!");
         }
         public void Dispose()
         {

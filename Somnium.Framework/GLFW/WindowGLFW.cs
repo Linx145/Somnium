@@ -73,6 +73,10 @@ namespace Somnium.Framework.GLFW
                 Glfw.SetWindowShouldClose(handle, value);
             }
         }
+        public override void Maximize()
+        {
+            Glfw.MaximizeWindow(handle);
+        }
         public override bool IsMinimized
         {
             get
@@ -310,7 +314,7 @@ namespace Somnium.Framework.GLFW
             //and poll events such as clicking window close/minimize buttons, etc
             Glfw.PollEvents();
         }
-        public unsafe void SetIcon(Texture2D texture)
+        public override unsafe void SetIcon(Texture2D texture)
         {
             Silk.NET.GLFW.Image image = new Silk.NET.GLFW.Image();
             image.Width = (int)texture.Width;
