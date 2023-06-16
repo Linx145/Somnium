@@ -63,7 +63,7 @@ namespace Somnium.Framework
         {
             if (constructed)
             {
-                throw new InvalidOperationException("Render Target 2D already constructed ");
+                throw new InvalidOperationException("Renderbuffer already constructed ");
             }
             switch (application.runningBackend)
             {
@@ -98,11 +98,15 @@ namespace Somnium.Framework
 
                         createInfo.PAttachments = imageView;
 
+                        //createInfo requires a renderpass to set what renderpass the framebuffer is
+                        //compatible with. Even if we pass in a different renderpass that is compatible
+                        //with the one it is created with, it will still be alright
+                        //https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#renderpass-compatibility
                         if (isBackbuffer)
                         {
-                            createInfo.RenderPass = VkEngine.GetRenderPass(null);
+                            createInfo.RenderPass = VkEngine.GetRenderPass(false, null);
                         }
-                        else createInfo.RenderPass = VkEngine.GetRenderPass(this);
+                        else createInfo.RenderPass = VkEngine.GetRenderPass(false, this);
 
                         Framebuffer frameBuffer;
                         if (VkEngine.vk.CreateFramebuffer(VkEngine.vkDevice, in createInfo, null, &frameBuffer) != Result.Success)

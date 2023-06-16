@@ -220,8 +220,8 @@ Matrix4x4.CreateOrthographicOffCenter(0f, 1, 0f, 1, -1f, 1f)
 //Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
 );
             Graphics.SetRenderbuffer(renderBuffer); 
-            Graphics.SetPipeline(state, default);
-            Graphics.Clear(Color.CornflowerBlue);
+            Graphics.SetPipeline(state, default, Color.CornflowerBlue);
+            //Graphics.Clear(Color.CornflowerBlue);
 
             shader.SetUniform("inputTexture", texture);
             shader.SetUniform("samplerState", texture.samplerState);
@@ -242,8 +242,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("samplerState", SamplerState.PointClamp);
             shader.SetUniform("Matrices", viewProjection);
 
-            Graphics.SetPipeline(state, default);
-            Graphics.Clear(Color.Black);
+            Graphics.SetPipeline(state, default, Color.Black);
+            //Graphics.Clear(Color.Black);
 
             Graphics.SetVertexBuffer(vb2, 0);
             Graphics.SetIndexBuffer(indexBuffer);

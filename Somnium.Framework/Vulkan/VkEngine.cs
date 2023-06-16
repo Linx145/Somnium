@@ -587,7 +587,7 @@ namespace Somnium.Framework.Vulkan
 
         #region render passes
         public static VkRenderPass activeRenderPass = null;
-        public static VkRenderPass GetRenderPass(RenderBuffer renderBuffer = null)
+        public static VkRenderPass GetRenderPass(bool mustClear, RenderBuffer renderBuffer = null)
         {
             Format imageFormat;
             DepthFormat depthFormat;
@@ -606,15 +606,15 @@ namespace Somnium.Framework.Vulkan
                 finalLayout = ImageLayout.PresentSrcKhr;
             }
 
-            var renderPass = VkRenderPass.GetOrCreate(imageFormat, finalLayout, depthFormat);
+            var renderPass = VkRenderPass.GetOrCreate(imageFormat, finalLayout, depthFormat, mustClear);
             return renderPass;
         }
-        public static VkRenderPass GetCurrentRenderPass(Application application) => GetRenderPass(application.Graphics.currentRenderbuffer);
+        public static VkRenderPass GetCurrentRenderPass(Application application, bool mustClear) => GetRenderPass(mustClear, application.Graphics.currentRenderbuffer);
         
-        public static void SetRenderPass(VkRenderPass renderPass, RenderBuffer renderBuffer)
+        public static void SetRenderPass(VkRenderPass renderPass, RenderBuffer renderBuffer, Color? clearColor)
         {
             activeRenderPass = renderPass;
-            renderPass.Begin(commandBuffer, swapChain, renderBuffer);
+            renderPass.Begin(commandBuffer, swapChain, renderBuffer, clearColor);
         }
         #endregion
 

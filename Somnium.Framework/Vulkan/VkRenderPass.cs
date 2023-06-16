@@ -10,12 +10,14 @@ namespace Somnium.Framework.Vulkan
         public readonly Format imageFormat;
         public readonly DepthFormat depthFormat;
         public readonly ImageLayout finalLayout;
+        public readonly bool mustClear;
 
-        public VkRenderPassHash(Format imageFormat, DepthFormat depthFormat, ImageLayout finalLayout)
+        public VkRenderPassHash(Format imageFormat, DepthFormat depthFormat, ImageLayout finalLayout, bool mustClear)
         {
             this.imageFormat = imageFormat;
             this.depthFormat = depthFormat;
             this.finalLayout = finalLayout;
+            this.mustClear = mustClear;
         }
 
         public override int GetHashCode()
@@ -26,6 +28,7 @@ namespace Somnium.Framework.Vulkan
                 hash = hash * 23 + (int)imageFormat;
                 hash = hash * 23 + (int)depthFormat;
                 hash = hash * 23 + (int)finalLayout;
+                hash *= mustClear ? -1 : 1;
                 return hash;
             }
         }
@@ -43,6 +46,7 @@ namespace Somnium.Framework.Vulkan
 
         public bool hasDepthStencil;
         public VkRenderPassHash hash;
+        public ClearValue[] clearValues;
         RenderPass handle;
         RenderBuffer renderingToBuffer;
         private VkRenderPass(VkRenderPassHash hash)
@@ -55,14 +59,14 @@ namespace Somnium.Framework.Vulkan
         }
         public bool begun { get; private set; }
 
-        public static VkRenderPass GetOrCreate(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat)
+        public static VkRenderPass GetOrCreate(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat, bool mustClear)
         {
-            VkRenderPassHash hash = new VkRenderPassHash(imageFormat, depthFormat, finalLayout);
+            VkRenderPassHash hash = new VkRenderPassHash(imageFormat, depthFormat, finalLayout, mustClear);
             if (renderPassCache.TryGetValue(hash, out var pass))
             {
                 return pass;
             }
-            pass = Create(imageFormat, finalLayout, depthFormat);
+            pass = Create(imageFormat, finalLayout, depthFormat, mustClear);
             renderPassCache.Add(hash, pass);
             return pass;
         }
@@ -73,7 +77,7 @@ namespace Somnium.Framework.Vulkan
         /// <param name="finalLayout">The layout to change the image into when entering and exiting the renderpass</param>
         /// <returns></returns>
         /// <exception cref="InitializationException"></exception>
-        public static VkRenderPass Create(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat = DepthFormat.Depth32)
+        public static VkRenderPass Create(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat = DepthFormat.Depth32, bool mustClear = false)
         {
             uint attachmentCount = 1;
             if (depthFormat != DepthFormat.None)
@@ -95,7 +99,7 @@ namespace Somnium.Framework.Vulkan
             AttachmentDescription colorAttachment = new AttachmentDescription();
             colorAttachment.Format = imageFormat;
             colorAttachment.Samples = SampleCountFlags.Count1Bit;
-            colorAttachment.LoadOp = AttachmentLoadOp.Load;
+            colorAttachment.LoadOp = mustClear ? AttachmentLoadOp.Clear : AttachmentLoadOp.Load;
             colorAttachment.StoreOp = AttachmentStoreOp.Store;
 
             colorAttachment.InitialLayout = ImageLayout.ColorAttachmentOptimal;
@@ -135,7 +139,7 @@ namespace Somnium.Framework.Vulkan
                 depthAttachment.Format = Converters.DepthFormatToVkFormat[(int)depthFormat];
                 depthAttachment.Flags = AttachmentDescriptionFlags.None;
                 depthAttachment.Samples = SampleCountFlags.Count1Bit;
-                depthAttachment.LoadOp = AttachmentLoadOp.Load;
+                depthAttachment.LoadOp = mustClear ? AttachmentLoadOp.Clear : AttachmentLoadOp.Load;
                 depthAttachment.StoreOp = AttachmentStoreOp.Store;
                 depthAttachment.StencilLoadOp = AttachmentLoadOp.Clear;
                 if (Converters.DepthFormatHasStencil(depthFormat))
@@ -188,7 +192,7 @@ namespace Somnium.Framework.Vulkan
                 throw new InitializationException("Failed to create Vulkan Render Pass!");
             }
 
-            VkRenderPass result = new VkRenderPass(new VkRenderPassHash(imageFormat, depthFormat, finalLayout));
+            VkRenderPass result = new VkRenderPass(new VkRenderPassHash(imageFormat, depthFormat, finalLayout, mustClear));
             result.handle = renderPass;
             result.hasDepthStencil = depthFormat != DepthFormat.None;
 
@@ -202,13 +206,14 @@ namespace Somnium.Framework.Vulkan
             }
             renderPassCache.Clear();
         }
+        public const float OneOver255 = 1f / 255f;
         /// <summary>
         /// Begins the renderpass with data specified in arguments
         /// </summary>
         /// <param name="cmdBuffer"></param>
         /// <param name="swapchain"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, RenderBuffer renderTarget = null)
+        public void Begin(CommandCollection cmdBuffer, SwapChain swapchain, RenderBuffer renderTarget = null, Color? clearColor = null)
         {
             if (begun)
             {
@@ -237,8 +242,29 @@ namespace Somnium.Framework.Vulkan
                 beginInfo.Framebuffer = new Framebuffer(renderTarget.framebufferHandle);
                 beginInfo.RenderArea = new Rect2D(default, new Extent2D(renderTarget.width, renderTarget.height));
             }
-            beginInfo.ClearValueCount = 0;
-            beginInfo.PClearValues = null;
+            if (clearColor == null)
+            {
+                beginInfo.ClearValueCount = 0;
+                beginInfo.PClearValues = null;
+            }
+            else
+            {
+                if (clearValues == null)
+                {
+                    clearValues = new ClearValue[hasDepthStencil ? 2 : 1];
+                }
+                clearValues[0] = new ClearValue(new ClearColorValue(clearColor.Value.R * OneOver255, clearColor.Value.G * OneOver255, clearColor.Value.B * OneOver255, clearColor.Value.A * OneOver255));
+                if (hasDepthStencil)
+                {
+                    clearValues[1] = new ClearValue(null, new ClearDepthStencilValue(1f, 0));
+                }
+
+                beginInfo.ClearValueCount = (uint)clearValues.Length;
+                fixed (ClearValue* ptr = clearValues)
+                {
+                    beginInfo.PClearValues = ptr;
+                }
+            }
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
             imageToTransition.imageLayout = hash.finalLayout;

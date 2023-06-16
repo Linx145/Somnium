@@ -55,15 +55,15 @@ namespace Somnium.Framework
         /// <param name="renderTarget"></param>
         /// <param name="renderStageToBindTo"></param>
         /// <exception cref="NotImplementedException"></exception>
-        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics, Rectangle scissorRectangle = default)
+        internal void Begin(RenderStage renderStageToBindTo = RenderStage.Graphics, Rectangle scissorRectangle = default, Color? clearColor = null)
         {
             switch (application.runningBackend)
             {
 #if VULKAN
                 case Backends.Vulkan:
 
-                    var renderPass = VkEngine.GetCurrentRenderPass(application);
-                    VkEngine.SetRenderPass(renderPass, application.Graphics.currentRenderbuffer);
+                    var renderPass = VkEngine.GetCurrentRenderPass(application, clearColor != null);
+                    VkEngine.SetRenderPass(renderPass, application.Graphics.currentRenderbuffer, clearColor);
                     VkGraphicsPipeline pipeline;
                     if (!handles.TryGetValue(renderPass.hash, out var handle))
                     {
@@ -89,7 +89,7 @@ namespace Somnium.Framework
             {
 #if VULKAN
                 case Backends.Vulkan:
-                    var renderPass = VkEngine.GetCurrentRenderPass(application);
+                    var renderPass = VkEngine.GetCurrentRenderPass(application, false);
                     VkGraphicsPipeline pipeline;
                     if (!handles.TryGetValue(renderPass.hash, out var handle))
                     {

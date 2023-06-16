@@ -36,8 +36,8 @@ namespace Somnium.Framework
                     {
                         if (targetBuffer == null)
                         {
-                            var renderpass = VkRenderPass.GetOrCreate(VkEngine.swapChain.imageFormat, ImageLayout.PresentSrcKhr, VkEngine.swapChain.depthFormat);
-                            VkEngine.SetRenderPass(renderpass, null);
+                            var renderpass = VkRenderPass.GetOrCreate(VkEngine.swapChain.imageFormat, ImageLayout.PresentSrcKhr, VkEngine.swapChain.depthFormat, true);
+                            VkEngine.SetRenderPass(renderpass, null, clearColor);
                             VkEngine.activeRenderPass = renderpass;
                         }
                         else
@@ -45,14 +45,15 @@ namespace Somnium.Framework
                             var renderpass = VkRenderPass.GetOrCreate(
                                 Converters.ImageFormatToVkFormat[(int)targetBuffer.backendTexture.imageFormat],
                                 ImageLayout.ColorAttachmentOptimal,
-                                targetBuffer.depthBuffer == null ? DepthFormat.None : targetBuffer.depthBuffer.depthFormat);
-                            VkEngine.SetRenderPass(renderpass, targetBuffer);
+                                targetBuffer.depthBuffer == null ? DepthFormat.None : targetBuffer.depthBuffer.depthFormat,
+                                true);
+                            VkEngine.SetRenderPass(renderpass, targetBuffer, clearColor);
                             VkEngine.activeRenderPass = renderpass;
                             //VkEngine.SetRenderPass(VkEngine.framebufferRenderPass, targetBuffer);
                             //VkEngine.currentRenderPass = VkEngine.framebufferRenderPass;
                         }
 
-                        Clear(clearColor, targetBuffer == null ? default : new Point((int)targetBuffer.width, (int)targetBuffer.height));
+                        //Clear(clearColor, targetBuffer == null ? default : new Point((int)targetBuffer.width, (int)targetBuffer.height));
 
                         VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
                         VkEngine.activeRenderPass = null;
@@ -67,12 +68,8 @@ namespace Somnium.Framework
                 targetBuffer.hasBeenUsedBefore = true;
             }
         }
-        /// <summary>
-        /// Clears the buffer that is currently specified by PipelineState.Begin. Must be called within PipelineState.Begin and End. Otherwise, use ClearBuffer instead
-        /// </summary>
-        /// <param name="clearColor"></param>
-        /// <exception cref="InvalidOperationException"></exception>
-        public void Clear(Color clearColor, Point clearDimensions = default)
+
+        /*public void Clear(Color clearColor, Point clearDimensions = default)
         {
             switch (application.runningBackend)
             {
@@ -124,7 +121,7 @@ namespace Somnium.Framework
                 default:
                     break;
             }
-        }
+        }*/
         public void SetClipArea(Rectangle rect)
         {
             if (currentPipeline == null)
@@ -208,9 +205,9 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="pipelineState"></param>
         /// <param name="autoUpdateUniforms">If true, updates the shaders uniform state as well</param>
-        public void SetPipeline(PipelineState pipelineState, Rectangle areaToDrawTo = default)
+        public void SetPipeline(PipelineState pipelineState, Rectangle areaToDrawTo = default, Color? clearColor = null)
         {
-            pipelineState.Begin(RenderStage.Graphics, areaToDrawTo);
+            pipelineState.Begin(RenderStage.Graphics, areaToDrawTo, clearColor);
             currentPipeline = pipelineState;
         }
         public void EndPipeline()
