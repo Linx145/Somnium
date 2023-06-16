@@ -5,12 +5,34 @@ using System.Collections.Generic;
 
 namespace Somnium.Framework.Vulkan
 {
-    /// <summary>
-    /// A render pass is where rendering occurs. 
-    /// </summary>
+    public readonly struct VkRenderPassHash
+    {
+        public readonly Format imageFormat;
+        public readonly DepthFormat depthFormat;
+        public readonly ImageLayout finalLayout;
+
+        public VkRenderPassHash(Format imageFormat, DepthFormat depthFormat, ImageLayout finalLayout)
+        {
+            this.imageFormat = imageFormat;
+            this.depthFormat = depthFormat;
+            this.finalLayout = finalLayout;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + (int)imageFormat;
+                hash = hash * 23 + (int)depthFormat;
+                hash = hash * 23 + (int)finalLayout;
+                return hash;
+            }
+        }
+    }
     public unsafe class VkRenderPass : IDisposable
     {
-        public static Dictionary<uint, VkRenderPass> renderPassCache = new Dictionary<uint, VkRenderPass>();
+        public static Dictionary<VkRenderPassHash, VkRenderPass> renderPassCache = new Dictionary<VkRenderPassHash, VkRenderPass>();
         private static Vk vk
         {
             get
@@ -20,11 +42,10 @@ namespace Somnium.Framework.Vulkan
         }
 
         public bool hasDepthStencil;
-        public uint hash;
+        public VkRenderPassHash hash;
         RenderPass handle;
         RenderBuffer renderingToBuffer;
-        public ImageLayout finalLayout;
-        private VkRenderPass(uint hash)
+        private VkRenderPass(VkRenderPassHash hash)
         {
             this.hash = hash;
         }
@@ -36,7 +57,7 @@ namespace Somnium.Framework.Vulkan
 
         public static VkRenderPass GetOrCreate(Format imageFormat, ImageLayout finalLayout, DepthFormat depthFormat)
         {
-            uint hash = GetKey(imageFormat, depthFormat, finalLayout);
+            VkRenderPassHash hash = new VkRenderPassHash(imageFormat, depthFormat, finalLayout);
             if (renderPassCache.TryGetValue(hash, out var pass))
             {
                 return pass;
@@ -167,24 +188,11 @@ namespace Somnium.Framework.Vulkan
                 throw new InitializationException("Failed to create Vulkan Render Pass!");
             }
 
-            VkRenderPass result = new VkRenderPass(GetKey(imageFormat, depthFormat, finalLayout));
+            VkRenderPass result = new VkRenderPass(new VkRenderPassHash(imageFormat, depthFormat, finalLayout));
             result.handle = renderPass;
             result.hasDepthStencil = depthFormat != DepthFormat.None;
-            result.finalLayout = finalLayout;
 
             return result;
-        }
-
-        public static uint GetKey(Format imageFormat, DepthFormat depthFormat, ImageLayout finalImageLayout)
-        {
-            unchecked
-            {
-                uint hash = 17;
-                hash = hash * 23 + (uint)imageFormat;
-                hash = hash * 23 + (uint)depthFormat;
-                hash = hash * 23 + (uint)finalImageLayout;
-                return hash;
-            }
         }
         public static void DisposeAll()
         {
@@ -233,7 +241,7 @@ namespace Somnium.Framework.Vulkan
             beginInfo.PClearValues = null;
             //use inline for primary command buffers
             vk.CmdBeginRenderPass(new CommandBuffer(cmdBuffer.handle), in beginInfo, SubpassContents.Inline);
-            imageToTransition.imageLayout = finalLayout;
+            imageToTransition.imageLayout = hash.finalLayout;
             begun = true;
         }
         public void End(CommandCollection cmdBuffer)
@@ -305,13 +313,6 @@ namespace Somnium.Framework.Vulkan
             if (handle.Handle != 0)
             {
                 VkEngine.vk.DestroyRenderPass(VkEngine.vkDevice, handle, null);
-            }
-        }
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (int)hash;
             }
         }
     }

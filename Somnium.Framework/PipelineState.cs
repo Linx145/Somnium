@@ -24,7 +24,7 @@ namespace Somnium.Framework
         public readonly bool depthTest;
 
         //public GenerationalIndex handle;
-        public Dictionary<uint, GenerationalIndex> handles;
+        public Dictionary<VkRenderPassHash, GenerationalIndex> handles;
 
         public PipelineState(
             Application application,
@@ -45,7 +45,7 @@ namespace Somnium.Framework
             shaders = new Shader[] { shader };
             this.vertices = vertices;
 
-            handles = new Dictionary<uint, GenerationalIndex>();
+            handles = new Dictionary<VkRenderPassHash, GenerationalIndex>();
             //Construct();
         }
         /// <summary>

@@ -759,16 +759,6 @@ namespace Somnium.Framework.Vulkan
 
             EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
         }
-        /*public static ulong GetSafeUniformBufferSize(ulong originalSize)
-        {
-            var minUniformBufferAlignment = CurrentGPU.limits.minUniformBufferOffsetAlignment;
-            var alignedSize = originalSize;
-            if (minUniformBufferAlignment > 0)
-            {
-                alignedSize = (alignedSize + minUniformBufferAlignment - 1) & ~(minUniformBufferAlignment - 1);
-            }
-            return alignedSize;
-        }*/
         #endregion
 
         #region synchronization
