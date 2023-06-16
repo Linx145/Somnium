@@ -70,13 +70,13 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 3, false))
+            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 1, true))
             {
                 application.OnLoadCallback = OnLoad;
                 application.UpdateCallback = Update;
                 application.DrawCallback = Draw;
                 application.UnloadCallback = Unload;
-                application.FramesPerSecond = 60;
+                //application.FramesPerSecond = 60;
                 Graphics = application.Graphics;
                 application.Start();
             }

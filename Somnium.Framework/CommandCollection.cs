@@ -1,9 +1,13 @@
-﻿using Silk.NET.Vulkan;
-#if VULKAN
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
+#if DX12
+using Silk.NET.Core.Native;
+using Silk.NET.Direct3D12;
+using Somnium.Framework.DX12;
+#endif
 using System;
-using System.Reflection.Emit;
 
 namespace Somnium.Framework
 {
@@ -107,14 +111,39 @@ namespace Somnium.Framework
                     }
                     break;
 #endif
+#if DX12
+                case Backends.DX12:
+                    unsafe
+                    {
+                        CommandQueueDesc queueDesc = new CommandQueueDesc();
+                        var ID = ID3D12CommandQueue.Guid;
+
+                        ID3D12CommandQueue* cmdQueue;
+
+                        if (new HResult(Dx12Engine.device->CreateCommandQueue(queueDesc, &ID, (void**)&cmdQueue)).IsSuccess)
+                        {
+                            throw new AssetCreationException("Failed to create command queue!");
+                        }
+                        handle = (nint)cmdQueue;
+                    }
+                    break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
         }
 
+#if VULKAN
         public static implicit operator CommandBuffer(CommandCollection collection)
         {
             return new CommandBuffer(collection.handle);
         }
+#endif
+#if DX12
+        public static unsafe implicit operator ID3D12CommandQueue*(CommandCollection collection)
+        {
+            return (ID3D12CommandQueue*)collection.handle;
+        }
+#endif
     }
 }

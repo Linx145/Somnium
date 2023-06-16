@@ -1,5 +1,4 @@
 ﻿#if VULKAN
-using Silk.NET.Core;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using System.Runtime.InteropServices;
@@ -31,15 +30,8 @@ namespace Somnium.Framework.Vulkan
         }
         private static uint DebugCallback(DebugUtilsMessageSeverityFlagsEXT messageSeverity, DebugUtilsMessageTypeFlagsEXT messageTypes, DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
         {
-            string? str = Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage);
-            if (Application.Config.loggingMode == LoggingMode.VSDebug)
-            {
-                System.Diagnostics.Debug.WriteLine("Validation Layer: " + str);
-            }
-            else if (Application.Config.loggingMode == LoggingMode.Console)
-            {
-                Console.WriteLine(str);
-            }
+            string str = Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage);
+            Debugger.Log("Validation Layer: " + str);
 
             if (Application.Config.throwValidationExceptions)
             {

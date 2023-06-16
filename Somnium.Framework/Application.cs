@@ -1,10 +1,13 @@
 ﻿using Silk.NET.Core;
 #if VULKAN
 using Silk.NET.Vulkan;
+using Somnium.Framework.Vulkan;
+#endif
+#if DX12
+using Somnium.Framework.DX12;
 #endif
 using Somnium.Framework.Audio;
 using Somnium.Framework.GLFW;
-using Somnium.Framework.Vulkan;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -144,11 +147,25 @@ namespace Somnium.Framework
             {
 #if VULKAN
                 case Backends.Vulkan:
-                    bool success = VkEngine.Initialize(Window, AppName, useDebugLayers);
-                    if (!success)
                     {
-                        runningBackend = Backends.OpenGL;
-                        InitializeWithPreferredBackend(useDebugLayers);
+                        bool success = VkEngine.Initialize(Window, AppName, useDebugLayers);
+                        if (!success)
+                        {
+                            runningBackend = Backends.OpenGL;
+                            InitializeWithPreferredBackend(useDebugLayers);
+                        }
+                    }
+                    break;
+#endif
+#if DX12
+                case Backends.DX12:
+                    {
+                        bool success = Dx12Engine.Initialize(Window, AppName, useDebugLayers);
+                        if (!success)
+                        {
+                            runningBackend = Backends.OpenGL;
+                            InitializeWithPreferredBackend(useDebugLayers);
+                        }
                     }
                     break;
 #endif
@@ -252,6 +269,11 @@ namespace Somnium.Framework
                     VkEngine.Shutdown();
                     break;
 #endif
+#if DX12
+                case Backends.DX12:
+                    Dx12Engine.Shutdown();
+                    break;
+#endif
                 default:
                     break;
             }
@@ -293,6 +315,12 @@ namespace Somnium.Framework
                 VkEngine.BeginDraw();
             }
 #endif
+#if DX12
+            if (runningBackend == Backends.DX12)
+            {
+                Dx12Engine.BeginDraw();
+            }
+#endif
 
             DrawCallback?.Invoke((float)delta);
 
@@ -304,6 +332,12 @@ namespace Somnium.Framework
             if (runningBackend == Backends.Vulkan)
             {
                 VkEngine.EndDraw(this);
+            }
+#endif
+#if DX12
+            if (runningBackend == Backends.DX12)
+            {
+                Dx12Engine.EndDraw(this);
             }
 #endif
             PostEndDrawCallback?.Invoke((float)delta);
