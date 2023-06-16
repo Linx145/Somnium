@@ -215,6 +215,7 @@ namespace Somnium.Framework.Vulkan
             //var imageToTransition = renderTarget == null ? swapchain.images[swapchain.currentImageIndex] : new Image(renderTarget.backendTexture.imageHandle);
             Texture2D imageToTransition = renderTarget == null ? swapchain.renderTargets[swapchain.currentImageIndex].backendTexture : renderTarget.backendTexture;
 
+            //Debugger.Log((renderTarget == null ? "Transitioning backbuffer " : "Transitioning rendertarget ") + imageToTransition.imageLayout.ToString());
             VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
 
             renderingToBuffer = renderTarget;

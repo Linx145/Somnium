@@ -70,7 +70,7 @@ namespace Test
         [STAThread]
         public static void Main(string[] args)
         {
-            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 1, true))
+            using (application = Application.New(new Application(), "Test", new Point(1920, 1080), "Window", Backends.Vulkan, 1, false))
             {
                 application.OnLoadCallback = OnLoad;
                 application.UpdateCallback = Update;
@@ -84,8 +84,8 @@ namespace Test
 
         private static void OnLoad()
         {
-            float width = 26f / 16f * 0.2f;// 16f;
-            float height = 19f / 16f * 0.2f;// 16f;
+            float width = 26f / 16f;// 16f;
+            float height = 19f / 16f;// 16f;
             vertices = new VertexPositionColorTexture[]
             {
                 new VertexPositionColorTexture(new Vector3(0f, 0f, 1f), Color.White, new Vector2(0, 0)),
@@ -202,13 +202,12 @@ namespace Test
 
             ogg = new SoundEffect(File.ReadAllBytes("Content/Yippee.ogg"));
         }
+        static int fram = 0;
         private static void Draw(float deltaTime)
         {
 #if INSTANCING || MULTITEXTURES
             instanceBuffer.SetData(positions);
 #endif
-
-            var commandBuffer = application.Window.GetDefaultCommandCollection();
 
 #region renderbuffered drawing
 #if RENDERBUFFERS
@@ -217,12 +216,11 @@ namespace Test
 
             var viewProjection = new ViewProjection(
 Matrix4x4.Identity,
-Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f, 1f)
+Matrix4x4.CreateOrthographicOffCenter(0f, 1, 0f, 1, -1f, 1f)
 //Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, camHeight * 2f, 0f, -1000f, 1000f)
 );
-
-            Graphics.SetRenderbuffer(renderBuffer);
-            Graphics.SetPipeline(state);
+            Graphics.SetRenderbuffer(renderBuffer); 
+            Graphics.SetPipeline(state, default);
             Graphics.Clear(Color.CornflowerBlue);
 
             shader.SetUniform("inputTexture", texture);
@@ -233,9 +231,6 @@ Matrix4x4.CreateOrthographicOffCenter(0f, camWidth * 2f, 0, camHeight * 2f, -1f,
             Graphics.DrawIndexedPrimitives(6, 1);
             Graphics.EndPipeline();
 
-            //causing error, since we begun the render pass earlier this frame and ended it,
-            //resulting in it's backbuffer image becoming present_src_khr
-            //while we are expecting color_attachment_optimal
             Graphics.SetRenderbuffer(null);
 
             viewProjection = new ViewProjection(
@@ -247,7 +242,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             shader.SetUniform("samplerState", SamplerState.PointClamp);
             shader.SetUniform("Matrices", viewProjection);
 
-            Graphics.SetPipeline(state);
+            Graphics.SetPipeline(state, default);
             Graphics.Clear(Color.Black);
 
             Graphics.SetVertexBuffer(vb2, 0);
@@ -255,8 +250,8 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.DrawIndexedPrimitives(6, 1);
             Graphics.EndPipeline();
 #endif
-#endregion
-#region basic drawing
+            #endregion
+            #region basic drawing
 #if DRAWING || DEPTHBUFFER
             float camWidth = 20f;
             float camHeight = camWidth * (9f / 16f);
@@ -280,7 +275,7 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
 #endif
             Graphics.EndPipeline();
 #endif
-#endregion
+            #endregion
             #region multi draw stress test
 #if MULTIDRAW
             float camWidth = 20f;
@@ -350,9 +345,9 @@ Matrix4x4.CreateOrthographicOffCenter(-camWidth, camWidth, -camHeight, camHeight
             Graphics.SetIndexBuffer(indexBuffer);
             Graphics.SetInstanceBuffer(instanceBuffer, 1);
 
-            Graphics.ClearBuffer(Color.CornflowerBlue);
+            //Graphics.ClearBuffer(Color.CornflowerBlue);
 
-            Graphics.SetPipeline(state);
+            Graphics.SetPipeline(state, default, Color.CornflowerBlue);
             Graphics.DrawIndexedPrimitives(6, instanceCount);
             Graphics.EndPipeline();
 #endif

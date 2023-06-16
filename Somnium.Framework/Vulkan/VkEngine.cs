@@ -230,6 +230,7 @@ namespace Somnium.Framework.Vulkan
 
             //lock it until the queue is finished submitting (next frame)
             CurrentGPU.AllPurposeQueue.externalLock.EnterWriteLock();
+            //Debugger.Log("End frame");
             if (vk.QueueSubmit(CurrentGPU.AllPurposeQueue, 1, in submitInfo, fence) != Result.Success)
             {
                 throw new ExecutionException("Error submitting Vulkan Queue!");
@@ -877,6 +878,7 @@ namespace Somnium.Framework.Vulkan
                 return false;
             }
             TransitionImageLayout(new Image(image.imageHandle), aspectFlags, image.imageLayout, newLayout, bufferToUse);
+            image.imageLayout = newLayout;
             return true;
         }
         public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandBuffer bufferToUse)
