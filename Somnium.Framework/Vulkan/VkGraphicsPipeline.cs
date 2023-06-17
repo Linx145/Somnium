@@ -6,7 +6,6 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework.Vulkan
 {
-    //todo: make instance for multiple pipelines
     public class VkGraphicsPipeline : IDisposable
     {
         private static Vk vk

@@ -6,6 +6,10 @@ using Somnium.Framework.Vulkan;
 #if DX12
 using Somnium.Framework.DX12;
 #endif
+#if WGPU
+using Silk.NET.WebGPU;
+using Somnium.Framework.WGPU;
+#endif
 using Somnium.Framework.Audio;
 using Somnium.Framework.GLFW;
 using System;
@@ -105,21 +109,6 @@ namespace Somnium.Framework
             app.runRenderOnSeparateThread = runRenderOnSeparateThread;
             Config.maxSimultaneousFrames = maxSimultaneousFrames;
 
-            if (preferredBackend == Backends.ChooseBest)
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    app.runningBackend = Backends.DX12;
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    app.runningBackend = Backends.Metal;
-                }
-                else
-                {
-                    app.runningBackend = Backends.Vulkan;
-                }
-            }
             app.runningBackend = preferredBackend;
 
             Input.instance = new InputStateGLFW();
@@ -151,9 +140,16 @@ namespace Somnium.Framework
                         bool success = VkEngine.Initialize(Window, AppName, useDebugLayers);
                         if (!success)
                         {
-                            runningBackend = Backends.OpenGL;
+                            runningBackend = Backends.WebGPU;
                             InitializeWithPreferredBackend(useDebugLayers);
                         }
+                    }
+                    break;
+#endif
+#if WGPU
+                case Backends.WebGPU:
+                    {
+                        WGPUEngine.Initialize(Window, AppName, useDebugLayers);
                     }
                     break;
 #endif
@@ -274,6 +270,11 @@ namespace Somnium.Framework
                     Dx12Engine.Shutdown();
                     break;
 #endif
+#if WGPU
+                case Backends.WebGPU:
+                    WGPUEngine.Shutdown();
+                    break;
+#endif
                 default:
                     break;
             }
@@ -319,6 +320,12 @@ namespace Somnium.Framework
             if (runningBackend == Backends.DX12)
             {
                 Dx12Engine.BeginDraw();
+            }
+#endif
+#if WGPU
+            if (runningBackend == Backends.WebGPU)
+            {
+                WGPUEngine.BeginDraw();
             }
 #endif
 

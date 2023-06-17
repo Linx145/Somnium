@@ -11,6 +11,7 @@ namespace Somnium.Framework.WGPU
     public static unsafe class WGPUEngine
     {
         public static WebGPU wgpu = null;
+        public static Wgpu crab;
         internal static Instance* instance;
         internal static Surface* surface;
         internal static Adapter* adapter;
@@ -18,13 +19,16 @@ namespace Somnium.Framework.WGPU
         internal static Queue* queue;
         internal static SwapChain* swapChain;
         internal static TextureFormat swapChainFormat;
+
+        public static CommandEncoder* commandEncoder;
         //private static TextureFormat _SwapChainFormat;
 
         public static bool initialized { get; private set; }
 
-        public static unsafe void Initialize(Window forWindow, string AppName, bool enableValidationLayers = true)
+        private static unsafe void Initialize(Window forWindow, string AppName, bool enableValidationLayers = true)
         {
             wgpu = WebGPU.GetApi();
+            wgpu.TryGetDeviceExtension(null, out crab);
 
             InstanceDescriptor instanceDescriptor = new InstanceDescriptor();
             instance = wgpu.CreateInstance(&instanceDescriptor);
@@ -35,11 +39,16 @@ namespace Somnium.Framework.WGPU
             GetDevice();
             GetQueue();
 
-            wgpu.DeviceSetUncapturedErrorCallback(device, new PfnErrorCallback(UncapturedError), null);
-            wgpu.DeviceSetDeviceLostCallback(device, new PfnDeviceLostCallback(DeviceLost), null);
+            if (enableValidationLayers)
+            {
+                wgpu.DeviceSetUncapturedErrorCallback(device, new PfnErrorCallback(UncapturedError), null);
+                wgpu.DeviceSetDeviceLostCallback(device, new PfnDeviceLostCallback(DeviceLost), null);
+            }
+
+            CreateSwapchain(forWindow);
         }
 
-        public static void GetAdapter()
+        private static void GetAdapter()
         {
             RequestAdapterOptions requestAdapterOptions = new RequestAdapterOptions
             {
@@ -54,7 +63,7 @@ namespace Somnium.Framework.WGPU
                 null
             );
         }
-        public static void GetDevice()
+        private static void GetDevice()
         {
             wgpu.AdapterRequestDevice
             (
@@ -64,11 +73,11 @@ namespace Somnium.Framework.WGPU
                 null
             );
         }
-        public static void GetQueue()
+        private static void GetQueue()
         {
             queue = wgpu.DeviceGetQueue(device);
         }
-        public static void CreateSwapchain(Window window)
+        private static void CreateSwapchain(Window window)
         {
             swapChainFormat = wgpu.SurfaceGetPreferredFormat(surface, adapter);
 
@@ -91,7 +100,24 @@ namespace Somnium.Framework.WGPU
 
         private static void UncapturedError(ErrorType arg0, byte* arg1, void* arg2)
         {
-            Debugger.Log($"{arg0}: {SilkMarshal.PtrToString((nint)arg1)}");
+            Debugger.Log($"Validation layer: Error caught of type {arg0}, message: {SilkMarshal.PtrToString((nint)arg1)}");
+        }
+
+        public static void BeginDraw()
+        {
+            CommandEncoderDescriptor cmdCollectionDescriptor = new CommandEncoderDescriptor();
+            commandEncoder = wgpu.DeviceCreateCommandEncoder(device, &cmdCollectionDescriptor);
+
+        }
+
+        public static void Shutdown()
+        {
+            crab.SwapChainDrop(swapChain);
+            crab.DeviceDrop(device);
+            crab.AdapterDrop(adapter);
+            crab.SurfaceDrop(surface);
+            crab.InstanceDrop(instance);
+            wgpu.Dispose();
         }
     }
 }

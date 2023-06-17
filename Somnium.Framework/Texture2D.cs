@@ -1,8 +1,14 @@
 ﻿using System;
 using System.IO;
 using StbImageSharp;
-using Silk.NET.Vulkan;
+#if VULKAN
 using Somnium.Framework.Vulkan;
+using Silk.NET.Vulkan;
+#endif
+#if WGPU
+using Somnium.Framework.WGPU;
+using Silk.NET.WebGPU;
+#endif
 
 namespace Somnium.Framework
 {
@@ -23,13 +29,15 @@ namespace Somnium.Framework
         public bool usedForRenderTarget;
 
         public ulong imageHandle;
+        public ulong imageViewHandle;
         public SamplerState samplerState;
         public readonly ImageFormat imageFormat;
 
         #region Vulkan
+#if VULKAN
         public ImageLayout imageLayout;
-        public ulong imageViewHandle;
         public AllocatedMemoryRegion memoryRegion;
+#endif
         #endregion
 
         public Texture2D(Application application, ulong fromExistingHandle, uint width, uint height, ImageFormat imageFormat, SamplerState samplerState = null, bool imageBelongsToMe = false, bool usedForRenderTarget = false)
@@ -90,6 +98,7 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if VULKAN
                     case Backends.Vulkan:
                         {
                             int expectedDataSize = (int)Width * (int)Height * sizeof(T);
@@ -115,6 +124,9 @@ namespace Somnium.Framework
                             stagingMemoryRegion.Free();
                         }
                         break;
+#endif
+                    default:
+                        throw new NotImplementedException();
                 }
             }
             int size = sizeof(T);
@@ -235,6 +247,74 @@ namespace Somnium.Framework
                     }
                     break;
 #endif
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        if (imageHandle == 0)
+                        {
+                            TextureFormat viewFormat = Converters.ImageFormatToWGPUFormat[(int)imageFormat];
+
+                            var textureDescriptor = new TextureDescriptor()
+                            {
+                                Size = new Extent3D(Width, Height, 1),
+                                Usage = TextureUsage.CopyDst | TextureUsage.TextureBinding,
+                                MipLevelCount = 1,
+                                SampleCount = 1,
+                                Dimension = TextureDimension.TextureDimension2D,
+                                Format = viewFormat,
+                                ViewFormatCount = 1,
+                                ViewFormats = &viewFormat
+                            };
+
+                            imageHandle = (ulong)WGPUEngine.wgpu.DeviceCreateTexture(WGPUEngine.device, &textureDescriptor);
+                        }
+                        Texture* image = (Texture*)imageHandle;
+
+                        TextureViewDescriptor viewDescriptor = new TextureViewDescriptor()
+                        {
+                            Format = Converters.ImageFormatToWGPUFormat[(int)imageFormat],
+                            Dimension = TextureViewDimension.TextureViewDimension2D,
+                            Aspect = TextureAspect.All,
+                            MipLevelCount = 1,
+                            ArrayLayerCount = 1,
+                            BaseArrayLayer = 0,
+                            BaseMipLevel = 0
+                        };
+
+                        imageViewHandle = (ulong)WGPUEngine.wgpu.TextureCreateView(image, &viewDescriptor);
+
+                        if (data != null && data.Length > 0 && imageBelongsToMe)
+                        {
+                            var commandEncoderDescriptor = new CommandEncoderDescriptor();
+
+                            var commandEncoder = WGPUEngine.wgpu.DeviceCreateCommandEncoder(WGPUEngine.device, &commandEncoderDescriptor);
+
+                            ImageCopyTexture imgCopyTexture = new ImageCopyTexture()
+                            {
+                                Texture = image,
+                                Aspect = TextureAspect.All,
+                                MipLevel = 0,
+                                Origin = new Origin3D(0, 0, 0)
+                            };
+                            TextureDataLayout layout = new TextureDataLayout()
+                            {
+                                BytesPerRow = Converters.ImageFormatToBytes[(int)imageFormat] * Width,
+                                RowsPerImage = Height
+                            };
+                            Extent3D extents = new Extent3D(Width, Height, 1);
+
+                            fixed (void* ptr = data)
+                            {
+                                WGPUEngine.wgpu.QueueWriteTexture(WGPUEngine.queue, &imgCopyTexture, ptr, (nuint)data.Length, &layout, &extents);
+                            }
+
+                            var commandBuffer = WGPUEngine.wgpu.CommandEncoderFinish(commandEncoder, new CommandBufferDescriptor());
+                            WGPUEngine.wgpu.QueueSubmit(WGPUEngine.queue, 1, &commandBuffer);
+                        }
+                    }
+                    break;
+#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -249,6 +329,15 @@ namespace Somnium.Framework
                 data = null;
                 switch (application.runningBackend)
                 {
+#if WGPU
+                    case Backends.WebGPU:
+                        unsafe
+                        {
+                            WGPUEngine.crab.TextureViewDrop((TextureView*)imageViewHandle);
+                            WGPUEngine.crab.TextureDrop((Texture*)imageHandle);
+                        }
+                        break;
+#endif
 #if VULKAN
                     case Backends.Vulkan:
                         unsafe

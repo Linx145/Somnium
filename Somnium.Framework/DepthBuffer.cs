@@ -1,6 +1,8 @@
-﻿using Somnium.Framework.Vulkan;
-using System;
+﻿using System;
+#if VULKAN
 using Silk.NET.Vulkan;
+using Somnium.Framework.Vulkan;
+#endif
 
 namespace Somnium.Framework
 {
@@ -13,10 +15,12 @@ namespace Somnium.Framework
         public readonly DepthFormat depthFormat;
 
         #region Vulkan
+#if VULKAN
         public ImageLayout layout;
         public ulong imageViewHandle;
         public AllocatedMemoryRegion memoryRegion;
-        #endregion
+#endif
+#endregion
 
         public DepthBuffer(Application application, uint width, uint height, DepthFormat depthFormat)
         {

@@ -1,9 +1,9 @@
-﻿using Silk.NET.Vulkan;
-#if VULKAN
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 #endif
 using System;
-using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {

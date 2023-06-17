@@ -1,5 +1,9 @@
-﻿using Silk.NET.Vulkan;
+﻿#if WGPU
+using Silk.NET.WebGPU;
+using Somnium.Framework.WGPU;
+#endif
 #if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
 using System;
@@ -46,6 +50,27 @@ namespace Somnium.Framework
             }
             switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        var mode = Converters.RepeatModeToWGPUSamplerAddressMode[(int)repeatMode];
+                        var samplerDescriptor = new SamplerDescriptor()
+                        {
+                            Compare = CompareFunction.Undefined,
+                            MipmapFilter = MipmapFilterMode.Linear,
+                            MagFilter = Converters.FilterModeToWGPUFilter[(int)filterMode],
+                            MinFilter = Converters.FilterModeToWGPUFilter[(int)filterMode],
+                            AddressModeU = mode,
+                            AddressModeV = mode,
+                            AddressModeW = mode,
+                            //MaxAnisotropy = anisotropyLevel
+                        };
+
+                        handle = (ulong)WGPUEngine.wgpu.DeviceCreateSampler(WGPUEngine.device, &samplerDescriptor);
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
                     unsafe
@@ -100,6 +125,14 @@ namespace Somnium.Framework
                         VkEngine.vk.DestroySampler(VkEngine.vkDevice, new Sampler(handle), null);
                     }
                         break;
+#endif
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        WGPUEngine.crab.SamplerDrop((Sampler*)handle);
+                    }
+                    break;
 #endif
                 default:
                     throw new NotImplementedException();

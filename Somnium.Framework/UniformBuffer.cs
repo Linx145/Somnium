@@ -1,8 +1,14 @@
-﻿using Silk.NET.Vulkan;
+﻿#if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
-using System;
-using System.Threading.Tasks;
 using Buffer = Silk.NET.Vulkan.Buffer;
+#endif
+#if WGPU
+using Silk.NET.WebGPU;
+using Somnium.Framework.WGPU;
+using Buffer = Silk.NET.WebGPU.Buffer;
+#endif
+using System;
 
 namespace Somnium.Framework
 {
@@ -24,8 +30,10 @@ namespace Somnium.Framework
         public bool isDisposed { get; private set; }
 
         #region Vulkan
+#if VULKAN
         AllocatedMemoryRegion memoryRegion;
-        #endregion
+#endif
+#endregion
 
         public UniformBuffer(Application application, ulong size, bool isDynamic = false)
         {
@@ -83,9 +91,23 @@ namespace Somnium.Framework
                         dynamicOffset = filledBufferExtents;
                     }
                 }
-#endif
                 *(T*)((byte*)bindingPoint + offset) = data;
-                //new Span<T>((void*)bindingPoint, 1)[0] = data;
+#endif
+#if WGPU
+                if (application.runningBackend == Backends.WebGPU)
+                {
+                    unsafe
+                    {
+                        CommandEncoderDescriptor commandEncoderDescriptor = new CommandEncoderDescriptor();
+                        var commandEncoder = WGPUEngine.wgpu.DeviceCreateCommandEncoder(WGPUEngine.device, &commandEncoderDescriptor);
+
+                        WGPUEngine.wgpu.QueueWriteBuffer(WGPUEngine.queue, (Buffer*)handle, offset, &data, (nuint)sizeof(T));
+
+                        var commandBuffer = WGPUEngine.wgpu.CommandEncoderFinish(commandEncoder, new CommandBufferDescriptor());
+                        WGPUEngine.wgpu.QueueSubmit(WGPUEngine.queue, 1, &commandBuffer);
+                    }
+                }
+#endif
             }
         }
         public void SetData<T>(T[] data, ulong offset) where T : unmanaged
@@ -108,25 +130,62 @@ namespace Somnium.Framework
                         }
                         dynamicOffset = filledBufferExtents;
                     }
-#endif
-                }
-                //int sizeofT = sizeof(T);
+                }                
                 T* ptr = (T*)((byte*)bindingPoint + offset);
-                /*Parallel.For(0, data.Length, (int i) =>
-                {
-                    *(ptr + i) = data[i];
-                });*/
                 data.CopyTo(new Span<T>(ptr, data.Length));
+#endif
+#if WGPU
+                if (application.runningBackend == Backends.WebGPU)
+                {
+                    unsafe
+                    {
+                        CommandEncoderDescriptor commandEncoderDescriptor = new CommandEncoderDescriptor();
+                        var commandEncoder = WGPUEngine.wgpu.DeviceCreateCommandEncoder(WGPUEngine.device, &commandEncoderDescriptor);
+
+                        fixed (void* ptr = &data[0])
+                        {
+                            WGPUEngine.wgpu.QueueWriteBuffer(WGPUEngine.queue, (Buffer*)handle, offset, ptr, (nuint)(sizeof(T) * data.Length));
+
+                            var commandBuffer = WGPUEngine.wgpu.CommandEncoderFinish(commandEncoder, new CommandBufferDescriptor());
+                            WGPUEngine.wgpu.QueueSubmit(WGPUEngine.queue, 1, &commandBuffer);
+                        }
+                    }
+                }
+#endif
             }
         }
         public void SetDataBytes(ReadOnlySpan<byte> bytes, ulong offset)
         {
-            unsafe
+#if VULKAN
+            if (application.runningBackend == Backends.Vulkan)
             {
-                byte* ptr = (byte*)bindingPoint + offset;
-                bytes.CopyTo(new Span<byte>(ptr, bytes.Length));
+                unsafe
+                {
+                    byte* ptr = (byte*)bindingPoint + offset;
+                    bytes.CopyTo(new Span<byte>(ptr, bytes.Length));
+                }
             }
+#endif
+#if WGPU
+            if (application.runningBackend == Backends.WebGPU)
+            {
+                unsafe
+                {
+                    CommandEncoderDescriptor commandEncoderDescriptor = new CommandEncoderDescriptor();
+                    var commandEncoder = WGPUEngine.wgpu.DeviceCreateCommandEncoder(WGPUEngine.device, &commandEncoderDescriptor);
+
+                    fixed (void* ptr = &bytes[0])
+                    {
+                        WGPUEngine.wgpu.QueueWriteBuffer(WGPUEngine.queue, (Buffer*)handle, offset, ptr, (nuint)(bytes.Length));
+
+                        var commandBuffer = WGPUEngine.wgpu.CommandEncoderFinish(commandEncoder, new CommandBufferDescriptor());
+                        WGPUEngine.wgpu.QueueSubmit(WGPUEngine.queue, 1, &commandBuffer);
+                    }
+                }
+            }
+#endif
         }
+#if VULKAN
         public unsafe void ExpandDynamicBuffer(ulong newMaxSize)
         {
             if (!isDynamic) throw new InvalidOperationException("Cannot dynamically resize a non-dynamic uniform buffer!");
@@ -164,10 +223,24 @@ namespace Somnium.Framework
             void* pointer = memoryRegion.Bind();
             bindingPoint = (IntPtr)pointer;
         }
+#endif
         public void Construct()
         {
             switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        var descriptor = new BufferDescriptor()
+                        {
+                            Size = size,
+                            Usage = BufferUsage.Uniform | BufferUsage.CopyDst
+                        };
+                        handle = (ulong)WGPUEngine.wgpu.DeviceCreateBuffer(WGPUEngine.device, &descriptor);
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
                     unsafe
@@ -204,6 +277,14 @@ namespace Somnium.Framework
             if (isDisposed) throw new InvalidOperationException("Uniform buffer already disposed!");
             switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        WGPUEngine.crab.BufferDrop((Buffer*)handle);
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
                     unsafe

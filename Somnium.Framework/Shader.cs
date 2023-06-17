@@ -3,6 +3,10 @@
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
+#if WGPU
+using Silk.NET.WebGPU;
+using Somnium.Framework.WGPU;
+#endif
 using System.IO;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
@@ -32,14 +36,7 @@ namespace Somnium.Framework
 
         public ShaderParameterCollection shader1Params;
         public ShaderParameterCollection shader2Params;
-
-        #region vulkan
-        /// <summary>
-        /// The Vulkan descriptor set layout for all this shader's parameters. One copy of the same layout per frame
-        /// </summary>
-        public DescriptorSetLayout descriptorSetLayout;
-        public List<DescriptorSet>[] descriptorSetsPerFrame;
-        private UnorderedList<WriteDescriptorSet> descriptorSetWrites = new UnorderedList<WriteDescriptorSet>();
+        public bool uniformHasBeenSet = false;
 
         /// <summary>
         /// This gets increased by 1 if the parameter data is set and a draw call is made.
@@ -47,7 +44,21 @@ namespace Somnium.Framework
         /// <br>It is then reset when the present queue is submitted</br>
         /// </summary>
         public int descriptorForThisDrawCall = 0;
-        public bool uniformHasBeenSet = false;
+
+#if WGPU
+        public ulong descriptorSetLayout;
+        public List<ulong> bindGroups;
+#endif
+
+        #region vulkan
+#if VULKAN
+        /// <summary>
+        /// The Vulkan descriptor set layout for all this shader's parameters. One copy of the same layout per frame
+        /// </summary>
+        public DescriptorSetLayout descriptorSetLayout;
+        public List<DescriptorSet>[] descriptorSetsPerFrame;
+        private UnorderedList<WriteDescriptorSet> descriptorSetWrites = new UnorderedList<WriteDescriptorSet>();
+
         public DescriptorSet descriptorSet
         {
             get
@@ -65,6 +76,7 @@ namespace Somnium.Framework
                 return descriptorSetsPerFrame[application.Window.frameNumber].Count > 0;
             }
         }
+#endif
         #endregion
 
         public Shader(Application application, ShaderType Type, byte[] byteCode)
@@ -122,6 +134,45 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    if (type == ShaderType.VertexAndFragment)
+                    {
+                        unsafe
+                        {
+                            //vs
+                            ShaderModuleSPIRVDescriptor vsDescriptor = new ShaderModuleSPIRVDescriptor();
+                            vsDescriptor.Chain = new ChainedStruct(null, SType.ShaderModuleSpirvdescriptor);
+                            //spirvDescriptor.Code = 
+                            vsDescriptor.CodeSize = (uint)(byteCode.Length / 4);
+                            fixed (byte* ptr = byteCode)
+                            {
+                                vsDescriptor.Code = (uint*)ptr;
+                            }
+
+                            ShaderModuleDescriptor vsModuleDescriptor = new ShaderModuleDescriptor((ChainedStruct*)&vsDescriptor);
+
+                            ShaderModule* vs = WGPUEngine.wgpu.DeviceCreateShaderModule(WGPUEngine.device, &vsModuleDescriptor);
+                            shaderHandle = (ulong)(long)(IntPtr)vs;
+
+                            //fs
+                            ShaderModuleSPIRVDescriptor fsDescriptor = new ShaderModuleSPIRVDescriptor();
+                            fsDescriptor.Chain = new ChainedStruct(null, SType.ShaderModuleSpirvdescriptor);
+                            //spirvDescriptor.Code = 
+                            fsDescriptor.CodeSize = (uint)(byteCode2.Length / 4);
+                            fixed (byte* ptr = byteCode2)
+                            {
+                                fsDescriptor.Code = (uint*)ptr;
+                            }
+
+                            ShaderModuleDescriptor fsModuleDescriptor = new ShaderModuleDescriptor((ChainedStruct*)&fsDescriptor);
+
+                            ShaderModule* fs = WGPUEngine.wgpu.DeviceCreateShaderModule(WGPUEngine.device, &fsModuleDescriptor);
+                            shaderHandle2 = (ulong)(long)(IntPtr)fs;
+                        }
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
                     if (type == ShaderType.VertexAndFragment || type == ShaderType.Tessellation)
@@ -194,6 +245,53 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
+#if WGPU
+        private unsafe void ParamsFromCollection(ReadOnlySpan<ShaderParameter> collection, BindGroupLayoutEntry* entries, ShaderStage shaderStage)
+        {
+            foreach (var value in collection)
+            {
+                if (value.type == UniformType.uniformBuffer)
+                {
+                    BindGroupLayoutEntry entry = new BindGroupLayoutEntry();
+                    entry.Binding = value.binding;
+                    entry.Buffer = new BufferBindingLayout()
+                    {
+                        MinBindingSize = value.width,
+                        Type = BufferBindingType.Uniform
+                    };
+                    entry.Visibility = shaderStage;
+                    *(entries + value.binding) = entry;
+                }
+                else if (value.type == UniformType.sampler)
+                {
+                    BindGroupLayoutEntry entry = new BindGroupLayoutEntry();
+                    entry.Binding = value.binding;
+                    entry.Sampler = new SamplerBindingLayout()
+                    {
+                        Type = SamplerBindingType.Filtering
+                    };
+                    entry.Visibility = shaderStage;
+                    *(entries + value.binding) = entry;
+                }
+                else if (value.type == UniformType.image)
+                {
+                    //todo: change to be dynamic
+                    TextureSampleType sampleType = TextureSampleType.Float;
+
+                    BindGroupLayoutEntry entry = new BindGroupLayoutEntry();
+                    entry.Binding = value.binding;
+                    entry.Texture = new TextureBindingLayout()
+                    {
+                        Multisampled = false,
+                        SampleType = sampleType
+                    };
+                    entry.Visibility = shaderStage;
+                    *(entries + value.binding) = entry;
+                }
+                else throw new NotImplementedException();
+            }
+        }
+#endif
         public void ConstructParams()
         {
             int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
@@ -201,6 +299,51 @@ namespace Somnium.Framework
             {
                 switch (application.runningBackend)
                 {
+#if WGPU
+                    case Backends.WebGPU:
+                        unsafe
+                        {
+                            ShaderStage shaderStage1 = ShaderStage.None;
+                            ShaderStage shaderStage2 = ShaderStage.None;
+                            if (type == ShaderType.VertexAndFragment)
+                            {
+                                shaderStage1 = ShaderStage.Vertex;
+                                shaderStage2 = ShaderStage.Fragment;
+                            }
+                            else if (type == ShaderType.Fragment)
+                            {
+                                shaderStage1 = ShaderStage.Fragment;
+                            }
+                            else if (type == ShaderType.Vertex)
+                            {
+                                shaderStage1 = ShaderStage.Vertex;
+                            }
+                            else if (type == ShaderType.Compute)
+                            {
+                                shaderStage1 = ShaderStage.Compute;
+                            }
+
+                            BindGroupLayoutEntry* entries = stackalloc BindGroupLayoutEntry[maxCount.Value];
+
+                            if (shader1Params != null)
+                            {
+                                ParamsFromCollection(shader1Params.GetParameters(), entries, shaderStage1);
+                            }
+                            if (shader2Params != null)
+                            {
+                                ParamsFromCollection(shader2Params.GetParameters(), entries, shaderStage2);
+                            }
+
+                            BindGroupLayoutDescriptor descriptor = new BindGroupLayoutDescriptor()
+                            {
+                                Entries = entries,
+                                EntryCount = (uint)maxCount.Value
+                            };
+                            descriptorSetLayout = (ulong)WGPUEngine.wgpu.DeviceCreateBindGroupLayout(WGPUEngine.device, &descriptor);
+                        }
+                        bindGroups = new List<ulong>();
+                        break;
+#endif
 #if VULKAN
                     case Backends.Vulkan:
                         unsafe
@@ -248,7 +391,7 @@ namespace Somnium.Framework
                             this.descriptorSetLayout = descriptorSetLayout;
                             #endregion
 
-                            # region create descriptor sets
+                            #region create descriptor sets
                             //we need this so we can fill in the allocate info
 
                             descriptorSetsPerFrame = new List<DescriptorSet>[Application.Config.maxSimultaneousFrames];
@@ -265,43 +408,59 @@ namespace Somnium.Framework
                 }
             }
         }
-#if VULKAN
         private unsafe void CheckUniformSet()
         {
             if (!uniformHasBeenSet)
             {
-                if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                switch (application.runningBackend)
                 {
-                    //allocate a new descriptor and buffers to go along
-                    DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
+#if WGPU
+                    case Backends.WebGPU:
+                        if (descriptorForThisDrawCall >= bindGroups.Count)
+                        {
+                            shader1Params?.AddStagingDatas();
+                            shader2Params?.AddStagingDatas();
+                        }
+                        break;
+#endif
+#if VULKAN
+                    case Backends.Vulkan:
+                        if (descriptorForThisDrawCall >= descriptorSetsPerFrame[application.Window.frameNumber].Count)
+                        {
+                            //allocate a new descriptor and buffers to go along
+                            DescriptorPool relatedPool = VkEngine.GetOrCreateDescriptorPool();
 
-                    DescriptorSet result;
+                            DescriptorSet result;
 
-                    DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
-                    allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
-                    allocInfo.DescriptorPool = relatedPool;
-                    allocInfo.DescriptorSetCount = 1;
-                    fixed (DescriptorSetLayout* copy = &descriptorSetLayout)
-                    {
-                        allocInfo.PSetLayouts = copy;
-                    }
+                            DescriptorSetAllocateInfo allocInfo = new DescriptorSetAllocateInfo();
+                            allocInfo.SType = StructureType.DescriptorSetAllocateInfo;
+                            allocInfo.DescriptorPool = relatedPool;
+                            allocInfo.DescriptorSetCount = 1;
+                            fixed (DescriptorSetLayout* copy = &descriptorSetLayout)
+                            {
+                                allocInfo.PSetLayouts = copy;
+                            }
 
-                    var allocResult = VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, &result);
-                    if (allocResult != Result.Success)
-                    {
-                        throw new AssetCreationException("Failed to create Vulkan descriptor sets! Error: " + allocResult.ToString());
-                    }
+                            var allocResult = VkEngine.vk.AllocateDescriptorSets(VkEngine.vkDevice, in allocInfo, &result);
+                            if (allocResult != Result.Success)
+                            {
+                                throw new AssetCreationException("Failed to create Vulkan descriptor sets! Error: " + allocResult.ToString());
+                            }
 
-                    descriptorSetsPerFrame[application.Window.frameNumber].Add(result);
+                            descriptorSetsPerFrame[application.Window.frameNumber].Add(result);
 
-                    shader1Params?.AddStagingDatas();
-                    shader2Params?.AddStagingDatas();
+                            shader1Params?.AddStagingDatas();
+                            shader2Params?.AddStagingDatas();
 
+                        }
+                        break;
+#endif
+                    default:
+                        break;
                 }
                 uniformHasBeenSet = true;
             }
         }
-#endif
         public bool HasUniform(string uniformName, SetNumber shaderNumber = SetNumber.Either)
         {
             if (shaderNumber == SetNumber.Either)
@@ -497,8 +656,58 @@ namespace Somnium.Framework
         /// </summary>
         public void SyncUniformsWithGPU()
         {
+#if WGPU
+            TODO
+            //what the fuck is going on here
+            unsafe void UpdateForParamsWGPU(ShaderParameterCollection paramsCollection, BindGroupEntry* entries)
+            {
+                foreach (var param in paramsCollection.GetParameters())
+                {
+                    ref var mutableState = ref param.stagingData[application.Window.frameNumber].internalArray[descriptorForThisDrawCall];
+
+                    switch (param.type)
+                    {
+                        case UniformType.uniformBuffer:
+                            {
+                                BindGroupEntry entry = new BindGroupEntry();
+                                entry.Binding = param.binding;
+                                entry.Buffer = (Silk.NET.WebGPU.Buffer*)mutableState.uniformBuffer.handle;
+                                entry.Size = param.width;
+                                *(entries + param.binding) = entry;
+                            }
+                            break;
+                        case UniformType.image:
+                            {
+                                BindGroupEntry entry = new BindGroupEntry();
+                                entry.Binding = param.binding;
+                                for (int i = 0; i < mutableState.textureViews.Length; i++)
+                                {
+                                    mutableState.textureViews[i] = (TextureView*)mutableState.textures[i].imageViewHandle;//null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+                                }
+                                //fixed (TextureView* ptr = mutableState.textureViews)
+                                //{
+                                entry.TextureView = mutableState.textureViews[0];//ptr;
+                                //}
+                                *(entries + param.binding) = entry;
+                            }
+                            break;
+                        case UniformType.sampler:
+                            {
+                                BindGroupEntry entry = new BindGroupEntry();
+                                entry.Binding = param.binding; 
+                                for (int i = 0; i < mutableState.samplers.Length; i++)
+                                {
+                                    mutableState.samplerViews[i] = (Sampler*)mutableState.samplers[i].handle;//null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+                                }
+                                entry.Sampler = mutableState.samplerViews[0];
+                            }
+                            break;
+                    }
+                }
+            }
+#endif
 #if VULKAN
-            unsafe void UpdateForParams(ShaderParameterCollection paramsCollection)
+            unsafe void UpdateForParamsVk(ShaderParameterCollection paramsCollection)
             {
                 foreach (var param in paramsCollection.GetParameters())
                 {
@@ -589,25 +798,6 @@ namespace Somnium.Framework
                                 }
                             }
                             break;
-                        /*case UniformType.imageAndSampler:
-                            {
-                                mutableState.vkImageInfo = new DescriptorImageInfo(new Sampler(mutableState.textures[0].samplerState.handle), new ImageView(mutableState.textures[0].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
-
-                                fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfo)
-                                {
-                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                    descriptorWrite.DstSet = descriptorSet;
-                                    descriptorWrite.DstBinding = param.binding;
-                                    descriptorWrite.DstArrayElement = 0;
-                                    descriptorWrite.DescriptorType = DescriptorType.CombinedImageSampler;
-                                    descriptorWrite.DescriptorCount = 1;
-                                    descriptorWrite.PImageInfo = ptr;
-
-                                    descriptorSetWrites.Add(descriptorWrite);
-                                }
-                            }
-                            break;*/
                         default:
                             throw new NotImplementedException();
                     }
@@ -617,18 +807,46 @@ namespace Somnium.Framework
             }
 #endif
 
-            switch (application.runningBackend)
+                switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
+                        if (maxCount != null)
+                        {
+                            BindGroupEntry* entries = stackalloc BindGroupEntry[maxCount.Value];
+                            if (shader1Params != null)
+                            {
+                                UpdateForParamsWGPU(shader1Params, entries);
+                            }
+                            if (shader2Params != null)
+                            {
+                                UpdateForParamsWGPU(shader2Params, entries);
+                            }
+                            var descriptor = new BindGroupDescriptor()
+                            {
+                                Entries = entries,
+                                EntryCount = (uint)maxCount.Value,
+                                Layout = (BindGroupLayout*)descriptorSetLayout
+                            };
+                            BindGroup* bindGroup = WGPUEngine.wgpu.DeviceCreateBindGroup(WGPUEngine.device, &descriptor);
+                            bindGroups.Add((ulong)bindGroup);
+                        }
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
                     {
                         if (shader1Params != null)
                         {
-                            UpdateForParams(shader1Params);
+                            UpdateForParamsVk(shader1Params);
                         }
                         if (shader2Params != null)
                         {
-                            UpdateForParams(shader2Params);
+                            UpdateForParamsVk(shader2Params);
                         }
                         break;
                     }
@@ -1052,6 +1270,25 @@ namespace Somnium.Framework
                 shader2Params?.Dispose();
                 switch (application.runningBackend)
                 {
+#if WGPU
+                    case Backends.WebGPU:
+                        unsafe
+                        {
+                            if (shaderHandle != 0)
+                            {
+                                ShaderModule* module = (ShaderModule*)new UIntPtr(shaderHandle).ToPointer();
+                                WGPUEngine.crab.ShaderModuleDrop(module);
+                            }
+                            if (shaderHandle2 != 0)
+                            {
+                                ShaderModule* module = (ShaderModule*)new UIntPtr(shaderHandle2).ToPointer();
+                                WGPUEngine.crab.ShaderModuleDrop(module);
+                            }
+                            WGPUEngine.crab.BindGroupLayoutDrop((BindGroupLayout*)descriptorSetLayout);
+                            
+                        }
+                        break;
+#endif
 #if VULKAN
                     case Backends.Vulkan:
                         unsafe

@@ -1,9 +1,11 @@
 ﻿#if VULKAN
 using Somnium.Framework.Vulkan;
 #endif
+#if WGPU
+using Somnium.Framework.WGPU;
+using Silk.NET.WebGPU;
+#endif
 using System;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace Somnium.Framework
 {
@@ -23,8 +25,9 @@ namespace Somnium.Framework
         public readonly bool depthWrite;
         public readonly bool depthTest;
 
-        //public GenerationalIndex handle;
+#if VULKAN
         public Dictionary<VkRenderPassHash, GenerationalIndex> handles;
+#endif
 
         public PipelineState(
             Application application,
@@ -45,7 +48,9 @@ namespace Somnium.Framework
             shaders = new Shader[] { shader };
             this.vertices = vertices;
 
+            #if VULKAN
             handles = new Dictionary<VkRenderPassHash, GenerationalIndex>();
+            #endif
             //Construct();
         }
         /// <summary>
@@ -59,9 +64,49 @@ namespace Somnium.Framework
         {
             switch (application.runningBackend)
             {
+#if WGPU
+                case Backends.WebGPU:
+                    unsafe
+                    {
+                        //we dont need to get a prebuilt renderpass from WGPUEngine as WGPU
+                        //automatically hashes the renderpasses for us
+
+                        const double OneOver255 = 1.0 / 255.0;
+
+                        var colorAttachment = new RenderPassColorAttachment()
+                        {
+                            LoadOp = clearColor != null ? LoadOp.Clear : LoadOp.Load,
+                            StoreOp = StoreOp.Store,
+                            ClearValue = clearColor != null ? new Silk.NET.WebGPU.Color(clearColor.Value.R * OneOver255, clearColor.Value.G * OneOver255, clearColor.Value.B * OneOver255, clearColor.Value.A * OneOver255) : new Silk.NET.WebGPU.Color(),
+                            View
+                            
+                        };
+                        var depthAttachment = new RenderPassDepthStencilAttachment()
+                        {
+                            DepthLoadOp = clearColor != null ? LoadOp.Clear : LoadOp.Load,
+                            DepthStoreOp = depthWrite ? StoreOp.Store : StoreOp.Discard,
+                            StencilLoadOp = clearColor != null ? LoadOp.Clear : LoadOp.Load,
+                            StencilStoreOp = depthWrite ? StoreOp.Store : StoreOp.Discard,
+                            DepthClearValue = 1f,
+                            StencilClearValue = 0,
+                            DepthReadOnly = !depthWrite,
+                            StencilReadOnly = !depthWrite,
+                            View
+                        };
+
+                        RenderPassDescriptor descriptor = new RenderPassDescriptor()
+                        {
+                            ColorAttachmentCount = 1,
+                            ColorAttachments = &colorAttachment,
+                            DepthStencilAttachment = depthTest ? &depthAttachment : null
+                        };
+                        var renderPass = WGPUEngine.wgpu.CommandEncoderBeginRenderPass(WGPUEngine.commandEncoder, );
+                    }
+                    break;
+#endif
 #if VULKAN
                 case Backends.Vulkan:
-
+                {
                     var renderPass = VkEngine.GetCurrentRenderPass(application, clearColor != null);
                     VkEngine.SetRenderPass(renderPass, application.Graphics.currentRenderbuffer, clearColor);
                     VkGraphicsPipeline pipeline;
@@ -75,6 +120,7 @@ namespace Somnium.Framework
 
                     pipeline.Bind(application.Graphics.currentRenderbuffer, VkEngine.commandBuffer, renderStageToBindTo, scissorRectangle);
                     Interlocked.Increment(ref VkEngine.begunPipelines);
+                    }
                     break;
 #endif
                 default:
@@ -89,6 +135,7 @@ namespace Somnium.Framework
             {
 #if VULKAN
                 case Backends.Vulkan:
+                {
                     var renderPass = VkEngine.GetCurrentRenderPass(application, false);
                     VkGraphicsPipeline pipeline;
                     if (!handles.TryGetValue(renderPass.hash, out var handle))
@@ -99,6 +146,7 @@ namespace Somnium.Framework
                     }
                     else pipeline = VkEngine.GetPipeline(handle);
                     pipeline.PushUniformUpdates(VkEngine.commandBuffer, bindType);
+                    }
                     break;
 #endif
                 default:

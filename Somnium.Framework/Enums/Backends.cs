@@ -2,6 +2,6 @@
 {
     public enum Backends
     {
-        ChooseBest, Vulkan, DX12, Metal, DX11, OpenGL
+        Vulkan, DX12, Metal, DX11, OpenGL, WebGPU
     }
 }

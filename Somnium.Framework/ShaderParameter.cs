@@ -1,5 +1,8 @@
-﻿using Silk.NET.Vulkan;
+﻿#if WGPU
+using Silk.NET.WebGPU;
+#endif
 #if VULKAN
+using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
 using System;
@@ -302,7 +305,7 @@ namespace Somnium.Framework
                         }
                         break;
                     default:
-                        throw new NotImplementedException();
+                        break;
                 }
             }
             else throw new NotImplementedException();
@@ -356,7 +359,7 @@ namespace Somnium.Framework
     /// Whenever SetUniform is called in Shader.cs, the mutable state is updated. The changes are
     /// normally only pushed to the GPU right before the draw call.
     /// </summary>
-    internal struct StagingMutableState
+    internal unsafe struct StagingMutableState
     {
         //does not need to be an array as a single buffer can fit multiple datas
         public UniformBuffer uniformBuffer;
@@ -372,12 +375,20 @@ namespace Somnium.Framework
         public DescriptorImageInfo[] vkImageInfos;
         #endregion
 #endif
+#if WGPU
+        public TextureView*[] textureViews;
+        public Sampler*[] samplerViews;
+#endif
 
         public StagingMutableState(UniformBuffer uniformBuffer)
         {
 #if VULKAN
             vkBufferInfo = default;
             vkImageInfos = null;
+#endif
+#if WGPU
+            textureViews = null;
+            samplerViews = null;
 #endif
             mutated = false;
             this.uniformBuffer = uniformBuffer;
@@ -390,6 +401,10 @@ namespace Somnium.Framework
             vkBufferInfo = default;
             vkImageInfos = new DescriptorImageInfo[textures.Length];
 #endif
+#if WGPU
+            textureViews = new TextureView*[textures.Length];
+            samplerViews = null;
+#endif
             mutated = false;
             uniformBuffer = null;
             this.textures = textures;
@@ -400,6 +415,10 @@ namespace Somnium.Framework
 #if VULKAN
             vkBufferInfo = default;
             vkImageInfos = new DescriptorImageInfo[samplers.Length];
+#endif
+#if WGPU
+            textureViews = null;
+            samplerViews = new Sampler*[samplers.Length];
 #endif
             mutated = false;
             uniformBuffer = null;
@@ -460,22 +479,6 @@ namespace Somnium.Framework
             {
                 stagingData[i] = new UnorderedList<StagingMutableState>();
             }
-            /*if (type == UniformType.uniformBuffer)
-            {
-                stagingBuffersPerFrame = new List<UniformBuffer>[Application.Config.maxSimultaneousFrames];
-                for (int i = 0;i  < stagingBuffersPerFrame.Length; i++)
-                {
-                    stagingBuffersPerFrame[i] = new List<UniformBuffer>();
-                }
-            }
-            else if (type == UniformType.imageAndSampler || type == UniformType.imageBuffer)
-            {
-                stagingImagesPerFrame = new List<Texture2D>[Application.Config.maxSimultaneousFrames];
-                for (int i = 0; i < stagingImagesPerFrame.Length; i++)
-                {
-                    stagingImagesPerFrame[i] = new List<Texture2D>();
-                }
-            }*/
         }
 
         public void Dispose()
@@ -512,19 +515,6 @@ namespace Somnium.Framework
             this.arrayLength = arrayLength;
         }
     }
-    /*public readonly struct ShaderParamImageSamplerData
-    {
-        public readonly string name;
-        public readonly uint set;
-        public readonly uint binding;
-
-        public ShaderParamImageSamplerData(string name, uint set, uint binding)
-        {
-            this.name = name;
-            this.set = set;
-            this.binding = binding;
-        }
-    }*/
     public readonly struct ShaderParamImageData
     {
         public readonly string name;
