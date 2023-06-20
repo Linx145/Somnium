@@ -2,9 +2,6 @@
 using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Core.Native;
-using System.Numerics;
-using Silk.NET.GLFW;
-using System;
 
 namespace Somnium.Framework.WGPU
 {
@@ -21,7 +18,10 @@ namespace Somnium.Framework.WGPU
         internal static TextureFormat swapChainFormat;
 
         public static CommandEncoder* commandEncoder;
+        public static TextureView* backbufferTextureView;
         //private static TextureFormat _SwapChainFormat;
+
+        private static GenerationalArray<WGPUGraphicsPipeline> pipelines = new GenerationalArray<WGPUGraphicsPipeline>(null);
 
         public static bool initialized { get; private set; }
 
@@ -103,12 +103,41 @@ namespace Somnium.Framework.WGPU
             Debugger.Log($"Validation layer: Error caught of type {arg0}, message: {SilkMarshal.PtrToString((nint)arg1)}");
         }
 
-        public static void BeginDraw()
+        public static void BeginDraw(Window window)
         {
             CommandEncoderDescriptor cmdCollectionDescriptor = new CommandEncoderDescriptor();
             commandEncoder = wgpu.DeviceCreateCommandEncoder(device, &cmdCollectionDescriptor);
 
+            backbufferTextureView = null;
+
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                backbufferTextureView = wgpu.SwapChainGetCurrentTextureView(swapChain);
+
+                if (attempt == 0 && backbufferTextureView == null)
+                {
+                    Debugger.Log("wgpu.SwapChainGetCurrentTextureView() failed; trying to create a new swap chain...\n");
+                    CreateSwapchain(window);
+                    continue;
+                }
+
+                break;
+            }
+            if (backbufferTextureView == null)
+            {
+                throw new ExecutionException("Failed to create new swapchain");
+            }
         }
+
+        #region pipelines
+        public static GenerationalIndex AddPipeline(WGPUGraphicsPipeline pipeline) => pipelines.Add(pipeline);
+        public static void DestroyPipeline(GenerationalIndex index)
+        {
+            pipelines[index].Dispose();
+            pipelines.Remove(index);
+        }
+        public static WGPUGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
+        #endregion
 
         public static void Shutdown()
         {

@@ -6,6 +6,8 @@ using Somnium.Framework.WGPU;
 using Silk.NET.WebGPU;
 #endif
 using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace Somnium.Framework
 {
@@ -27,6 +29,9 @@ namespace Somnium.Framework
 
 #if VULKAN
         public Dictionary<VkRenderPassHash, GenerationalIndex> handles;
+#endif
+#if WGPU
+        public Dictionary<>
 #endif
 
         public PipelineState(
@@ -73,13 +78,19 @@ namespace Somnium.Framework
 
                         const double OneOver255 = 1.0 / 255.0;
 
+                        TextureView* imageView = null;
+                        if (application.Graphics.currentRenderbuffer == null)
+                        {
+                            imageView = WGPUEngine.backbufferTextureView;
+                        }
+                        else imageView = (TextureView*)application.Graphics.currentRenderbuffer.backendTexture.imageViewHandle;
+
                         var colorAttachment = new RenderPassColorAttachment()
                         {
                             LoadOp = clearColor != null ? LoadOp.Clear : LoadOp.Load,
                             StoreOp = StoreOp.Store,
                             ClearValue = clearColor != null ? new Silk.NET.WebGPU.Color(clearColor.Value.R * OneOver255, clearColor.Value.G * OneOver255, clearColor.Value.B * OneOver255, clearColor.Value.A * OneOver255) : new Silk.NET.WebGPU.Color(),
-                            View
-                            
+                            View = imageView
                         };
                         var depthAttachment = new RenderPassDepthStencilAttachment()
                         {
@@ -91,7 +102,7 @@ namespace Somnium.Framework
                             StencilClearValue = 0,
                             DepthReadOnly = !depthWrite,
                             StencilReadOnly = !depthWrite,
-                            View
+                            View = imageView
                         };
 
                         RenderPassDescriptor descriptor = new RenderPassDescriptor()
@@ -100,7 +111,10 @@ namespace Somnium.Framework
                             ColorAttachments = &colorAttachment,
                             DepthStencilAttachment = depthTest ? &depthAttachment : null
                         };
-                        var renderPass = WGPUEngine.wgpu.CommandEncoderBeginRenderPass(WGPUEngine.commandEncoder, );
+                        var renderPass = WGPUEngine.wgpu.CommandEncoderBeginRenderPass(WGPUEngine.commandEncoder, &descriptor);
+
+                        WGPUGraphicsPipeline pipeline;
+                        if (!)
                     }
                     break;
 #endif

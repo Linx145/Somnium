@@ -325,7 +325,7 @@ namespace Somnium.Framework
 #if WGPU
             if (runningBackend == Backends.WebGPU)
             {
-                WGPUEngine.BeginDraw();
+                WGPUEngine.BeginDraw(Window);
             }
 #endif
 

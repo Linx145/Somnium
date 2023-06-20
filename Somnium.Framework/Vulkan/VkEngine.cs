@@ -626,7 +626,6 @@ namespace Somnium.Framework.Vulkan
             pipelines.Remove(index);
         }
         public static VkGraphicsPipeline GetPipeline(GenerationalIndex index) => pipelines.Get(index);
-        //public static VkGraphicsPipeline GetRenderbufferPipeline(GenerationalIndex index) => renderbufferPipelines.Get(index);
         #endregion
 
         #region command pools(memory)

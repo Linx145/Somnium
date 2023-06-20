@@ -48,6 +48,13 @@ namespace Somnium.Framework
 #if WGPU
         public ulong descriptorSetLayout;
         public List<ulong> bindGroups;
+        public ulong bindGroup
+        {
+            get
+            {
+                return bindGroups[descriptorForThisDrawCall];
+            }
+        }
 #endif
 
         #region vulkan
@@ -418,8 +425,9 @@ namespace Somnium.Framework
                     case Backends.WebGPU:
                         if (descriptorForThisDrawCall >= bindGroups.Count)
                         {
+                            //in webGPU, CheckUniforms() simply adds new mutable states if there are none for the current draw call
                             shader1Params?.AddStagingDatas();
-                            shader2Params?.AddStagingDatas();
+                                shader2Params?.AddStagingDatas();
                         }
                         break;
 #endif
@@ -657,8 +665,6 @@ namespace Somnium.Framework
         public void SyncUniformsWithGPU()
         {
 #if WGPU
-            TODO
-            //what the fuck is going on here
             unsafe void UpdateForParamsWGPU(ShaderParameterCollection paramsCollection, BindGroupEntry* entries)
             {
                 foreach (var param in paramsCollection.GetParameters())
@@ -684,9 +690,11 @@ namespace Somnium.Framework
                                 {
                                     mutableState.textureViews[i] = (TextureView*)mutableState.textures[i].imageViewHandle;//null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
                                 }
+                                Silk.NET.WebGPU.Extensions.WGPU
                                 //fixed (TextureView* ptr = mutableState.textureViews)
                                 //{
                                 entry.TextureView = mutableState.textureViews[0];//ptr;
+
                                 //}
                                 *(entries + param.binding) = entry;
                             }
@@ -816,23 +824,33 @@ namespace Somnium.Framework
                         int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
                         if (maxCount != null)
                         {
-                            BindGroupEntry* entries = stackalloc BindGroupEntry[maxCount.Value];
-                            if (shader1Params != null)
+                            //need to create a new bind group
+                            if (descriptorForThisDrawCall >= bindGroups.Count)
                             {
-                                UpdateForParamsWGPU(shader1Params, entries);
+                                BindGroupEntry* entries = stackalloc BindGroupEntry[maxCount.Value];
+                                if (shader1Params != null)
+                                {
+                                    UpdateForParamsWGPU(shader1Params, entries);
+                                }
+                                if (shader2Params != null)
+                                {
+                                    UpdateForParamsWGPU(shader2Params, entries);
+                                }
+                                var descriptor = new BindGroupDescriptor()
+                                {
+                                    Entries = entries,
+                                    EntryCount = (uint)maxCount.Value,
+                                    Layout = (BindGroupLayout*)descriptorSetLayout
+                                };
+                                BindGroup* bindGroup = WGPUEngine.wgpu.DeviceCreateBindGroup(WGPUEngine.device, &descriptor);
+                                bindGroups.Add((ulong)bindGroup);
                             }
-                            if (shader2Params != null)
+                            else
                             {
-                                UpdateForParamsWGPU(shader2Params, entries);
+                                //update current bind group with data in mutable states
                             }
-                            var descriptor = new BindGroupDescriptor()
-                            {
-                                Entries = entries,
-                                EntryCount = (uint)maxCount.Value,
-                                Layout = (BindGroupLayout*)descriptorSetLayout
-                            };
-                            BindGroup* bindGroup = WGPUEngine.wgpu.DeviceCreateBindGroup(WGPUEngine.device, &descriptor);
-                            bindGroups.Add((ulong)bindGroup);
+                            //send current bind group to GPU
+                            BindGroup* currentBindGroup = (BindGroup*)bindGroup;
                         }
                     }
                     break;
