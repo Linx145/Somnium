@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -13,6 +14,7 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="key">The key to check</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsKeyDown(Keys key) => instance.IsKeyDown(key);
 
         /// <summary>
@@ -20,6 +22,7 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="key">The key to check</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsKeyPressed(Keys key) => instance.IsKeyPressed(key);
 
         /// <summary>
@@ -27,6 +30,7 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="key">The key to check</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsKeyReleased(Keys key) => instance.IsKeyReleased(key);
 
         /// <summary>
@@ -34,6 +38,7 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="button">The mouse button to check</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMouseDown(MouseButtons button) => instance.IsMouseDown(button);
 
         /// <summary>
@@ -41,6 +46,7 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="button"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMousePressed(MouseButtons button) => instance.IsMousePressed(button);
 
         /// <summary>
@@ -48,7 +54,13 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="button"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMouseReleased(MouseButtons button) => instance.IsMouseRelease(button);
+        /// <summary>
+        /// Returns a character whenever the user types an input/holds down the button
+        /// </summary>
+        /// <returns></returns>
+        public static char? AwaitInputChar() => instance.AwaitInputChar();
 
         public static Vector2 mousePosition => instance.mousePosition;
         public static Vector2 worldMousePosition => instance.worldMousePosition;
@@ -64,6 +76,7 @@ namespace Somnium.Framework
         public abstract bool IsMouseDown(MouseButtons button);
         public abstract bool IsMousePressed(MouseButtons button);
         public abstract bool IsMouseRelease(MouseButtons button);
+        public abstract char? AwaitInputChar();
         public abstract Vector2 mousePosition { get;}
         /// <summary>
         /// To be set by the end user where applicable

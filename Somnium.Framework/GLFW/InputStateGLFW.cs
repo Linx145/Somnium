@@ -15,6 +15,8 @@ namespace Somnium.Framework.GLFW
 
         internal static SparseArray<KeyState> perFrameMouseStates = new SparseArray<KeyState>(KeyState.None);
         internal static SparseArray<bool> mouseButtonsDown = new SparseArray<bool>(false);
+
+        internal static char? textInputCharacter;
         public InputStateGLFW()
         {
         }
@@ -56,12 +58,17 @@ namespace Somnium.Framework.GLFW
             internalMousePosition = mousePosition;
             SomniumGLFW.API.SetCursorPos(windowGLFW.handle, mousePosition.X, mousePosition.Y);
         }
+        public override char? AwaitInputChar()
+        {
+            return textInputCharacter;
+        }
 
         /// <summary>
         /// Called at the end of every frame. Resets per-frame key states
         /// </summary>
         internal static void ResetPerFrameInputStates()
         {
+            textInputCharacter = null;
             scroll = default;
             for (int i = 0; i < perFrameKeyStates.values.Length; i++)
             {

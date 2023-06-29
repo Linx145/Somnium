@@ -266,6 +266,8 @@ namespace Somnium.Framework.GLFW
             {
                 return;
             }
+            Keys keys = (Keys)(int)key;
+            onKeyPressed?.Invoke(keys, scanCode, (KeyState)(int)inputAction);
             if (inputAction == InputAction.Press)
             {
                 InputStateGLFW.keysDown.Insert((uint)key, true);
@@ -276,12 +278,19 @@ namespace Somnium.Framework.GLFW
                 InputStateGLFW.keysDown.Insert((uint)key, false);
                 InputStateGLFW.perFrameKeyStates.Insert((uint)key, KeyState.Released);
             }
-
-            onKeyPressed?.Invoke((Keys)(int)key, scanCode, (KeyState)(int)inputAction);
+            if (keys == Keys.Backspace)
+            {
+                if (inputAction == InputAction.Press || inputAction == InputAction.Repeat)
+                {
+                    InputStateGLFW.textInputCharacter = '\b';
+                }
+            }
         }
         public unsafe void OnTextInput(WindowHandle* handle, uint codePoint)
         {
-            onTextInput?.Invoke((char)codePoint);
+            char character = (char)codePoint;
+            onTextInput?.Invoke(character);
+            InputStateGLFW.textInputCharacter = character;
         }
         public unsafe void OnMousePressed(WindowHandle* handle, MouseButton button, InputAction inputAction, KeyModifiers keyModifiers)
         {
