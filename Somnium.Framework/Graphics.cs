@@ -172,7 +172,9 @@ namespace Somnium.Framework
             {
 #if VULKAN
                 case Backends.Vulkan:
+                    VkEngine.CurrentGPU.AllPurposeQueue.externalLock.EnterWriteLock();
                     VkEngine.vk.QueueWaitIdle(VkEngine.CurrentGPU.AllPurposeQueue);
+                    VkEngine.CurrentGPU.AllPurposeQueue.externalLock.ExitWriteLock();
                     break;
 #endif
                 default:

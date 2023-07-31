@@ -3,6 +3,7 @@ using System.Text;
 using System.Runtime.Serialization;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -1701,6 +1702,7 @@ namespace Somnium.Framework
         /// <param name="value2">Destination <see cref="Color"/>.</param>
         /// <param name="amount">Interpolation factor.</param>
         /// <returns>Interpolated <see cref="Color"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Color Lerp(Color value1, Color value2, Single amount)
         {
             amount = Mathf.Clamp(amount, 0, 1);
@@ -1716,6 +1718,7 @@ namespace Somnium.Framework
         /// <param name="value">Source <see cref="Color"/>.</param>
         /// <param name="scale">Multiplicator.</param>
         /// <returns>Multiplication result.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Color Multiply(Color value, float scale)
         {
             return new Color((int)(value.R * scale), (int)(value.G * scale), (int)(value.B * scale), (int)(value.A * scale));
@@ -1727,11 +1730,18 @@ namespace Somnium.Framework
         /// <param name="value">Source <see cref="Color"/>.</param>
         /// <param name="scale">Multiplicator.</param>
         /// <returns>Multiplication result.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Color operator *(Color value, float scale)
         {
             return new Color(value.R, value.G, value.B, (int)(value.A * scale));
         }
 
+        public static Color operator *(Color value, Color color)
+        {
+            return new Color(value.ToVector4() * color.ToVector4());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Color MultAll(float scale)
         {
             return new Color((int)(R * scale), (int)(G * scale), (int)(B * scale), (int)(A * scale));
@@ -1741,6 +1751,7 @@ namespace Somnium.Framework
         /// Gets a <see cref="Vector3"/> representation for this object.
         /// </summary>
         /// <returns>A <see cref="Vector3"/> representation for this object.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToVector3()
         {
             return new Vector3((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f);
@@ -1750,6 +1761,7 @@ namespace Somnium.Framework
         /// Gets a <see cref="Vector4"/> representation for this object.
         /// </summary>
         /// <returns>A <see cref="Vector4"/> representation for this object.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 ToVector4()
         {
             return new Vector4((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f, (float)A / 255.0f);
@@ -1764,7 +1776,6 @@ namespace Somnium.Framework
             get { return _packedValue; }
             set { _packedValue = value; }
         }
-
 
         internal string DebugDisplayString
         {

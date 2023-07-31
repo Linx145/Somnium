@@ -169,10 +169,12 @@ namespace Somnium.Framework
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<T> AsReadonlySpan()
         {
             return new ReadOnlySpan<T>(internalArray, 0, Count);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> AsSpan()
         {
             return new Span<T>(internalArray, 0, Count);

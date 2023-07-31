@@ -254,7 +254,9 @@ namespace Somnium.Framework.Vulkan
             uint imageIndex = swapChain.currentImageIndex;
             presentInfo.PImageIndices = &imageIndex;
 
+            CurrentGPU.AllPurposeQueue.externalLock.EnterWriteLock();
             Result presentResult = KhrSwapchainAPI.QueuePresent(CurrentGPU.AllPurposeQueue, &presentInfo);
+            CurrentGPU.AllPurposeQueue.externalLock.ExitWriteLock();
             //we cannot do this before QueuePresent if not the semaphores might not be in a consistent state,
             //resulting in a signaled semaphore being never waited upon
             if (presentResult == Result.ErrorOutOfDateKhr || onResized)
@@ -687,8 +689,22 @@ namespace Somnium.Framework.Vulkan
 
             //wait for rendering to complete if there is rendering ongoing
             //this is needed if the rendering is on a different thread as potential asset(texture) loading operations
-            //do not reset fence here
-            //vk.ResetFences(vkDevice, 1, in fence);
+
+            if (queueToSubmitTo.queue.Handle == CurrentGPU.AllPurposeQueue.queue.Handle)
+            {
+                //if we are on the general purpose queue, we may also be using said queue for presentation
+                //concurrently, hence await the queue idle
+                if (frames != null)
+                {
+                    //cannot wait for fences here as that would lead to multithread access error apparently
+                    //vk.WaitForFences(CurrentGPU.LogicalDevice, 1, in fence, new Bool32(true), ulong.MaxValue);
+                    queueToSubmitTo.externalLock.EnterWriteLock();
+
+                    vk.QueueWaitIdle(queueToSubmitTo);
+
+                    queueToSubmitTo.externalLock.ExitWriteLock();
+                }
+            }
 
             queueToSubmitTo.externalLock.EnterWriteLock();
             if (vk.QueueSubmit(queueToSubmitTo, 1, in submitInfo, new Fence(null)) != Result.Success)

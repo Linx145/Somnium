@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -16,18 +17,22 @@ namespace Somnium.Framework
             random = new Random(seed);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next()
         {
             return random.Next();
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int maxVal)
         {
             return random.Next(maxVal);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int minVal, int maxVal)
         {
             return random.Next(minVal, maxVal);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat(float minValue, float maxValue)
         {
             if (maxValue < minValue)
@@ -40,17 +45,46 @@ namespace Somnium.Framework
             }
             return (float)random.NextDouble() * (maxValue - minValue) + minValue;//minValue + ((maxValue - minValue) * (float)random.NextDouble());//(minValue * (float)random.NextDouble()) + (maxValue * (float)random.NextDouble());
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat(float maxValue)
         {
             return (float)random.NextDouble() * maxValue;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat()
         {
             return (float)random.NextDouble();
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void NextByte(byte[] buffer)
         {
             random.NextBytes(buffer);
+        }
+
+        public T NextWeighted<T>((float, T)[] weightToChoice)
+        {
+            float max = 0f;
+            for (int i = 0;i < weightToChoice.Length;i++)
+            {
+                max += weightToChoice[i].Item1;
+            }
+            float rand = NextFloat(max);
+
+            max = 0f;
+            for (int i = 0; i < weightToChoice.Length; i++)
+            {
+                if (max <= rand && rand < max + weightToChoice[i].Item1)
+                {
+                    return weightToChoice[i].Item2;
+                }
+                max += weightToChoice[i].Item1;
+            }
+            throw new InvalidOperationException("Failed to get random value from weighted random pool!");
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector2 NextVector(float min, float max)
+        {
+            return new Vector2(NextFloat(min, max), NextFloat(min, max));
         }
         /*public Vector2 NextVectorInBox(Box box, float rotation)
         {
@@ -77,10 +111,6 @@ namespace Somnium.Framework
         public bool Equals(Random obj)
         {
             return random.Equals(obj);
-        }
-        public Vector2 NextVector(float min, float max)
-        {
-            return new Vector2(NextFloat(min, max), NextFloat(min, max));
         }
     }
 }
