@@ -176,6 +176,8 @@ namespace Somnium.Framework.GLFW
             window.internalSize = windowSize;
             window.internalTitle = title;
 
+            Glfw.WindowHint(WindowHintBool.Resizable, false);
+
             switch (backend)
             {
                 case Backends.OpenGL:
@@ -207,6 +209,7 @@ namespace Somnium.Framework.GLFW
 
             activeWindows++;
             //set the key press event for this window
+            //Glfw.SetJoystickCallback(new GlfwCallbacks.JoystickCallback(ControllerConnectionChanged));
             Glfw.SetCharCallback(window.handle, new GlfwCallbacks.CharCallback(window.OnTextInput));
             Glfw.SetKeyCallback(window.handle, new GlfwCallbacks.KeyCallback(window.OnKeyPressed));
             Glfw.SetMouseButtonCallback(window.handle, new GlfwCallbacks.MouseButtonCallback(window.OnMousePressed));
@@ -260,6 +263,26 @@ namespace Somnium.Framework.GLFW
         #endregion
 
         #region input callbacks
+        /*public static unsafe void ControllerConnectionChanged(int controllerIndex, ConnectedState connectedState)
+        {
+            if (connectedState == ConnectedState.Connected)
+            {
+                Input.ConnectedControllers++;
+            }
+            else
+            {
+                Input.ConnectedControllers--;
+            }
+
+            if (Input.ConnectedControllers == 0)
+            {
+                for (int i = 0; i < InputState.controllerStates.Length; i++)
+                {
+                    InputState.oldControllerStates[i] = default;
+                    InputState.controllerStates[i] = default;
+                }
+            }
+        }*/
         public unsafe void OnKeyPressed(WindowHandle* handle, Silk.NET.GLFW.Keys key, int scanCode, InputAction inputAction, KeyModifiers modifiers)
         {
             if (key == Silk.NET.GLFW.Keys.Unknown)

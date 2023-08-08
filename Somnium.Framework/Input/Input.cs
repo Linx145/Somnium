@@ -60,16 +60,59 @@ namespace Somnium.Framework
         /// Returns a character whenever the user types an input/holds down the button
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static char? AwaitInputChar() => instance.AwaitInputChar();
 
         public static Vector2 mousePosition => instance.mousePosition;
         public static Vector2 worldMousePosition => instance.worldMousePosition;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetMousePosition(Window window, Vector2 position) => instance.SetMousePosition(window, position);
         public static Vector2 mouseScroll => instance.mouseScroll;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsConnected(int controllerID) => instance.IsControllerConnected(controllerID);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 ControllerGetLeftStickAxis(int controllerID) => InputState.controllerStates[controllerID].leftStickAxis;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 ControllerGetRightStickAxis(int controllerID) => InputState.controllerStates[controllerID].rightStickAxis;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ControllerGetL2DownAmount(int controllerID) => InputState.controllerStates[controllerID].L2DownAmount;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ControllerGetR2DownAmount(int controllerID) => InputState.controllerStates[controllerID].R2DownAmount;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsL2Down(int controllerID) => InputState.controllerStates[controllerID].L2DownAmount > -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsR2Down(int controllerID) => InputState.controllerStates[controllerID].R2DownAmount > -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsL2Pressed(int controllerID) => InputState.controllerStates[controllerID].L2DownAmount > -1f && InputState.oldControllerStates[controllerID].L2DownAmount == -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsR2Pressed(int controllerID) => InputState.controllerStates[controllerID].R2DownAmount > -1f && InputState.oldControllerStates[controllerID].R2DownAmount == -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsL2Released(int controllerID) => InputState.controllerStates[controllerID].L2DownAmount == -1f && InputState.oldControllerStates[controllerID].L2DownAmount > -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsR2Released(int controllerID) => InputState.controllerStates[controllerID].R2DownAmount == -1f && InputState.oldControllerStates[controllerID].R2DownAmount > -1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsButtonDown(int controllerID, ControllerButtons button)
+        {
+            return InputState.controllerStates[controllerID].buttonStates[(int)button];
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsButtonPressed(int controllerID, ControllerButtons button)
+        {
+            return InputState.controllerStates[controllerID].buttonStates[(int)button] && !InputState.oldControllerStates[controllerID].buttonStates[(int)button];
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ControllerIsButtonReleased(int controllerID, ControllerButtons button)
+        {
+            return !InputState.controllerStates[controllerID].buttonStates[(int)button] && InputState.oldControllerStates[controllerID].buttonStates[(int)button];
+        }
     }
 
     public abstract class InputState
     {
+        public static ControllerState[] oldControllerStates = new ControllerState[4];
+        public static ControllerState[] controllerStates = new ControllerState[4];
+
         public abstract bool IsKeyDown(Keys key);
         public abstract bool IsKeyPressed(Keys key);
         public abstract bool IsKeyReleased(Keys key);
@@ -84,5 +127,8 @@ namespace Somnium.Framework
         public Vector2 worldMousePosition;
         public abstract unsafe void SetMousePosition(Window window, Vector2 mousePosition);
         public abstract Vector2 mouseScroll { get; }
+
+        public abstract bool IsControllerConnected(int controllerIndex);
+        public abstract void GetControllerState(int controllerIndex, ref ControllerState controllerState);
     }
 }

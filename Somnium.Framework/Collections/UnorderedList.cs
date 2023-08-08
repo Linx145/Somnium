@@ -9,7 +9,7 @@ namespace Somnium.Framework
     /// A special case list where remove calls do not preserve item order, but is therefore an O(1) notation
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    
+
     public class UnorderedList<T> : IList<T>, IList
     {
         private const int defaultCapacity = 4;
@@ -109,16 +109,24 @@ namespace Somnium.Framework
                 return false;
             }
         }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T[] ToArray()
         {
             T[] result = new T[Count];
             Array.Copy(internalArray, 0, result, 0, Count);
             return result;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(T[] array, int arrayIndex)
         {
-            Array.Copy(internalArray, 0, array, arrayIndex, Count);
+            Array.Copy(internalArray, 0, array, arrayIndex, Count - arrayIndex);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(UnorderedList<T> list, int arrayIndex)
+        {
+            list.EnsureCapacity(Count);
+            Array.Copy(internalArray, 0, list.internalArray, arrayIndex, Count - arrayIndex);
+            list.Count = Math.Max(list.Count, Count);
         }
 
         public int IndexOf(T item)
@@ -231,6 +239,7 @@ namespace Somnium.Framework
         {
             get { return false; }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(Array array, int startIndex)
         {
             CopyTo((T[])array, 0);
