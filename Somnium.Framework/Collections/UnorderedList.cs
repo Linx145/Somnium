@@ -119,13 +119,13 @@ namespace Somnium.Framework
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(T[] array, int arrayIndex)
         {
-            Array.Copy(internalArray, 0, array, arrayIndex, Count - arrayIndex);
+            Array.Copy(internalArray, 0, array, arrayIndex, Count);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(UnorderedList<T> list, int arrayIndex)
         {
-            list.EnsureCapacity(Count);
-            Array.Copy(internalArray, 0, list.internalArray, arrayIndex, Count - arrayIndex);
+            list.EnsureCapacity(arrayIndex + Count);
+            Array.Copy(internalArray, 0, list.internalArray, arrayIndex, Count);
             list.Count = Math.Max(list.Count, Count);
         }
 
