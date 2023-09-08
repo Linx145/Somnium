@@ -727,23 +727,22 @@ namespace Somnium.Framework
                             {
                                 mutableState.vkBufferInfo = new DescriptorBufferInfo(new Silk.NET.Vulkan.Buffer(mutableState.uniformBuffer.handle), 0, param.width);
 
-                                int length = (int)Math.Max(1, param.arrayLength);
+                                uint length = (uint)Math.Max(1, param.arrayLength);
                                 fixed (DescriptorBufferInfo* ptr = &mutableState.vkBufferInfo)
                                 {
-                                    for (int i = 0; i < length; i++)
-                                    {
-                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                        descriptorWrite.DstSet = descriptorSet;
-                                        descriptorWrite.DstBinding = param.binding;
-                                        descriptorWrite.DstArrayElement = (uint)i;
-                                        descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                                        descriptorWrite.DescriptorCount = 1;
-                                        descriptorWrite.PBufferInfo = ptr;
+                                    //for (int i = 0; i < length; i++)
+                                    //{
+                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                    descriptorWrite.DstSet = descriptorSet;
+                                    descriptorWrite.DstBinding = param.binding;
+                                    descriptorWrite.DstArrayElement = 0;//(uint)i;
+                                    descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
+                                    descriptorWrite.DescriptorCount = length;
+                                    descriptorWrite.PBufferInfo = ptr;
 
-                                        descriptorSetWrites.Add(descriptorWrite);
-                                        //descriptorWrites[i] = descriptorWrite;
-                                    }
+                                    descriptorSetWrites.Add(descriptorWrite);
+                                    //}
                                 }
                             }
                             break;
@@ -755,23 +754,22 @@ namespace Somnium.Framework
                                     mutableState.vkImageInfos[i] = new DescriptorImageInfo(new Sampler(mutableState.samplers[i].handle), null, ImageLayout.ShaderReadOnlyOptimal);
                                 }
 
-                                int length = (int)Math.Max(1, param.arrayLength);
+                                uint length = (uint)Math.Max(1, param.arrayLength);
                                 fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
                                 {
-                                    for (int i = 0; i < length; i++)
-                                    {
-                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                        descriptorWrite.DstSet = descriptorSet;
-                                        descriptorWrite.DstBinding = param.binding;
-                                        descriptorWrite.DstArrayElement = (uint)i;
-                                        descriptorWrite.DescriptorType = DescriptorType.Sampler;
-                                        descriptorWrite.DescriptorCount = 1;
-                                        descriptorWrite.PImageInfo = ptr + i;
+                                    //for (int i = 0; i < length; i++)
+                                    //{
+                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                    descriptorWrite.DstSet = descriptorSet;
+                                    descriptorWrite.DstBinding = param.binding;
+                                    descriptorWrite.DstArrayElement = 0;//(uint)i;
+                                    descriptorWrite.DescriptorType = DescriptorType.Sampler;
+                                    descriptorWrite.DescriptorCount = length;
+                                    descriptorWrite.PImageInfo = ptr;
 
-                                        descriptorSetWrites.Add(descriptorWrite);
-                                        //descriptorWrites[i] = descriptorWrite;
-                                    }
+                                    descriptorSetWrites.Add(descriptorWrite);
+                                    //}
                                 }
                             }
                             break;
@@ -783,26 +781,44 @@ namespace Somnium.Framework
                                 }
                                 //= new DescriptorImageInfo(null, new ImageView(mutableState.textures[0].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
 
-                                int length = (int)Math.Max(1, param.arrayLength);
+                                uint length = (uint)Math.Max(1, param.arrayLength);
                                 fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
                                 {
-                                    for (int i = 0; i < length; i++)
-                                    {
-                                        if (mutableState.textures[i] != null)
-                                        {
-                                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                            descriptorWrite.DstSet = descriptorSet;
-                                            descriptorWrite.DstBinding = param.binding;
-                                            descriptorWrite.DstArrayElement = (uint)i;
-                                            descriptorWrite.DescriptorType = DescriptorType.SampledImage;
-                                            descriptorWrite.DescriptorCount = 1;
-                                            descriptorWrite.PImageInfo = ptr + i;
+                                    //for (int i = 0; i < length; i++)
+                                    //{
+                                    //if (mutableState.textures[i] != null)
+                                    //{
+                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                    descriptorWrite.DstSet = descriptorSet;
+                                    descriptorWrite.DstBinding = param.binding;
+                                    descriptorWrite.DstArrayElement = 0;// (uint)i;
+                                    descriptorWrite.DescriptorType = DescriptorType.SampledImage;
+                                    descriptorWrite.DescriptorCount = length;//1;
+                                    descriptorWrite.PImageInfo = ptr;// + i;
 
-                                            descriptorSetWrites.Add(descriptorWrite);
-                                        }
-                                        //descriptorWrites[i] = descriptorWrite;
-                                    }
+                                    descriptorSetWrites.Add(descriptorWrite);
+                                    //}
+                                    //descriptorWrites[i] = descriptorWrite;
+                                    //}
+                                }
+                            }
+                            break;
+                        case UniformType.storageBuffer:
+                            {
+                                mutableState.vkBufferInfo = new DescriptorBufferInfo(new Silk.NET.Vulkan.Buffer(mutableState.storageBuffer.handle), 0, param.width);
+                                fixed (DescriptorBufferInfo* ptr = &mutableState.vkBufferInfo)
+                                {
+                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                    descriptorWrite.DstSet = descriptorSet;
+                                    descriptorWrite.DstBinding = param.binding;
+                                    descriptorWrite.DstArrayElement = 0;
+                                    descriptorWrite.DescriptorType = DescriptorType.StorageBuffer;
+                                    descriptorWrite.DescriptorCount = 1;
+                                    descriptorWrite.PBufferInfo = ptr;
+
+                                    descriptorSetWrites.Add(descriptorWrite);
                                 }
                             }
                             break;
@@ -900,6 +916,14 @@ namespace Somnium.Framework
                 collection.AddParameter(uniform.name, uniform.binding, UniformType.uniformBuffer, uniform.stride);
             }
         }
+        static void AddStorageBuffers(ShaderParameterCollection collection, List<ShaderParamStorageBufferData> buffers)
+        {
+            for (int i = 0; i < buffers.Count; i++)
+            {
+                var buffer = buffers[i];
+                collection.AddParameter(buffer.name, buffer.binding, UniformType.storageBuffer, buffer.maxSize, 1);
+            }
+        }
         static void AddImages(ShaderParameterCollection collection, List<ShaderParamImageData> images)
         {
             for (int i = 0; i < images.Count; i++)
@@ -924,11 +948,72 @@ namespace Somnium.Framework
             List<byte> firstShaderBytes = new List<byte>();
             List<byte> secondShaderBytes = new List<byte>();
 
-            if (doc.RootElement.TryGetProperty("shadertype1", out var vertElement)
+            if (doc.RootElement.TryGetProperty("shadertype7", out var compElement))
+            {
+                var uniforms = new List<ShaderParamUniformData>();
+                var storageBuffers = new List<ShaderParamStorageBufferData>();
+
+                //todo: support image load store
+
+                JsonElement elem;
+                if (compElement.TryGetProperty("uniforms", out elem))
+                {
+                    foreach (var uniformObj in elem.EnumerateArray())
+                    {
+                        uniforms.Add(new ShaderParamUniformData(
+                            uniformObj.GetProperty("name").GetString(),
+                            uniformObj.GetProperty("set").GetUInt32(),
+                            uniformObj.GetProperty("binding").GetUInt32(),
+                            uniformObj.GetProperty("stride").GetUInt32(),
+                            uniformObj.GetProperty("arrayLength").GetUInt32()
+                            ));
+                    }
+                    if (compElement.TryGetProperty("storageBuffers", out elem))
+                    {
+                        foreach (var samplerObj in elem.EnumerateArray())
+                        {
+                            storageBuffers.Add(new ShaderParamStorageBufferData(
+                                samplerObj.GetProperty("name").GetString(),
+                                samplerObj.GetProperty("set").GetUInt32(),
+                                samplerObj.GetProperty("binding").GetUInt32(),
+                                samplerObj.GetProperty("maxSize").GetUInt64()
+                                ));
+                        }
+                    }
+                }
+
+                if (application.runningBackend == Backends.Vulkan)
+                {
+                    byte[] bytes = new byte[4];
+                    foreach (var obj in compElement.GetProperty("spirv").EnumerateArray())
+                    {
+                        Unsafe.As<byte, uint>(ref bytes[0]) = obj.GetUInt32();
+                        firstShaderBytes.Add(bytes[0]);
+                        firstShaderBytes.Add(bytes[1]);
+                        firstShaderBytes.Add(bytes[2]);
+                        firstShaderBytes.Add(bytes[3]);
+                    }
+
+                    Shader result;
+                    result = new Shader(application, firstShaderBytes.ToArray(), null, ShaderType.Compute);
+
+                    AddUniforms(result.shader1Params, uniforms);
+                    AddStorageBuffers(result.shader1Params, storageBuffers);
+
+                    result.ConstructParams();
+
+                    return result;
+                }
+                else throw new NotImplementedException();
+            }
+            else if (doc.RootElement.TryGetProperty("shadertype1", out var vertElement)
                 && doc.RootElement.TryGetProperty("shadertype2", out var fragElement)) //vertex shader
             {
                 var vertexUniforms = new List<ShaderParamUniformData>();
                 var fragmentUniforms = new List<ShaderParamUniformData>();
+
+                var vertexStorageBuffers = new List<ShaderParamStorageBufferData>();
+                var fragmentStorageBuffers = new List<ShaderParamStorageBufferData>();
 
                 var vertexImages = new List<ShaderParamImageData>();
                 var fragmentImages = new List<ShaderParamImageData>();
@@ -1014,6 +1099,31 @@ namespace Somnium.Framework
                     }
                 }
 
+                if (vertElement.TryGetProperty("storageBuffers", out elem))
+                {
+                    foreach (var samplerObj in elem.EnumerateArray())
+                    {
+                        vertexStorageBuffers.Add(new ShaderParamStorageBufferData(
+                            samplerObj.GetProperty("name").GetString(),
+                            samplerObj.GetProperty("set").GetUInt32(),
+                            samplerObj.GetProperty("binding").GetUInt32(),
+                            samplerObj.GetProperty("maxSize").GetUInt64()
+                            ));
+                    }
+                }
+                if (fragElement.TryGetProperty("storageBuffers", out elem))
+                {
+                    foreach (var samplerObj in elem.EnumerateArray())
+                    {
+                        fragmentStorageBuffers.Add(new ShaderParamStorageBufferData(
+                            samplerObj.GetProperty("name").GetString(),
+                            samplerObj.GetProperty("set").GetUInt32(),
+                            samplerObj.GetProperty("binding").GetUInt32(),
+                            samplerObj.GetProperty("maxSize").GetUInt64()
+                            ));
+                    }
+                }
+
                 if (application.runningBackend == Backends.Vulkan)
                 {
                     byte[] bytes = new byte[4];
@@ -1040,6 +1150,9 @@ namespace Somnium.Framework
                     AddUniforms(result.shader1Params, vertexUniforms);
                     AddUniforms(result.shader2Params, fragmentUniforms);
 
+                    AddStorageBuffers(result.shader1Params, vertexStorageBuffers);
+                    AddStorageBuffers(result.shader2Params, fragmentStorageBuffers);
+
                     AddSamplers(result.shader1Params, vertexSamplers);
                     AddSamplers(result.shader2Params, fragmentSamplers);
 
@@ -1065,206 +1178,6 @@ namespace Somnium.Framework
                 return FromStream(application, ms);
         }
 
-        /// <summary>
-        /// Loads a shader from a stream containing a Somnium Engine .shader file.
-        /// </summary>
-        /// <param name="application"></param>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        public static Shader FromStreamOld(Application application, Stream stream)
-        {
-            using (BinaryReader reader = new BinaryReader(stream))
-            {
-                uint version = reader.ReadUInt32();
-                if (version == 1 || version == 2)
-                {
-                    List<byte[]> shaderBytecode = new List<byte[]>();
-
-                    var uniforms1 = new List<ShaderParamUniformData>();
-                    var uniforms2 = new List<ShaderParamUniformData>();
-
-                    var images1 = new List<ShaderParamImageData>();
-                    var images2 = new List<ShaderParamImageData>();
-
-                    var samplers1 = new List<ShaderParamSamplerData>();
-                    var samplers2 = new List<ShaderParamSamplerData>();
-
-                    ulong maxShaders = reader.ReadUInt64();
-
-                    if (maxShaders > 2)
-                    {
-                        throw new ArgumentOutOfRangeException("Invalid shader file! Shader file has more than 2 shader source bytecodes.");
-                    }
-
-                    ShaderTypeFlags flag1 = ShaderTypeFlags.None;
-                    ShaderTypeFlags flag2 = ShaderTypeFlags.None;
-                    for (ulong i = 0; i < maxShaders; i++)
-                    {
-                        ShaderTypeFlags type = (ShaderTypeFlags)reader.ReadUInt32();
-
-                        uint uniformsCount = reader.ReadUInt32();
-                        for (int c = 0; c < uniformsCount; c++)
-                        {
-                            uint stringSize = reader.ReadUInt32();
-                            byte[] bytes = reader.ReadBytes((int)stringSize);
-                            string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-                            uint set = reader.ReadUInt32();
-                            uint binding = reader.ReadUInt32();
-                            uint stride = reader.ReadUInt32();
-                            uint arrayLength = reader.ReadUInt32();
-
-                            if (i == 0)
-                            {
-                                uniforms1.Add(new ShaderParamUniformData(name, set, binding, stride, arrayLength));
-                            }
-                            else uniforms2.Add(new ShaderParamUniformData(name, set, binding, stride, arrayLength));
-                        }
-
-                        if (version == 1)
-                        {
-                            uint samplerImagesCount = reader.ReadUInt32();
-                            for (int c = 0; c < samplerImagesCount; c++)
-                            {
-                                uint stringSize = reader.ReadUInt32();
-                                byte[] bytes = reader.ReadBytes((int)stringSize);
-                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-                                uint set = reader.ReadUInt32();
-                                uint binding = reader.ReadUInt32();
-                                uint arrayLength = reader.ReadUInt32();
-
-                                //21/2/2023: Image-Sampler combinations deprecated due to lack of support across multiple graphics API
-                                /*if (i == 0)
-                                {
-                                    imageSamplers1.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));
-                                }
-                                else imageSamplers2.Add(new ShaderParamImageSamplerData(name, set, binding, arrayLength));*/
-                            }
-                        }
-                        if (version >= 2)
-                        {
-                            uint samplerCount = reader.ReadUInt32();
-                            for (int c = 0; c < samplerCount; c++)
-                            {
-                                uint stringSize = reader.ReadUInt32();
-                                byte[] bytes = reader.ReadBytes((int)stringSize);
-                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-                                uint set = reader.ReadUInt32();
-                                uint binding = reader.ReadUInt32();
-                                uint arrayLength = reader.ReadUInt32();
-
-                                if (i == 0)
-                                {
-                                    samplers1.Add(new ShaderParamSamplerData(name, set, binding, arrayLength));
-                                }
-                                else samplers2.Add(new ShaderParamSamplerData(name, set, binding, arrayLength));
-                            }
-
-                            uint imagesCount = reader.ReadUInt32();
-                            for (int c = 0; c < imagesCount; c++)
-                            {
-                                uint stringSize = reader.ReadUInt32();
-                                byte[] bytes = reader.ReadBytes((int)stringSize);
-                                string name = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-                                uint set = reader.ReadUInt32();
-                                uint binding = reader.ReadUInt32();
-                                uint arrayLength = reader.ReadUInt32();
-
-                                if (i == 0)
-                                {
-                                    images1.Add(new ShaderParamImageData(name, set, binding, arrayLength));
-                                }
-                                else images2.Add(new ShaderParamImageData(name, set, binding, arrayLength));
-                            }
-                        }
-
-                        ulong size = reader.ReadUInt64();
-
-                        if (i == 0)
-                        {
-                            flag1 = type;
-                        }
-                        else flag2 = type;
-
-                        //size is the count of ints
-                        shaderBytecode.Add(reader.ReadBytes((int)size * sizeof(uint)));
-                    }
-
-                    Shader result;
-
-                    //fragment code comes first, but Shader constructor accepts vertex code first, so we flip them when inputting
-                    if (flag1 == ShaderTypeFlags.Vertex && flag2 == ShaderTypeFlags.Fragment)
-                    {
-                        result = new Shader(application, shaderBytecode[0], shaderBytecode[1], ShaderType.VertexAndFragment);
-                        AddUniforms(result.shader1Params, uniforms1);
-                        AddUniforms(result.shader2Params, uniforms2);
-
-                        AddSamplers(result.shader1Params, samplers1);
-                        AddSamplers(result.shader2Params, samplers2);
-
-                        AddImages(result.shader1Params, images1);
-                        AddImages(result.shader2Params, images2);
-                        //AddImageSamplers(result.shader1Params, imageSamplers1);
-                        //AddImageSamplers(result.shader2Params, imageSamplers2);
-                    }
-                    else if (flag1 == ShaderTypeFlags.Fragment && flag2 == ShaderTypeFlags.Vertex)
-                    {
-                        result = new Shader(application, shaderBytecode[1], shaderBytecode[0], ShaderType.VertexAndFragment);
-                        AddUniforms(result.shader1Params, uniforms2);
-                        AddUniforms(result.shader2Params, uniforms1);
-
-                        AddSamplers(result.shader1Params, samplers2);
-                        AddSamplers(result.shader2Params, samplers1);
-
-                        AddImages(result.shader1Params, images2);
-                        AddImages(result.shader2Params, images1);
-                    }
-                    else if (flag1 == ShaderTypeFlags.Vertex)
-                    {
-                        result = new Shader(application, ShaderType.Vertex, shaderBytecode[0]);
-                        AddUniforms(result.shader1Params, uniforms1);
-                        AddSamplers(result.shader1Params, samplers1);
-                        AddImages(result.shader1Params, images1);
-                    }
-                    else if (flag1 == ShaderTypeFlags.Fragment)
-                    {
-                        result = new Shader(application, ShaderType.Fragment, shaderBytecode[0]);
-                        AddUniforms(result.shader1Params, uniforms1);
-                        AddSamplers(result.shader1Params, samplers1);
-                        AddImages(result.shader1Params, images1);
-                    }
-                    else throw new NotSupportedException("Unsupported shader type combination: " + flag1.ToString() + " and " + flag2.ToString());
-
-                    /*if (flag2 == ShaderTypeFlags.None)
-                    {
-                        AddUniforms(result.shader1Params, uniforms1);
-                        AddImageSamplers(result.shader1Params, imageSamplers1);
-                    }*/
-                    result.ConstructParams();
-
-                    return result;
-                }
-                else throw new NotSupportedException(".shader file version not supported: " + version);
-            }
-        }
-        /// <summary>
-        /// Loads a shader from a Somnium Engine .shader file, which can contain the bytecode for a single 
-        /// shader of any type, or a pair of Vertex+Fragment or Tessellation Control+Evaluation shaders.
-        /// </summary>
-        /// <param name="application"></param>
-        /// <param name="filePath"></param>
-        /// <returns></returns>
-        public static Shader FromFileOld(Application application, string filePath)
-        {
-            using (FileStream fs = File.OpenRead(filePath))
-                return FromStreamOld(application, fs);
-            /*byte[] bytes = File.ReadAllBytes(filePath);
-            return new Shader(application, type, bytes);*/
-        }
-        public static Shader FromBytesOld(Application application, byte[] bytes)
-        {
-            using (MemoryStream ms = new MemoryStream(bytes))
-                return FromStreamOld(application, ms);
-        }
         /// <summary>
         /// Creates a new shader from the specified file paths. Up to you to add and compile the shader uniforms yourself.
         /// </summary>

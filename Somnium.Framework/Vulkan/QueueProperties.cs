@@ -1,6 +1,7 @@
 ﻿#if VULKAN
 using Silk.NET.Core;
 using Silk.NET.Vulkan;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Somnium.Framework.Vulkan
 {
@@ -41,6 +42,8 @@ namespace Somnium.Framework.Vulkan
                     return GetGeneralPurposeQueue(in device);
                 case CommandQueueType.Transfer:
                     return GetTransferQueue(in device);
+                case CommandQueueType.Compute:
+                    return GetComputeQueue(in device);
                 case CommandQueueType.Graphics:
                     return GetGraphicsQueue(in device, false);
                 default:
@@ -141,6 +144,43 @@ namespace Somnium.Framework.Vulkan
                     dedicatedTransferQueueIndex = i;
                 }
             }
+            return dedicatedTransferQueueIndex;
+        }
+        public unsafe uint? GetComputeQueue(in PhysicalDevice device)
+        {
+            if (dedicatedComputeQueueIndex != null) return dedicatedComputeQueueIndex;
+
+            int maxScore = int.MinValue;
+            for (uint i = 0; i < properties.Length; i++)
+            {
+                ref readonly var property = ref properties[i];
+
+                int score = 0;
+
+                if ((property.QueueFlags & QueueFlags.ComputeBit) == 0)
+                {
+                    continue;
+                }
+                if ((property.QueueFlags & QueueFlags.GraphicsBit) != 0)
+                {
+                    score--;
+                }
+                if ((property.QueueFlags & QueueFlags.VideoDecodeBitKhr) != 0)
+                {
+                    score--;
+                }
+                /*if ((property.QueueFlags & QueueFlags.TransferBit) == 0)
+                {
+                    score--;
+                }*/
+
+                if (score > maxScore)
+                {
+                    maxScore = score;
+                    dedicatedTransferQueueIndex = i;
+                }
+            }
+
             return dedicatedTransferQueueIndex;
         }
         /// <summary>

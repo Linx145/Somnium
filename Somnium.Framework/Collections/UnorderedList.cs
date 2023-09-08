@@ -58,6 +58,12 @@ namespace Somnium.Framework
             internalArray = new T[initialCapacity];
             Capacity = initialCapacity;
         }
+        public UnorderedList(params T[] values)
+        {
+            internalArray = values;
+            Capacity = values.Length;
+            Count = Capacity;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()

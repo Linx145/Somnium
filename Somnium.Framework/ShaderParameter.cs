@@ -7,6 +7,7 @@ using Somnium.Framework.Vulkan;
 #endif
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -28,28 +29,17 @@ namespace Somnium.Framework
             map = new Dictionary<string, int>();
             parameters = new UnorderedList<ShaderParameter>();
         }
-        /// <summary>
-        /// Adds a parameter to the shader to be constructed.
-        /// </summary>
-        /// <param name="param"></param>
         private void AddParameter(ShaderParameter param)
         {
             if (constructed) throw new InvalidOperationException("Attempting to add parameter to shader parameter collection that has already been built!");
             map.Add(param.name, parameters.Count);
             parameters.Add(param);
         }
-        /// <summary>
-        /// Adds a parameter to the shader to be constructed.
-        /// </summary>
-        /// <param name="param"></param>
-        public void AddParameter(string name, uint binding, UniformType type, uint size, uint arrayLength = 1)
+        public void AddParameter(string name, uint binding, UniformType type, ulong size, uint arrayLength = 1)
         {
             ShaderParameter param = new ShaderParameter(shader, name, binding, type, size, arrayLength);
             AddParameter(param);
         }
-        /// <summary>
-        /// Adds a parameter to the shader.
-        /// </summary>
         public void AddParameter<T>(string name, uint binding, UniformType type = UniformType.uniformBuffer, uint arrayLength = 1) where T : unmanaged
         {
             unsafe
@@ -238,33 +228,6 @@ namespace Somnium.Framework
 
                 param.GetUniformBuffer().SetData(value, 0);
 
-                switch (application.runningBackend)
-                {
-                    case Backends.Vulkan:
-                        unsafe
-                        {
-
-                            /*DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-
-                            bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
-                            bufferInfo.Range = param.width;
-                            bufferInfo.Offset = 0;
-
-                            WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                            descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                            descriptorWrite.DstSet = shader.descriptorSet;
-                            descriptorWrite.DstBinding = param.binding;
-                            descriptorWrite.DstArrayElement = 0;
-                            descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                            descriptorWrite.DescriptorCount = 1;
-                            descriptorWrite.PBufferInfo = &bufferInfo;
-
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, 1, &descriptorWrite, 0, null);*/
-                        }
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
             }
             else throw new InvalidOperationException("Attempting to set uniform data of type " + typeof(T).Name + " into a non-buffer-based shader uniform!");
         }
@@ -275,38 +238,10 @@ namespace Somnium.Framework
             if (param.type == UniformType.uniformBuffer)
             {
                 param.GetUniformBuffer().SetData(value, 0);
-
-                switch (application.runningBackend)
-                {
-                    case Backends.Vulkan:
-                        unsafe
-                        {
-                            /*DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo();
-                            bufferInfo.Buffer = new Buffer(param.GetUniformBuffer().handle);//uniformBuffers[i];
-                            bufferInfo.Range = param.width;
-
-                            WriteDescriptorSet* descriptorWrites = stackalloc WriteDescriptorSet[value.Length];
-
-                            for (int i = 0; i < value.Length; i++)
-                            {
-                                WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                descriptorWrite.DstSet = shader.descriptorSet;
-                                descriptorWrite.DstBinding = param.binding;
-                                descriptorWrite.DstArrayElement = (uint)i;
-                                descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                                descriptorWrite.DescriptorCount = 1;
-                                descriptorWrite.PBufferInfo = &bufferInfo;
-
-                                descriptorWrites[i] = descriptorWrite;
-                            }
-
-                            VkEngine.vk.UpdateDescriptorSets(VkEngine.vkDevice, (uint)value.Length, descriptorWrites, 0, null);*/
-                        }
-                        break;
-                    default:
-                        break;
-                }
+            }
+            else if (param.type == UniformType.storageBuffer)
+            {
+                param.GetStorageBuffer().SetData(value, 0, value.Length);
             }
             else throw new NotImplementedException();
         }
@@ -345,6 +280,11 @@ namespace Somnium.Framework
                     SamplerState[] samplers = new SamplerState[(int)Math.Max(1, param.arrayLength)];
                     param.stagingData[application.Window.frameNumber].Add(new StagingMutableState(samplers));
                 }
+                else if (param.type == UniformType.storageBuffer)
+                {
+                    var buffer = new StorageBuffer(application, param.width, this.shaderType == ShaderType.Vertex);
+                    param.stagingData[application.Window.frameNumber].Add(new StagingMutableState(buffer));
+                }
             }
         }
         public void Dispose()
@@ -363,6 +303,7 @@ namespace Somnium.Framework
     {
         //does not need to be an array as a single buffer can fit multiple datas
         public UniformBuffer uniformBuffer;
+        public StorageBuffer storageBuffer;
         //needs to be an array for texture arrays
         public Texture2D[] textures;
         public SamplerState[] samplers;
@@ -380,6 +321,22 @@ namespace Somnium.Framework
         public Sampler*[] samplerViews;
 #endif
 
+        public StagingMutableState(StorageBuffer storageBuffer)
+        {
+#if VULKAN
+            vkBufferInfo = default;
+            vkImageInfos = null;
+#endif
+#if WGPU
+            textureViews = null;
+            samplerViews = null;
+#endif
+            mutated = false;
+            uniformBuffer = null;
+            this.storageBuffer = storageBuffer;
+            textures = null;
+            samplers = null;
+        }
         public StagingMutableState(UniformBuffer uniformBuffer)
         {
 #if VULKAN
@@ -392,6 +349,7 @@ namespace Somnium.Framework
 #endif
             mutated = false;
             this.uniformBuffer = uniformBuffer;
+            storageBuffer = null;
             textures = null;
             samplers = null;
         }
@@ -407,6 +365,7 @@ namespace Somnium.Framework
 #endif
             mutated = false;
             uniformBuffer = null;
+            storageBuffer = null;
             this.textures = textures;
             samplers = null;
         }
@@ -422,6 +381,7 @@ namespace Somnium.Framework
 #endif
             mutated = false;
             uniformBuffer = null;
+            storageBuffer = null;
             textures = null;
             this.samplers = samplers;
         }
@@ -450,7 +410,7 @@ namespace Somnium.Framework
         /// <summary>
         /// The size of the type of variable that this parameter represents
         /// </summary>
-        public readonly uint size;
+        public readonly ulong size;
         /// <summary>
         /// The total width occupied by the variable that this parameter represents, equals to size * arrayLength for arrays
         /// </summary>
@@ -458,12 +418,18 @@ namespace Somnium.Framework
 
         internal readonly UnorderedList<StagingMutableState>[] stagingData;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal UniformBuffer GetUniformBuffer()
         {
             return stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].uniformBuffer;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal StorageBuffer GetStorageBuffer()
+        {
+            return stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].storageBuffer;
+        }
 
-        public ShaderParameter(Shader shader, string name, uint index, UniformType type, uint size, uint arrayLength)
+        public ShaderParameter(Shader shader, string name, uint index, UniformType type, ulong size, uint arrayLength)
         {
             this.shader = shader;
             this.application = shader.application;
@@ -492,6 +458,7 @@ namespace Somnium.Framework
                         for (int j = 0; j < stagingData[i].Count; j++)
                         {
                             stagingData[i][j].uniformBuffer?.Dispose();
+                            stagingData[i][j].storageBuffer?.Dispose();
                         }
                     }
                 }
@@ -543,6 +510,21 @@ namespace Somnium.Framework
             this.set = set;
             this.binding = binding;
             this.arrayLength = arrayLength;
+        }
+    }
+    public readonly struct ShaderParamStorageBufferData
+    {
+        public readonly string name;
+        public readonly uint set;
+        public readonly uint binding;
+        public readonly ulong maxSize;
+
+        public ShaderParamStorageBufferData(string name, uint set, uint binding, ulong maxSize)
+        {
+            this.name = name;
+            this.set = set;
+            this.binding = binding;
+            this.maxSize = maxSize;
         }
     }
 }

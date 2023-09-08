@@ -507,7 +507,7 @@ namespace Somnium.Framework.Vulkan
 
             DeviceCreateInfo deviceCreateInfo = new DeviceCreateInfo();
             deviceCreateInfo.SType = StructureType.DeviceCreateInfo;
-            deviceCreateInfo.QueueCreateInfoCount = 2;
+            deviceCreateInfo.QueueCreateInfoCount = 3;
             fixed (DeviceQueueCreateInfo* ptr = queueCreateInfos)
             {
                 deviceCreateInfo.PQueueCreateInfos = ptr;
@@ -632,9 +632,9 @@ namespace Somnium.Framework.Vulkan
 
         #region command pools(memory)
 
-        public static CommandRegistrar commandPool;
         public static CommandRegistrar transientTransferCommandPool;
         public static CommandRegistrar transientGraphicsCommandPool;
+        public static CommandRegistrar transientComputeCommandPool;
 
         //public static CommandCollection commandBuffer;
 
@@ -643,17 +643,31 @@ namespace Somnium.Framework.Vulkan
             //commandPool = new CommandRegistrar(application, false, CommandQueueType.GeneralPurpose);
             transientGraphicsCommandPool = new CommandRegistrar(application, true, CommandQueueType.Graphics);
             transientTransferCommandPool = new CommandRegistrar(application, true, CommandQueueType.Transfer);
+            transientComputeCommandPool = new CommandRegistrar(application, true, CommandQueueType.Compute);
         }
         /*public static void CreateCommandBuffer(Application application)
         {
             commandBuffer = new CommandCollection(application, commandPool);
         }*/
-        public static CommandBuffer CreateTransientCommandBuffer(bool alsoBeginBuffer, bool forGraphics = false)
+        public static CommandBuffer CreateTransientCommandBuffer(bool alsoBeginBuffer, CommandQueueType commandBufferUsage)
         {
             CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
             allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
             allocateInfo.Level = CommandBufferLevel.Primary;
-            allocateInfo.CommandPool = forGraphics ? new CommandPool(transientGraphicsCommandPool.handle) : new CommandPool(transientTransferCommandPool.handle);
+            switch (commandBufferUsage)
+            {
+                case CommandQueueType.GeneralPurpose:
+                    throw new InvalidOperationException("CommandQueueType.GeneralPurpose not a valid usage for transient command buffer");
+                case CommandQueueType.Graphics:
+                    allocateInfo.CommandPool = new CommandPool(transientGraphicsCommandPool.handle);
+                    break;
+                case CommandQueueType.Transfer:
+                    allocateInfo.CommandPool = new CommandPool(transientTransferCommandPool.handle);
+                    break;
+                case CommandQueueType.Compute:
+                    allocateInfo.CommandPool = new CommandPool(transientComputeCommandPool.handle);
+                    break;
+            }
             allocateInfo.CommandBufferCount = 1;
 
             CommandBuffer transientBuffer;
@@ -767,7 +781,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         public static void StaticCopyResourceBuffer(Application application, Buffer from, Buffer to, ulong copySize)
         {
-            var transientBuffer = CreateTransientCommandBuffer(true);
+            var transientBuffer = CreateTransientCommandBuffer(true, CommandQueueType.Transfer);
 
             var bufferCopyInfo = new BufferCopy(0, 0, copySize);
             vk.CmdCopyBuffer(transientBuffer, from, to, 1, in bufferCopyInfo);
@@ -916,7 +930,7 @@ namespace Somnium.Framework.Vulkan
             if (bufferToUse.Handle == 0)
             {
                 poolToUse = new CommandPool(transientGraphicsCommandPool.handle);
-                bufferToUse = CreateTransientCommandBuffer(true, true);
+                bufferToUse = CreateTransientCommandBuffer(true, CommandQueueType.Graphics);
                 usingTransientBuffer = true;
             }
             //commandPool = new CommandPool(transientGraphicsCommandPool.handle);
@@ -1032,7 +1046,7 @@ namespace Somnium.Framework.Vulkan
         }
         public static void StaticCopyImageToBuffer(Texture2D from, Buffer to)
         {
-            var transientBuffer = CreateTransientCommandBuffer(true);
+            var transientBuffer = CreateTransientCommandBuffer(true, CommandQueueType.Transfer);
 
             BufferImageCopy bufferImageCopy = new BufferImageCopy();
             //we are also copying to a transient buffer
@@ -1062,7 +1076,7 @@ namespace Somnium.Framework.Vulkan
         }
         public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
         {
-            var transientBuffer = CreateTransientCommandBuffer(true);
+            var transientBuffer = CreateTransientCommandBuffer(true, CommandQueueType.Transfer);
 
             BufferImageCopy bufferImageCopy = new BufferImageCopy();
             //Because we are copying from a transient buffer created specifically for this, the buffer offset is 0
@@ -1112,6 +1126,7 @@ namespace Somnium.Framework.Vulkan
                 //commandPool.Dispose();
                 transientTransferCommandPool.Dispose();
                 transientGraphicsCommandPool.Dispose();
+                transientComputeCommandPool.Dispose();
                 //vk.DestroyCommandPool(vkDevice, new CommandPool(commandPool.handle), null);
                 //vk.DestroyCommandPool(vkDevice, new CommandPool(transientTransferCommandPool.handle), null);
                 //vk.DestroyCommandPool(vkDevice, new CommandPool(transientGraphicsCommandPool.handle), null);

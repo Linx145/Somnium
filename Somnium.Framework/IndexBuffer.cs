@@ -1,9 +1,9 @@
 ﻿#if VULKAN
 using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 #endif
 using System;
-using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Somnium.Framework
 {
@@ -41,46 +41,43 @@ namespace Somnium.Framework
             Construct();
         }
 
-        public void SetData<T>(T[] indices, int offset, int Length) where T : unmanaged
+        public unsafe void SetData<T>(T[] indices, int offset, int Length) where T : unmanaged
         {
             if (offset + Length > indices.Length)
             {
                 throw new IndexOutOfRangeException("Attempting to set data outside of this index buffer!");
             }
-            unsafe
+            switch (application.runningBackend)
             {
-                switch (application.runningBackend)
-                {
 #if VULKAN
-                    case Backends.Vulkan:
-                        if (!isDynamic)
-                        {
-                            T* data;
-                            var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(indexSize * Length), BufferUsageFlags.TransferSrcBit);
-                            var stagingMemoryRegion = VkMemory.malloc("Index Buffer", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                case Backends.Vulkan:
+                    if (!isDynamic)
+                    {
+                        T* data;
+                        var stagingBuffer = VkEngine.CreateResourceBuffer((ulong)(indexSize * Length), BufferUsageFlags.TransferSrcBit);
+                        var stagingMemoryRegion = VkMemory.malloc("Index Buffer", stagingBuffer, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
-                            data = stagingMemoryRegion.Bind<T>();
-                            indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
-                            stagingMemoryRegion.Unbind();
+                        data = stagingMemoryRegion.Bind<T>();
+                        indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                        stagingMemoryRegion.Unbind();
 
-                            //Since there is no distinction between vertex and index buffers in Vulkan
-                            //up until the point where we utilise them, we can share the same copy code
-                            VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
+                        //Since there is no distinction between vertex and index buffers in Vulkan
+                        //up until the point where we utilise them, we can share the same copy code
+                        VertexBuffer.CopyData(application, isDynamic, stagingBuffer.Handle, handle, (ulong)(indexCount * indexSize));
 
-                            VkEngine.DestroyResourceBuffer(stagingBuffer);
-                            //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
-                            stagingMemoryRegion.Free();
-                        }
-                        else
-                        {
-                            T* data = memoryRegion.Bind<T>();
-                            indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
-                        }
-                        break;
+                        VkEngine.DestroyResourceBuffer(stagingBuffer);
+                        //VkEngine.vk.DestroyBuffer(VkEngine.vkDevice, stagingBuffer, null);
+                        stagingMemoryRegion.Free();
+                    }
+                    else
+                    {
+                        T* data = memoryRegion.Bind<T>();
+                        indices.AsSpan().CopyTo(new Span<T>(data + offset * sizeof(T), Length));
+                    }
+                    break;
 #endif
-                    default:
-                        throw new NotImplementedException();
-                }
+                default:
+                    throw new NotImplementedException();
             }
         }
         private void Construct()

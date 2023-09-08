@@ -42,7 +42,7 @@ namespace Somnium.Framework.Vulkan
         {
             //TODO: Make scriptable
             
-            DeviceQueueCreateInfo[] result = new DeviceQueueCreateInfo[2];
+            DeviceQueueCreateInfo[] result = new DeviceQueueCreateInfo[3];
 
             var info = new DeviceQueueCreateInfo();
             info.SType = StructureType.DeviceQueueCreateInfo;
@@ -61,6 +61,14 @@ namespace Somnium.Framework.Vulkan
 
             result[1] = info2;
 
+            var info3 = new DeviceQueueCreateInfo();
+            info3.SType = StructureType.DeviceQueueCreateInfo;
+            info3.QueueFamilyIndex = queueInfo.GetComputeQueue(in Device)!.Value;
+            info3.QueueCount = 1;
+            info3.PQueuePriorities = &queuePriority;
+
+            result[2] = info3;
+
             return result;
         }
         public void GetCreatedQueueIndices(Device createdDevice)
@@ -68,9 +76,11 @@ namespace Somnium.Framework.Vulkan
             LogicalDevice = createdDevice;
             VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetGeneralPurposeQueue(in Device)!.Value, 0, out var allPurposeQueue);
             VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetTransferQueue(in Device)!.Value, 0, out var dedicatedTransferQueue);
+            VkEngine.vk.GetDeviceQueue(LogicalDevice, queueInfo.GetComputeQueue(in Device)!.Value, 0, out var dedicatedComputeQueue);
 
             AllPurposeQueue = new VkCommandQueue(allPurposeQueue);
             DedicatedTransferQueue = new VkCommandQueue(dedicatedTransferQueue);
+            DedicatedComputeQueue = new VkCommandQueue(dedicatedComputeQueue);
         }
 
         public unsafe static bool SelectGPU(out VkGPU GPU)

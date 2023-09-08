@@ -134,7 +134,7 @@ namespace Somnium.Framework
             DescriptorType.SampledImage,
             DescriptorType.StorageImage,
             DescriptorType.Sampler,
-            DescriptorType.CombinedImageSampler
+            DescriptorType.StorageBuffer
         };
     }
 }

@@ -2,5 +2,5 @@
 
 public enum UniformType
 {
-    uniformBuffer, image, imageStorage, sampler
+    uniformBuffer, image, imageStorage, sampler, storageBuffer
 }
