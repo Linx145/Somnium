@@ -8,6 +8,7 @@ namespace Somnium.Framework
 {
     public abstract unsafe class Window : IDisposable, INativeWindowSource
     {
+        public InputState inputState;
         /// <summary>
         /// Whether the window has been initialized.
         /// </summary>
@@ -48,6 +49,8 @@ namespace Somnium.Framework
         public abstract void UpdateWindowControls();
         public abstract void Maximize();
         public abstract void SetIcon(Texture2D texture);
+        public abstract void SetCursorTexture(Texture2D cursorTexture, Point cursorCenter);
+        public abstract void SetCursorVisible(bool visible);
         /// <summary>
         /// Called when the window is resized, with arguments being 1)the resized window, 2)the new window width, 3)the new window height
         /// </summary>

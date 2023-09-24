@@ -6,6 +6,8 @@ using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework.GLFW
 {
@@ -21,9 +23,11 @@ namespace Somnium.Framework.GLFW
         }
 
         public WindowHandle* handle;
+        public Dictionary<ulong, IntPtr> textureHandleToCursor;
 
         public WindowGLFW(Application application)
         {
+            this.textureHandleToCursor = new Dictionary<ulong, IntPtr>();
             this.application = application;
         }
 
@@ -157,6 +161,8 @@ namespace Somnium.Framework.GLFW
         private Point internalPosition;
         private string internalTitle;
         private bool internalVSync = true;
+        private Texture2D currentCursorTexture = null;
+        private bool cursorVisible = true;
 
         private bool VSyncChanged = false;
 
@@ -175,6 +181,7 @@ namespace Somnium.Framework.GLFW
             WindowGLFW window = new WindowGLFW(application);
             window.internalSize = windowSize;
             window.internalTitle = title;
+            window.inputState = new InputStateGLFW();
 
             Glfw.WindowHint(WindowHintBool.Resizable, false);
 
@@ -236,7 +243,7 @@ namespace Somnium.Framework.GLFW
         {
             if (status) //if is minimized, wipe the input
             {
-                InputStateGLFW.ClearAllInputStates();
+                ((InputStateGLFW)inputState).ClearAllInputStates();
             }
             base.OnMinimizationChanged(this, status);
         }
@@ -263,26 +270,51 @@ namespace Somnium.Framework.GLFW
         #endregion
 
         #region input callbacks
-        /*public static unsafe void ControllerConnectionChanged(int controllerIndex, ConnectedState connectedState)
+        public unsafe override void SetCursorTexture(Texture2D cursorTexture, Point cursorCenter)
         {
-            if (connectedState == ConnectedState.Connected)
+            if (currentCursorTexture != cursorTexture)
             {
-                Input.ConnectedControllers++;
-            }
-            else
-            {
-                Input.ConnectedControllers--;
-            }
-
-            if (Input.ConnectedControllers == 0)
-            {
-                for (int i = 0; i < InputState.controllerStates.Length; i++)
+                if (cursorTexture == null)
                 {
-                    InputState.oldControllerStates[i] = default;
-                    InputState.controllerStates[i] = default;
+                    Glfw.SetCursor(handle, null);
                 }
+                else
+                {
+                    if (textureHandleToCursor.TryGetValue(cursorTexture.imageHandle, out var ptr))
+                    {
+                        Glfw.SetCursor(handle, (Cursor*)ptr);
+                    }
+                    else
+                    {
+                        Silk.NET.GLFW.Image image = new Silk.NET.GLFW.Image();
+                        image.Width = (int)cursorTexture.Width;
+                        image.Height = (int)cursorTexture.Height;
+                        Span<byte> bytes = cursorTexture.GetData<byte>();
+                        fixed (byte* fix = &bytes[0])
+                        {
+                            image.Pixels = fix;
+                        }
+
+                        Cursor* cursor = Glfw.CreateCursor(&image, cursorCenter.X, cursorCenter.Y);
+                        Glfw.SetCursor(handle, cursor);
+                        textureHandleToCursor.Add(cursorTexture.imageHandle, (IntPtr)cursor);
+                    }
+                }
+                currentCursorTexture = cursorTexture;
             }
-        }*/
+        }
+        public override void SetCursorVisible(bool visible)
+        {
+            if (cursorVisible != visible)
+            {
+                if (visible)
+                {
+                    Glfw.SetInputMode(handle, CursorStateAttribute.Cursor, CursorModeValue.CursorNormal);
+                }
+                else Glfw.SetInputMode(handle, CursorStateAttribute.Cursor, CursorModeValue.CursorHidden);
+                cursorVisible = visible;
+            }
+        }
         public unsafe void OnKeyPressed(WindowHandle* handle, Silk.NET.GLFW.Keys key, int scanCode, InputAction inputAction, KeyModifiers modifiers)
         {
             if (key == Silk.NET.GLFW.Keys.Unknown)
@@ -293,19 +325,19 @@ namespace Somnium.Framework.GLFW
             onKeyPressed?.Invoke(keys, scanCode, (KeyState)(int)inputAction);
             if (inputAction == InputAction.Press)
             {
-                InputStateGLFW.keysDown.Insert((uint)key, true);
-                InputStateGLFW.perFrameKeyStates.Insert((uint)key, KeyState.Pressed);
+                inputState.keysDown.Insert((uint)key, true);
+                inputState.perFrameKeyStates.Insert((uint)key, KeyState.Pressed);
             }
             else if (inputAction == InputAction.Release)
             {
-                InputStateGLFW.keysDown.Insert((uint)key, false);
-                InputStateGLFW.perFrameKeyStates.Insert((uint)key, KeyState.Released);
+                inputState.keysDown.Insert((uint)key, false);
+                inputState.perFrameKeyStates.Insert((uint)key, KeyState.Released);
             }
             if (keys == Keys.Backspace)
             {
                 if (inputAction == InputAction.Press || inputAction == InputAction.Repeat)
                 {
-                    InputStateGLFW.textInputCharacter = '\b';
+                    inputState.textInputCharacter = '\b';
                 }
             }
         }
@@ -313,35 +345,44 @@ namespace Somnium.Framework.GLFW
         {
             char character = (char)codePoint;
             onTextInput?.Invoke(character);
-            InputStateGLFW.textInputCharacter = character;
+            inputState.textInputCharacter = character;
         }
         public unsafe void OnMousePressed(WindowHandle* handle, MouseButton button, InputAction inputAction, KeyModifiers keyModifiers)
         {
             if (inputAction == InputAction.Press)
             {
-                InputStateGLFW.mouseButtonsDown.Insert((uint)button, true);
-                InputStateGLFW.perFrameMouseStates.Insert((uint)button, KeyState.Pressed);
+                //need to check in case multiple input sources/input simulations send a
+                //press button signal while the button is already pressed, which may
+                //mess up a user's usage of the API
+                if (!inputState.mouseButtonsDown.WithinLength((uint)button) || !inputState.mouseButtonsDown[(uint)button])
+                {
+                    inputState.mouseButtonsDown.Insert((uint)button, true);
+                    inputState.perFrameMouseStates.Insert((uint)button, KeyState.Pressed);
+                }
             }
             else if (inputAction == InputAction.Release)
             {
-                InputStateGLFW.mouseButtonsDown.Insert((uint)button, false);
-                InputStateGLFW.perFrameMouseStates.Insert((uint)button, KeyState.Released);
+                if (inputState.mouseButtonsDown.WithinLength((uint)button) && inputState.mouseButtonsDown[(uint)button])
+                {
+                    inputState.mouseButtonsDown.Insert((uint)button, false);
+                    inputState.perFrameMouseStates.Insert((uint)button, KeyState.Released);
+                }
             }
         }
         public unsafe void MousePositionCallback(WindowHandle* handle, double x, double y)
         {
-            InputStateGLFW.internalMousePosition.X = (float)x;
-            InputStateGLFW.internalMousePosition.Y = (float)y;
+            inputState.internalMousePosition.X = (float)x;
+            inputState.internalMousePosition.Y = (float)y;
         }
         public unsafe void MouseScrollCallback(WindowHandle* handle, double offsetX, double offsetY)
         {
-            InputStateGLFW.scroll.X = (float)offsetX;
-            InputStateGLFW.scroll.Y = (float)offsetY;
+            inputState.scroll.X = (float)offsetX;
+            inputState.scroll.Y = (float)offsetY;
         }
         #endregion
         public override void UpdateInput()
         {
-            InputStateGLFW.ResetPerFrameInputStates();
+            ((InputStateGLFW)inputState).ResetPerFrameInputStates();
         }
         public override void UpdateWindowControls()
         {

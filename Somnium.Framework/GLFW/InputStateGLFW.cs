@@ -6,17 +6,6 @@ namespace Somnium.Framework.GLFW
 {
     public class InputStateGLFW : InputState
     {
-        internal static Vector2 internalMousePosition;
-        internal static Vector2 internalWorldMousePosition;
-        internal static Vector2 scroll;
-
-        internal static SparseArray<KeyState> perFrameKeyStates = new SparseArray<KeyState>(KeyState.None);
-        internal static SparseArray<bool> keysDown = new SparseArray<bool>(false);
-
-        internal static SparseArray<KeyState> perFrameMouseStates = new SparseArray<KeyState>(KeyState.None);
-        internal static SparseArray<bool> mouseButtonsDown = new SparseArray<bool>(false);
-
-        internal static char? textInputCharacter;
         public InputStateGLFW()
         {
         }
@@ -44,6 +33,22 @@ namespace Somnium.Framework.GLFW
         public override bool IsMouseRelease(MouseButtons button)
         {
             return perFrameMouseStates.WithinLength((uint)button) && perFrameMouseStates[(uint)button] == KeyState.Released;
+        }
+        public override void SimulateMousePress(MouseButtons button)
+        {
+            if (!mouseButtonsDown.WithinLength((uint)button) || !mouseButtonsDown[(uint)button])
+            {
+                mouseButtonsDown.Insert((uint)button, true);
+                perFrameMouseStates.Insert((uint)button, KeyState.Pressed);
+            }
+        }
+        public override void SimulateMouseRelease(MouseButtons button)
+        {
+            if (mouseButtonsDown.WithinLength((uint)button) && mouseButtonsDown[(uint)button])
+            {
+                mouseButtonsDown.Insert((uint)button, false);
+                perFrameMouseStates.Insert((uint)button, KeyState.Released);
+            }
         }
         public override bool IsControllerConnected(int controllerIndex)
         {
@@ -112,7 +117,7 @@ namespace Somnium.Framework.GLFW
         /// <summary>
         /// Called at the end of every frame. Resets per-frame key states
         /// </summary>
-        internal static void ResetPerFrameInputStates()
+        public void ResetPerFrameInputStates()
         {
             textInputCharacter = null;
             scroll = default;
@@ -130,14 +135,14 @@ namespace Somnium.Framework.GLFW
                 {
                     //oldControllerStates[i] = controllerStates[i];
                     controllerStates[i].CopyTo(ref oldControllerStates[i]);
-                    ((InputStateGLFW)Input.instance).GetControllerState(i, ref controllerStates[i]);
+                    GetControllerState(i, ref controllerStates[i]);
                 }
             //}
         }
         /// <summary>
         /// Called when the window is minimized or any other reason that may cause the window to stop recording key presses
         /// </summary>
-        internal static void ClearAllInputStates()
+        public void ClearAllInputStates()
         {
             ResetPerFrameInputStates();
             for (int i = 0; i < keysDown.values.Length; i++)

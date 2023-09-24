@@ -111,9 +111,7 @@ namespace Somnium.Framework
 
             app.runningBackend = preferredBackend;
 
-            Input.instance = new InputStateGLFW();
             app.Window = WindowGLFW.New(app, windowSize, title, preferredBackend);
-
             app.Graphics = new Graphics(app);
 
             return app;
@@ -153,18 +151,6 @@ namespace Somnium.Framework
                     }
                     break;
 #endif
-#if DX12
-                case Backends.DX12:
-                    {
-                        bool success = Dx12Engine.Initialize(Window, AppName, useDebugLayers);
-                        if (!success)
-                        {
-                            runningBackend = Backends.OpenGL;
-                            InitializeWithPreferredBackend(useDebugLayers);
-                        }
-                    }
-                    break;
-#endif
                 default:
                     throw new NotImplementedException();
             }
@@ -191,8 +177,9 @@ namespace Somnium.Framework
                 delta = updateStopwatch.Elapsed.TotalSeconds;
                 if (delta >= internalUpdatePeriod)
                 {
-                    Window.UpdateInput();
-                    Window.UpdateWindowControls();
+                    Input.processingWindow = Window;
+                    Window.UpdateInput(); //resets per frame input states
+                    Window.UpdateWindowControls(); //calls input callbacks
                     while (Window.Size.X == 0 || Window.Size.Y == 0)
                     {
                         Thread.Sleep(0);

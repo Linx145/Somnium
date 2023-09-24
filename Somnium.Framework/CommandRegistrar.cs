@@ -3,6 +3,7 @@ using Silk.NET.Vulkan;
 using Somnium.Framework.Vulkan;
 #endif
 using System;
+using System.Threading;
 
 namespace Somnium.Framework
 {
@@ -23,11 +24,13 @@ namespace Somnium.Framework
         /// The command queue that command collections allocated from this pool should utilise
         /// </summary>
         public readonly CommandQueueType commandQueueType;
+        public ReaderWriterLockSlim externalLock;
         public CommandRegistrar(Application application, bool isForTransientCommands, CommandQueueType commandQueueType)
         {
             this.application = application;
             this.isForTransientCommands = isForTransientCommands;
             this.commandQueueType = commandQueueType;
+            externalLock = new ReaderWriterLockSlim();
             Construct();
         }
         private void Construct()
@@ -63,6 +66,7 @@ namespace Somnium.Framework
         }
         public void Dispose()
         {
+            externalLock.Dispose();
             switch (application.runningBackend)
             {
 #if VULKAN

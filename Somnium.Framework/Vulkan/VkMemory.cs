@@ -205,6 +205,8 @@ namespace Somnium.Framework.Vulkan
         public UnorderedList<AllocatedMemoryRegion> regions;
         public UnorderedList<AllocatedMemoryRegion> gaps;
 
+        public ReaderWriterLockSlim allocationLock;
+
         public void* memoryPtr = null;
         public object memoryPtrLock = new object();
 
@@ -216,6 +218,8 @@ namespace Somnium.Framework.Vulkan
 
             regions = new UnorderedList<AllocatedMemoryRegion>();
             gaps = new UnorderedList<AllocatedMemoryRegion>();
+
+            allocationLock = new ReaderWriterLockSlim();
 
             totalDeviceMemories++;
         }
@@ -241,6 +245,7 @@ namespace Somnium.Framework.Vulkan
                 finalPosition = finalPosition + (alignment - finalPosition % alignment);
             if (requiredSpace <= totalSize)
             {
+                allocationLock.EnterWriteLock();
                 for (int i = gaps.Count - 1; i >= 0; i--)
                 {
                     //memory allocated needs to be continuous (thankfully)
@@ -277,7 +282,8 @@ namespace Somnium.Framework.Vulkan
                         {
                             continue;
                         }
-                        
+
+                        allocationLock.ExitWriteLock();
                         return result;
                     }
                 }
@@ -289,8 +295,10 @@ namespace Somnium.Framework.Vulkan
                 {
                     AllocatedMemoryRegion region = new AllocatedMemoryRegion(source, this, handle, finalPosition, requiredSpace);
                     regions.Add(region);
+                    allocationLock.ExitWriteLock();
                     return region;
                 }
+                allocationLock.ExitWriteLock();
             }
             //if either there is not enough space or not enough continuous space, we return 'null'
             return default;
@@ -301,18 +309,21 @@ namespace Somnium.Framework.Vulkan
             ulong newWidth = gap.width;
             ulong newStart = gap.start;
 
-            for (int i = gaps.Count - 1; i >= 0 ; i--)
+            if (gaps.Count > 0)
             {
-                if (gaps[i].start == gap.start + gap.width)
+                for (int i = gaps.Count - 1; i >= 0; i--)
                 {
-                    newWidth += gaps[i].width;
-                    gaps.RemoveAt(i);
-                }
-                else if (gaps[i].start + gaps[i].width == gap.start)
-                {
-                    newWidth += gaps[i].width;
-                    newStart = gaps[i].start;
-                    gaps.RemoveAt(i);
+                    if (gaps[i].start == gap.start + gap.width)
+                    {
+                        newWidth += gaps[i].width;
+                        gaps.RemoveAt(i);
+                    }
+                    else if (gaps[i].start + gaps[i].width == gap.start)
+                    {
+                        newWidth += gaps[i].width;
+                        newStart = gaps[i].start;
+                        gaps.RemoveAt(i);
+                    }
                 }
             }
 
@@ -337,6 +348,7 @@ namespace Somnium.Framework.Vulkan
             {
                 if (regions[i] == region)
                 {
+                    allocationLock.EnterWriteLock();
                     regions.RemoveAt(i);
                     //make sure if we are at the end of the memory location, do not add ourselves as a gap in memory
                     //because there is nothing superceding us
@@ -345,7 +357,7 @@ namespace Somnium.Framework.Vulkan
                         AddGap(region);
                         //gaps.Add(region);
                     }
-
+                    allocationLock.ExitWriteLock();
                     Debugger.LogMemoryAllocation(region.source, "Freed memory at " + region.ToString());
                     return;
                 }

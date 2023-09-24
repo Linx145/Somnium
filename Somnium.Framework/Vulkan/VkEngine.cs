@@ -692,7 +692,7 @@ namespace Somnium.Framework.Vulkan
         /// </summary>
         /// <param name="commandBuffer"></param>
         /// <exception cref="ExecutionException"></exception>
-        public static void EndTransientCommandBuffer(VkCommandQueue queueToSubmitTo, CommandBuffer commandBuffer, CommandPool commandPool)
+        public static void EndTransientCommandBuffer(VkCommandQueue queueToSubmitTo, CommandBuffer commandBuffer, CommandRegistrar commandPool)
         {
             vk.EndCommandBuffer(commandBuffer);
 
@@ -730,7 +730,9 @@ namespace Somnium.Framework.Vulkan
             queueToSubmitTo.externalLock.ExitWriteLock();
 
             //finally, delete our transient command buffer
-            vk.FreeCommandBuffers(vkDevice, commandPool, 1, in commandBuffer);
+            commandPool.externalLock.EnterWriteLock();
+            vk.FreeCommandBuffers(vkDevice, new CommandPool(commandPool.handle), 1, in commandBuffer);
+            commandPool.externalLock.ExitWriteLock();
         }
         #endregion
 
@@ -786,7 +788,7 @@ namespace Somnium.Framework.Vulkan
             var bufferCopyInfo = new BufferCopy(0, 0, copySize);
             vk.CmdCopyBuffer(transientBuffer, from, to, 1, in bufferCopyInfo);
 
-            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, transientTransferCommandPool);
         }
         #endregion
 
@@ -925,11 +927,11 @@ namespace Somnium.Framework.Vulkan
 
             queue = CurrentGPU.AllPurposeQueue;
 
-            CommandPool poolToUse = default;
+            CommandRegistrar poolToUse = null;
             bool usingTransientBuffer = false;
             if (bufferToUse.Handle == 0)
             {
-                poolToUse = new CommandPool(transientGraphicsCommandPool.handle);
+                poolToUse = transientGraphicsCommandPool;
                 bufferToUse = CreateTransientCommandBuffer(true, CommandQueueType.Graphics);
                 usingTransientBuffer = true;
             }
@@ -1040,6 +1042,7 @@ namespace Somnium.Framework.Vulkan
 
             if (usingTransientBuffer)
             {
+                //end the transient buffer and submit to queue for execution
                 EndTransientCommandBuffer(queue, bufferToUse, poolToUse);
             }
             //EndTransientCommandBuffer(queue, transientBuffer, commandPool);
@@ -1072,7 +1075,7 @@ namespace Somnium.Framework.Vulkan
                 &bufferImageCopy
                 );
 
-            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, transientTransferCommandPool);
         }
         public static void StaticCopyBufferToImage(Buffer from, Texture2D to)
         {
@@ -1102,7 +1105,7 @@ namespace Somnium.Framework.Vulkan
                 &bufferImageCopy
              );
 
-            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, new CommandPool(transientTransferCommandPool.handle));
+            EndTransientCommandBuffer(CurrentGPU.DedicatedTransferQueue, transientBuffer, transientTransferCommandPool);
         }
         #endregion
 

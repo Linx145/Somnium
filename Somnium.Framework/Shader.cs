@@ -11,7 +11,6 @@ using System.IO;
 using Silk.NET.Core.Native;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Text;
 using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
@@ -301,8 +300,25 @@ namespace Somnium.Framework
 #endif
         public void ConstructParams()
         {
-            int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
-            if (maxCount != null && maxCount != 0)
+            //cannot use this as there may be shared uniforms
+            //int? maxCount = (shader1Params?.Count) + (shader2Params?.Count);
+
+            int maxCount = 0;
+            if (shader1Params != null)
+            {
+                foreach (var value in shader1Params!.GetParameters())
+                {
+                    maxCount = Math.Max(maxCount, (int)value.binding + 1);
+                }
+            }
+            if (shader2Params != null)
+            {
+                foreach (var value in shader2Params!.GetParameters())
+                {
+                    maxCount = Math.Max(maxCount, (int)value.binding + 1);
+                }
+            }
+            if (maxCount != 0)
             {
                 switch (application.runningBackend)
                 {
@@ -356,32 +372,32 @@ namespace Somnium.Framework
                         unsafe
                         {
                             #region create descriptor set layout
-                            DescriptorSetLayoutBinding* bindings = stackalloc DescriptorSetLayoutBinding[maxCount.Value];
+                            DescriptorSetLayoutBinding* bindings = stackalloc DescriptorSetLayoutBinding[maxCount];
+
+                            for (int i = 0; i < maxCount; i++)
+                            {
+                                //zero initialize just in case
+                                *(bindings + i) = new DescriptorSetLayoutBinding();
+                            }
 
                             foreach (var value in shader1Params!.GetParameters())
                             {
-                                DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
-                                binding.Binding = value.binding;
-                                binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
-                                //If the binding points to a variable in the shader that is an array, this would be that array's length
-                                binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                binding.StageFlags = Converters.ShaderTypeToVkFlags[(int)shader1Params!.shaderType];
-
-                                *(bindings + value.binding) = binding;
+                                DescriptorSetLayoutBinding* binding = (bindings + value.binding);
+                                binding->Binding = value.binding;
+                                binding->DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
+                                binding->DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
+                                binding->StageFlags = binding->StageFlags | Converters.ShaderTypeToVkFlags[(int)shader1Params!.shaderType];
                             }
 
                             if (shader2Params != null)
                             {
                                 foreach (var value in shader2Params!.GetParameters())
                                 {
-                                    DescriptorSetLayoutBinding binding = new DescriptorSetLayoutBinding();
-                                    binding.Binding = value.binding;
-                                    binding.DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
-                                    //If the binding points to a variable in the shader that is an array, this would be that array's length
-                                    binding.DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
-                                    binding.StageFlags = Converters.ShaderTypeToVkFlags[(int)shader2Params!.shaderType];
-
-                                    *(bindings + value.binding) = binding;
+                                    DescriptorSetLayoutBinding* binding = (bindings + value.binding);
+                                    binding->Binding = value.binding;
+                                    binding->DescriptorType = Converters.UniformTypeToVkDescriptorType[(int)value.type];
+                                    binding->DescriptorCount = value.arrayLength == 0 ? 1 : value.arrayLength;
+                                    binding->StageFlags = binding->StageFlags | Converters.ShaderTypeToVkFlags[(int)shader2Params!.shaderType];
                                 }
                             }
 
@@ -721,86 +737,97 @@ namespace Somnium.Framework
                 {
                     ref var mutableState = ref param.stagingData[application.Window.frameNumber].internalArray[descriptorForThisDrawCall];
 
+                    if (!mutableState.mutated)
+                    {
+                        continue;
+                    }
+                    mutableState.mutated = false;
+
                     switch (param.type)
                     {
                         case UniformType.uniformBuffer:
                             {
                                 mutableState.vkBufferInfo = new DescriptorBufferInfo(new Silk.NET.Vulkan.Buffer(mutableState.uniformBuffer.handle), 0, param.width);
 
-                                uint length = (uint)Math.Max(1, param.arrayLength);
+                                //uint length = (uint)Math.Max(1, param.arrayLength);
                                 fixed (DescriptorBufferInfo* ptr = &mutableState.vkBufferInfo)
                                 {
-                                    //for (int i = 0; i < length; i++)
-                                    //{
                                     WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
                                     descriptorWrite.SType = StructureType.WriteDescriptorSet;
                                     descriptorWrite.DstSet = descriptorSet;
                                     descriptorWrite.DstBinding = param.binding;
                                     descriptorWrite.DstArrayElement = 0;//(uint)i;
                                     descriptorWrite.DescriptorType = DescriptorType.UniformBuffer;
-                                    descriptorWrite.DescriptorCount = length;
+                                    descriptorWrite.DescriptorCount = 1;
                                     descriptorWrite.PBufferInfo = ptr;
 
                                     descriptorSetWrites.Add(descriptorWrite);
-                                    //}
                                 }
                             }
                             break;
                         case UniformType.sampler:
                             {
+                                uint updateExtents = 0;
                                 //samplers also use DescriptorImageInfo as well
-                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++)
+                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++, updateExtents++)
                                 {
-                                    mutableState.vkImageInfos[i] = new DescriptorImageInfo(new Sampler(mutableState.samplers[i].handle), null, ImageLayout.ShaderReadOnlyOptimal);
+                                    if (mutableState.samplers[i] != null)
+                                    {
+                                        mutableState.vkImageInfos[i] = new DescriptorImageInfo(new Sampler(mutableState.samplers[i].handle), null, ImageLayout.ShaderReadOnlyOptimal);
+                                    }
+                                    else break;
                                 }
 
-                                uint length = (uint)Math.Max(1, param.arrayLength);
-                                fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                if (updateExtents > 0)
                                 {
-                                    //for (int i = 0; i < length; i++)
-                                    //{
-                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                    descriptorWrite.DstSet = descriptorSet;
-                                    descriptorWrite.DstBinding = param.binding;
-                                    descriptorWrite.DstArrayElement = 0;//(uint)i;
-                                    descriptorWrite.DescriptorType = DescriptorType.Sampler;
-                                    descriptorWrite.DescriptorCount = length;
-                                    descriptorWrite.PImageInfo = ptr;
+                                    fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                    {
+                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                        descriptorWrite.DstSet = descriptorSet;
+                                        descriptorWrite.DstBinding = param.binding;
+                                        descriptorWrite.DstArrayElement = 0;//(uint)i;
+                                        descriptorWrite.DescriptorType = DescriptorType.Sampler;
+                                        descriptorWrite.DescriptorCount = updateExtents;
+                                        descriptorWrite.PImageInfo = ptr;
 
-                                    descriptorSetWrites.Add(descriptorWrite);
-                                    //}
+                                        descriptorSetWrites.Add(descriptorWrite);
+                                    }
                                 }
                             }
                             break;
                         case UniformType.image:
                             {
-                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++)
+                                uint updateExtents = 0;
+                                for (int i = 0; i < mutableState.vkImageInfos.Length; i++, updateExtents++)
                                 {
-                                    mutableState.vkImageInfos[i] = new DescriptorImageInfo(null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+                                    if (mutableState.textures[i] != null)
+                                    {
+                                        mutableState.vkImageInfos[i] = new DescriptorImageInfo(null, new ImageView(mutableState.textures[i].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
+                                    }
+                                    else break;
                                 }
                                 //= new DescriptorImageInfo(null, new ImageView(mutableState.textures[0].imageViewHandle), ImageLayout.ShaderReadOnlyOptimal);
 
-                                uint length = (uint)Math.Max(1, param.arrayLength);
-                                fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                if (updateExtents > 0)
                                 {
-                                    //for (int i = 0; i < length; i++)
-                                    //{
-                                    //if (mutableState.textures[i] != null)
-                                    //{
-                                    WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
-                                    descriptorWrite.SType = StructureType.WriteDescriptorSet;
-                                    descriptorWrite.DstSet = descriptorSet;
-                                    descriptorWrite.DstBinding = param.binding;
-                                    descriptorWrite.DstArrayElement = 0;// (uint)i;
-                                    descriptorWrite.DescriptorType = DescriptorType.SampledImage;
-                                    descriptorWrite.DescriptorCount = length;//1;
-                                    descriptorWrite.PImageInfo = ptr;// + i;
+                                    fixed (DescriptorImageInfo* ptr = &mutableState.vkImageInfos[0])
+                                    {
+                                        //for (int i = 0; i < length; i++)
+                                        //{
+                                        //if (mutableState.textures[i] != null)
+                                        //{
+                                        WriteDescriptorSet descriptorWrite = new WriteDescriptorSet();
+                                        descriptorWrite.SType = StructureType.WriteDescriptorSet;
+                                        descriptorWrite.DstSet = descriptorSet;
+                                        descriptorWrite.DstBinding = param.binding;
+                                        descriptorWrite.DstArrayElement = 0;// (uint)i;
+                                        descriptorWrite.DescriptorType = DescriptorType.SampledImage;
+                                        descriptorWrite.DescriptorCount = updateExtents;//1;
+                                        descriptorWrite.PImageInfo = ptr;// + i;
 
-                                    descriptorSetWrites.Add(descriptorWrite);
-                                    //}
-                                    //descriptorWrites[i] = descriptorWrite;
-                                    //}
+                                        descriptorSetWrites.Add(descriptorWrite);
+                                    }
                                 }
                             }
                             break;

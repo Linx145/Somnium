@@ -147,6 +147,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.image)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = renderTarget.backendTexture;
 
                 switch (application.runningBackend)
@@ -175,6 +176,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.image)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures[0] = texture;
             }
             else throw new InvalidOperationException("Attempting to set texture into a non-texture shader uniform!");
@@ -184,6 +186,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.image)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].textures;
                 if (textureArray.Length > destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's texture array length!");
                 if (textureArray.Length < destArray.Length)
@@ -203,6 +206,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.sampler)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].samplers[0] = samplerState;
             }
             else throw new InvalidOperationException("Attempting to set sampler into a non-sampler shader uniform!");
@@ -212,6 +216,7 @@ namespace Somnium.Framework
             var param = parameters[paramIndex];
             if (param.type == UniformType.sampler)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 var destArray = param.stagingData[application.Window.frameNumber][shader.descriptorForThisDrawCall].samplers;
                 if (samplerStates.Length != destArray.Length) throw new InvalidOperationException("Length of input differs from uniform's sampler array length!");
                 //Array.Copy(samplerStates, destArray, samplerStates.Length);
@@ -226,6 +231,7 @@ namespace Somnium.Framework
             {
                 shader.uniformHasBeenSet = true;
 
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.GetUniformBuffer().SetData(value, 0);
 
             }
@@ -237,10 +243,12 @@ namespace Somnium.Framework
             shader.uniformHasBeenSet = true;
             if (param.type == UniformType.uniformBuffer)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.GetUniformBuffer().SetData(value, 0);
             }
             else if (param.type == UniformType.storageBuffer)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.GetStorageBuffer().SetData(value, 0, value.Length);
             }
             else throw new NotImplementedException();
@@ -251,6 +259,7 @@ namespace Somnium.Framework
             shader.uniformHasBeenSet = true;
             if (param.type == UniformType.uniformBuffer)
             {
+                param.stagingData[application.Window.frameNumber].internalArray[shader.descriptorForThisDrawCall].mutated = true;
                 param.GetUniformBuffer().SetDataBytes(value, 0);
             }
             else throw new InvalidOperationException();
