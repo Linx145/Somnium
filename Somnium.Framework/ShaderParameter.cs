@@ -158,10 +158,12 @@ namespace Somnium.Framework
                         {
                             //we need this to ensure that the image is ready for reading by the shader instead of
                             //being in PresentSrcKhr which it would have been when it was fresh out of the render call
+                            VkEngine.frames[VkEngine.window.frameNumber].commandBufferLock.EnterWriteLock();
                             if (!VkEngine.TransitionImageLayout(renderTarget.backendTexture, ImageAspectFlags.ColorBit, ImageLayout.ShaderReadOnlyOptimal, VkEngine.commandBuffer))
                             {
 
                             }
+                            VkEngine.frames[VkEngine.window.frameNumber].commandBufferLock.ExitWriteLock();
                         }
                         break;
 #endif

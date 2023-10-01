@@ -229,7 +229,9 @@ namespace Somnium.Framework.Vulkan
             Texture2D imageToTransition = renderTarget == null ? swapchain.renderTargets[swapchain.currentImageIndex].backendTexture : renderTarget.backendTexture;
 
             //Debugger.Log((renderTarget == null ? "Transitioning backbuffer " : "Transitioning rendertarget ") + imageToTransition.imageLayout.ToString());
+            VkEngine.frames[VkEngine.window.frameNumber].commandBufferLock.EnterWriteLock();
             VkEngine.TransitionImageLayout(imageToTransition, ImageAspectFlags.ColorBit, ImageLayout.ColorAttachmentOptimal, VkEngine.commandBuffer);
+            VkEngine.frames[VkEngine.window.frameNumber].commandBufferLock.ExitWriteLock();
 
             renderingToBuffer = renderTarget;
             if (renderTarget == null)

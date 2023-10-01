@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -48,15 +49,18 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(uint index, T value)
         {
             EnsureCapacity(index);
             values[index] = value;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool WithinLength(uint index)
         {
             return index < values.Length;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Remove(uint index)
         {
             if (index > values.Length)
@@ -65,6 +69,7 @@ namespace Somnium.Framework
             }
             values[index] = default(T);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetRef(uint index)
         {
             return ref values[index];
@@ -73,10 +78,6 @@ namespace Somnium.Framework
         {
             get
             {
-                if (index >= values.Length)
-                {
-                    return defaultValue;
-                }
                 return values[index];
             }
             set
@@ -90,6 +91,7 @@ namespace Somnium.Framework
         /// <param name="index"></param>
         /// <returns></returns>
         /// <exception cref="IndexOutOfRangeException">Thrown if index is more than the length of values</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Pop(uint index)
         {
             T result = values[index];
@@ -99,6 +101,7 @@ namespace Somnium.Framework
         /// <summary>
         /// WARNING: Uses Array.Clear, does not reset to defaultValue, but rather to default(T)
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             Array.Clear(values, 0, values.Length);

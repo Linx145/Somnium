@@ -176,7 +176,6 @@ namespace Somnium.Framework
                     VkEngine.activeRenderPass.End(VkEngine.commandBuffer);
                     VkEngine.activeRenderPass = null;
                     
-                    VkEngine.unifiedDynamicBuffer.ClearDynamicOffsets();
                     Interlocked.Decrement(ref VkEngine.begunPipelines);
                     break;
 #endif

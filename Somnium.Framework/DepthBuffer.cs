@@ -70,7 +70,7 @@ namespace Somnium.Framework
 
                         memoryRegion = VkMemory.malloc("Depth Buffer", image, MemoryPropertyFlags.DeviceLocalBit);
 
-                        VkEngine.TransitionImageLayout(image, ImageAspectFlags.DepthBit, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal, new CommandBuffer(null));
+                        VkEngine.TransitionImageLayout(image, ImageAspectFlags.DepthBit, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal, null);
 
                         layout = ImageLayout.DepthStencilAttachmentOptimal;
 

@@ -82,13 +82,6 @@ namespace Somnium.Framework.Vulkan
                 return ref frames[window.frameNumber].renderSemaphore;
             }
         }
-        public static UniformBuffer unifiedDynamicBuffer
-        {
-            get
-            {
-                return frames[window.frameNumber].unifiedDynamicBuffer;
-            }
-        }
 
         public static bool initialized { get; private set; }
         internal static bool recreatedSwapChainThisFrame = false;
@@ -654,21 +647,28 @@ namespace Somnium.Framework.Vulkan
             CommandBufferAllocateInfo allocateInfo = new CommandBufferAllocateInfo();
             allocateInfo.SType = StructureType.CommandBufferAllocateInfo;
             allocateInfo.Level = CommandBufferLevel.Primary;
+            CommandRegistrar registrarToUse = null; ;
             switch (commandBufferUsage)
             {
                 case CommandQueueType.GeneralPurpose:
                     throw new InvalidOperationException("CommandQueueType.GeneralPurpose not a valid usage for transient command buffer");
                 case CommandQueueType.Graphics:
-                    allocateInfo.CommandPool = new CommandPool(transientGraphicsCommandPool.handle);
+                    registrarToUse = transientGraphicsCommandPool;
+                    //allocateInfo.CommandPool = new CommandPool(transientGraphicsCommandPool.handle);
                     break;
                 case CommandQueueType.Transfer:
-                    allocateInfo.CommandPool = new CommandPool(transientTransferCommandPool.handle);
+                    registrarToUse = transientTransferCommandPool;
+                    //allocateInfo.CommandPool = new CommandPool(.handle);
                     break;
                 case CommandQueueType.Compute:
-                    allocateInfo.CommandPool = new CommandPool(transientComputeCommandPool.handle);
+                    registrarToUse = transientComputeCommandPool;
+                    //allocateInfo.CommandPool = new CommandPool(.handle);
                     break;
             }
+            allocateInfo.CommandPool = new CommandPool(registrarToUse.handle);
             allocateInfo.CommandBufferCount = 1;
+
+            registrarToUse.externalLock.EnterWriteLock();
 
             CommandBuffer transientBuffer;
             vk.AllocateCommandBuffers(vkDevice, in allocateInfo, &transientBuffer);
@@ -677,6 +677,7 @@ namespace Somnium.Framework.Vulkan
             {
                 BeginTransientCommandBuffer(transientBuffer);
             }
+            registrarToUse.externalLock.ExitWriteLock();
             return transientBuffer;
         }
         public static void BeginTransientCommandBuffer(CommandBuffer commandBuffer)
@@ -892,17 +893,17 @@ namespace Somnium.Framework.Vulkan
 
             texture.imageLayout = ImageLayout.ShaderReadOnlyOptimal;
         }
-        public static bool TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandBuffer bufferToUse)
+        public static bool TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandCollection commandCollectionToUse)
         {
             if (image.imageLayout == newLayout)
             {
                 return false;
             }
-            TransitionImageLayout(new Image(image.imageHandle), aspectFlags, image.imageLayout, newLayout, bufferToUse);
+            TransitionImageLayout(new Image(image.imageHandle), aspectFlags, image.imageLayout, newLayout, commandCollectionToUse);
             image.imageLayout = newLayout;
             return true;
         }
-        public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandBuffer bufferToUse)
+        public static void TransitionImageLayout(Image image, ImageAspectFlags aspectFlags, ImageLayout oldLayout, ImageLayout newLayout, CommandCollection commandCollectionToUse)
         {
             ImageMemoryBarrier barrier = new ImageMemoryBarrier();
             barrier.SType = StructureType.ImageMemoryBarrier;
@@ -927,15 +928,20 @@ namespace Somnium.Framework.Vulkan
 
             queue = CurrentGPU.AllPurposeQueue;
 
+            CommandBuffer bufferToUse;
             CommandRegistrar poolToUse = null;
             bool usingTransientBuffer = false;
-            if (bufferToUse.Handle == 0)
+            if (commandCollectionToUse == null)
             {
                 poolToUse = transientGraphicsCommandPool;
                 bufferToUse = CreateTransientCommandBuffer(true, CommandQueueType.Graphics);
                 usingTransientBuffer = true;
             }
-            //commandPool = new CommandPool(transientGraphicsCommandPool.handle);
+            else
+            {
+                bufferToUse = commandCollectionToUse;
+                poolToUse = commandCollectionToUse.memoryPool;
+            }
 
             PipelineStageFlags depthStageMask = PipelineStageFlags.EarlyFragmentTestsBit | PipelineStageFlags.LateFragmentTestsBit | 0;
 
@@ -1038,7 +1044,9 @@ namespace Somnium.Framework.Vulkan
 
             ReadOnlySpan<ImageMemoryBarrier> span = stackalloc ImageMemoryBarrier[1] { barrier };
 
+            poolToUse.externalLock.EnterWriteLock();
             vk.CmdPipelineBarrier(bufferToUse, sourceStage, destinationStage, DependencyFlags.None, null, null, span);
+            poolToUse.externalLock.ExitWriteLock();
 
             if (usingTransientBuffer)
             {

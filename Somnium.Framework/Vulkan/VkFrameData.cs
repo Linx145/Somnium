@@ -1,6 +1,7 @@
 ﻿#if VULKAN
 using Silk.NET.Vulkan;
 using System;
+using System.Threading;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Somnium.Framework.Vulkan
@@ -23,8 +24,7 @@ namespace Somnium.Framework.Vulkan
         //public CommandPoolCreateInfo poolCreateInfo;
         public CommandRegistrar commandPool;
         public CommandCollection commandBuffer;//CommandRegistrar commandPool;
-
-        public UniformBuffer unifiedDynamicBuffer;
+        public ReaderWriterLockSlim commandBufferLock;
         //public CommandBuffer commandBuffer;
 
         public bool isDisposed { get; private set; }
@@ -36,8 +36,7 @@ namespace Somnium.Framework.Vulkan
             presentSemaphore = VkEngine.CreateSemaphore();
             renderSemaphore = VkEngine.CreateSemaphore();
             fence = VkEngine.CreateFence();
-
-            unifiedDynamicBuffer = new UniformBuffer(application, 256, true);
+            commandBufferLock = new ReaderWriterLockSlim();
         }
 
         public unsafe void Dispose()
@@ -47,13 +46,13 @@ namespace Somnium.Framework.Vulkan
                 var vk = VkEngine.vk;
                 var vkDevice = VkEngine.vkDevice;
 
+                commandBufferLock.Dispose();
+
                 vk.DestroySemaphore(vkDevice, presentSemaphore, null);
                 vk.DestroySemaphore(vkDevice, renderSemaphore, null);
                 vk.DestroyFence(vkDevice, fence, null);
 
                 commandPool.Dispose();
-
-                unifiedDynamicBuffer?.Dispose();
                 isDisposed = true;
             }
         }

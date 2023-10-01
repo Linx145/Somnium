@@ -112,9 +112,9 @@ namespace Somnium.Framework
 
                             var img = new Image(imageHandle);
                             var original = imageLayout;
-                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, original, ImageLayout.TransferSrcOptimal, new CommandBuffer(null));
+                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, original, ImageLayout.TransferSrcOptimal, null);
                             VkEngine.StaticCopyImageToBuffer(this, stagingBuffer);
-                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.TransferSrcOptimal, original, new CommandBuffer(null));
+                            VkEngine.TransitionImageLayout(img, ImageAspectFlags.ColorBit, ImageLayout.TransferSrcOptimal, original, null);
 
                             byte* stagingData = stagingMemoryRegion.Bind<byte>();
                             new Span<byte>(stagingData, data.Length).CopyTo(data);
@@ -199,9 +199,9 @@ namespace Somnium.Framework
                                 data.AsSpan().CopyTo(new Span<byte>(stagingData, data.Length));
                                 stagingMemoryRegion.Unbind();
 
-                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, new CommandBuffer(null));
+                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, null);
                                 VkEngine.StaticCopyBufferToImage(stagingBuffer, this);
-                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, new CommandBuffer(null));
+                                VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal, null);
 
                                 imageLayout = ImageLayout.ShaderReadOnlyOptimal;
 
@@ -216,7 +216,7 @@ namespace Somnium.Framework
                         }
                         else
                         {
-                            VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, new CommandBuffer(null));
+                            VkEngine.TransitionImageLayout(image, ImageAspectFlags.ColorBit, ImageLayout.Undefined, ImageLayout.ColorAttachmentOptimal, null);
 
                             imageLayout = ImageLayout.ColorAttachmentOptimal;
                         }
