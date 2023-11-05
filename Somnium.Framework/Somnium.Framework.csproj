@@ -8,17 +8,17 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>$(DefineConstants);FMOD;VULKAN</DefineConstants>
+    <DefineConstants>$(DefineConstants);FMOD;VULKAN;GLFW</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DefineConstants>$(DefineConstants);FMOD;VULKAN</DefineConstants>
+    <DefineConstants>$(DefineConstants);FMOD;VULKAN;GLFW</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Silk.NET.Core" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.GLFW" Version="2.17.1" />
     <PackageReference Include="StbImageSharp" Version="2.27.13" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.17.1" />
   </ItemGroup>
   <Choose>
     <When Condition="$(DefineConstants.Contains('WGPU'))">

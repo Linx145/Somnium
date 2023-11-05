@@ -14,6 +14,7 @@ namespace Somnium.Framework
     [DebuggerDisplay("{DebugDisplayString,nq}")]
     public struct Color : IEquatable<Color>
     {
+        public const float OneOver255 = 1f / 255f;
         static Color()
         {
             Transparent = new Color(0);
@@ -1754,7 +1755,7 @@ namespace Somnium.Framework
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToVector3()
         {
-            return new Vector3((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f);
+            return new Vector3(R * OneOver255, G * OneOver255, B * OneOver255);
         }
 
         /// <summary>
@@ -1764,7 +1765,7 @@ namespace Somnium.Framework
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 ToVector4()
         {
-            return new Vector4((float)R / 255.0f, (float)G / 255.0f, (float)B / 255.0f, (float)A / 255.0f);
+            return new Vector4(R * OneOver255, G * OneOver255, B * OneOver255, A * OneOver255);
         }
 
         /// <summary>

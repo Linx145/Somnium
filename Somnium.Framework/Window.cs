@@ -47,7 +47,10 @@ namespace Somnium.Framework
         public abstract void Dispose();
         public abstract void UpdateInput();
         public abstract void UpdateWindowControls();
+        public abstract bool IsMaximized();
         public abstract void Maximize();
+        public abstract bool IsFullscreen();
+        public abstract void Fullscreen(bool fullscreen);
         public abstract void SetIcon(Texture2D texture);
         public abstract void SetCursorTexture(Texture2D cursorTexture, Point cursorCenter);
         public abstract void SetCursorVisible(bool visible);
@@ -71,15 +74,9 @@ namespace Somnium.Framework
         /// Called when a character is inputted, distinct from onKeyPressed in it's recording function
         /// </summary>
         public Action<char> onTextInput;
-        /// <summary>
-        /// Whether VSync should be turned on, thus limiting max FPS to your monitor's refresh rate but preventing screen tearing. Only applicable in high-level Graphics API such as OpenGL as DX11
-        /// </summary>
-        public abstract bool VSync { get; set; }
 
         public abstract bool UserCanResize { get; set; }
         public abstract INativeWindow Native { get; }
-
-        //public abstract bool Fullscreen { get; set; }
 
         protected void OnMaximize(Window window, int width, int height)
         {
@@ -109,6 +106,6 @@ namespace Somnium.Framework
         public abstract Extent2D GetSwapChainExtents(in SurfaceCapabilitiesKHR capabilities);
         public abstract bool CreateWindowSurfaceVulkan(out SurfaceKHR surface);
 #endif
-#endregion
+        #endregion
     }
 }

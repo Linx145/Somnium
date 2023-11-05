@@ -1,4 +1,5 @@
-﻿using Silk.NET.GLFW;
+﻿#if GLFW
+using Silk.NET.GLFW;
 using System;
 using System.Numerics;
 
@@ -76,24 +77,6 @@ namespace Somnium.Framework.GLFW
                 {
                     result.buttonStates[i] = glfwGamepadState.Buttons[i] == (byte)InputAction.Press;
                 }
-                /*result.L2DownAmount = glfwGamepadState.Axes[4];
-                result.R2DownAmount = glfwGamepadState.Axes[5];
-
-                result.ADown = glfwGamepadState.Buttons[0] == (byte)InputAction.Press;
-                result.BDown = glfwGamepadState.Buttons[1] == (byte)InputAction.Press;
-                result.XDown = glfwGamepadState.Buttons[2] == (byte)InputAction.Press;
-                result.YDown = glfwGamepadState.Buttons[3] == (byte)InputAction.Press;
-                result.L1Down = glfwGamepadState.Buttons[4] == (byte)InputAction.Press;
-                result.R1Down = glfwGamepadState.Buttons[5] == (byte)InputAction.Press;
-                result.backDown = glfwGamepadState.Buttons[6] == (byte)InputAction.Press;
-                result.startDown = glfwGamepadState.Buttons[7] == (byte)InputAction.Press;
-                result.centralButtonDown = glfwGamepadState.Buttons[8] == (byte)InputAction.Press;
-                result.leftStickPressed = glfwGamepadState.Buttons[9] == (byte)InputAction.Press;
-                result.rightStickPressed = glfwGamepadState.Buttons[10] == (byte)InputAction.Press;
-                result.DPadUp = glfwGamepadState.Buttons[11] == (byte)InputAction.Press;
-                result.DPadRight = glfwGamepadState.Buttons[12] == (byte)InputAction.Press;
-                result.DPadDown = glfwGamepadState.Buttons[13] == (byte)InputAction.Press;
-                result.DPadLeft = glfwGamepadState.Buttons[14] == (byte)InputAction.Press;*/
             }
         }
         public override Vector2 mousePosition
@@ -157,3 +140,4 @@ namespace Somnium.Framework.GLFW
         public override Vector2 mouseScroll => scroll;
     }
 }
+#endif

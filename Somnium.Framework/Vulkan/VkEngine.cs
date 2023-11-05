@@ -870,29 +870,6 @@ namespace Somnium.Framework.Vulkan
         #endregion
 
         #region images
-        public static void AwaitImageFinishModifying(Texture2D texture)
-        {
-            ImageMemoryBarrier barrier = new ImageMemoryBarrier();
-            barrier.SType = StructureType.ImageMemoryBarrier;
-            barrier.PNext = null;
-            var srcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
-            barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
-            var dstStageMask = PipelineStageFlags.FragmentShaderBit;
-            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
-            barrier.OldLayout = texture.imageLayout;
-            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;//renderBuffer.backendTexture.imageLayout;
-
-            barrier.Image = new Image(texture.imageHandle);
-            barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;
-            barrier.SubresourceRange.BaseMipLevel = 0;
-            barrier.SubresourceRange.LevelCount = 1;
-            barrier.SubresourceRange.BaseArrayLayer = 0;
-            barrier.SubresourceRange.LayerCount = 1;
-
-            vk.CmdPipelineBarrier(new CommandBuffer(commandBuffer.handle), srcStageMask, dstStageMask, DependencyFlags.None, 0, null, 0, null, 1, &barrier);
-
-            texture.imageLayout = ImageLayout.ShaderReadOnlyOptimal;
-        }
         public static bool TransitionImageLayout(Texture2D image, ImageAspectFlags aspectFlags, ImageLayout newLayout, CommandCollection commandCollectionToUse)
         {
             if (image.imageLayout == newLayout)

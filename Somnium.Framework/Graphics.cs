@@ -4,6 +4,7 @@ using Somnium.Framework.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 #endif
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework
 {
@@ -68,60 +69,6 @@ namespace Somnium.Framework
                 targetBuffer.hasBeenUsedBefore = true;
             }
         }
-
-        /*public void Clear(Color clearColor, Point clearDimensions = default)
-        {
-            switch (application.runningBackend)
-            {
-#if VULKAN
-                case Backends.Vulkan:
-                    unsafe
-                    {
-                        if (VkEngine.activeRenderPass == null)
-                        {
-                            throw new InvalidOperationException("Cannot perform clear buffer operation in Vulkan when no VkRenderPass is active!");
-                        }
-                        //vkCmdClearAttachments is not affected by the bound pipeline state.
-                        //it however must be issued within a valid render pass
-                        int clearCount = 1;
-                        ClearAttachment* clearAttachments = stackalloc ClearAttachment[2];
-                        clearAttachments[0] = new ClearAttachment(ImageAspectFlags.ColorBit, 0, new ClearValue(new ClearColorValue(clearColor.R / 255f, clearColor.G / 255f, clearColor.B / 255f, clearColor.A / 255f)));
-                        if (VkEngine.activeRenderPass.hasDepthStencil)
-                        {
-                            clearCount++;
-                            clearAttachments[1] = new ClearAttachment(ImageAspectFlags.DepthBit, 0, new ClearValue(null, new ClearDepthStencilValue(1f, 0)));
-                        }
-
-                        ClearRect* clearAreas = stackalloc ClearRect[clearCount];
-                        Extent2D extents;
-                        if (clearDimensions == default)
-                        {
-                            if (currentRenderbuffer == null)
-                            {
-                                extents = VkEngine.swapChain.imageExtents;
-                            }
-                            else
-                            {
-                                extents = new Extent2D(currentRenderbuffer.width, currentRenderbuffer.height);
-                            }
-                        }
-                        else
-                        {
-                            extents = new Extent2D((uint)clearDimensions.X, (uint)clearDimensions.Y);
-                        }
-                        for (int i = 0; i < clearCount; i++)
-                        {
-                            clearAreas[i] = new ClearRect(new Rect2D(default(Offset2D), extents), 0, 1);
-                        }
-
-                        VkEngine.vk.CmdClearAttachments(VkEngine.commandBuffer, (uint)clearCount, clearAttachments, (uint)clearCount, clearAreas);
-                    }
-                    break;
-#endif
-                default:
-                    break;
-            }
-        }*/
         public void SetClipArea(Rectangle rect)
         {
             if (currentPipeline == null)
@@ -153,19 +100,42 @@ namespace Somnium.Framework
                     throw new NotImplementedException();
             }
         }
-        public void AwaitImageFinishModifying(Texture2D image)
+        public void AwaitImageFinishModifying(Texture2D texture)
         {
             switch (application.runningBackend)
             {
 #if VULKAN
                 case Backends.Vulkan:
-                    VkEngine.AwaitImageFinishModifying(image);
+                    unsafe
+                    {
+                        ImageMemoryBarrier barrier = new ImageMemoryBarrier();
+                        barrier.SType = StructureType.ImageMemoryBarrier;
+                        barrier.PNext = null;
+                        var srcStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+                        barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+                        var dstStageMask = PipelineStageFlags.FragmentShaderBit;
+                        barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+                        barrier.OldLayout = texture.imageLayout;
+                        barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;//renderBuffer.backendTexture.imageLayout;
+
+                        barrier.Image = new Image(texture.imageHandle);
+                        barrier.SubresourceRange.AspectMask = ImageAspectFlags.ColorBit;
+                        barrier.SubresourceRange.BaseMipLevel = 0;
+                        barrier.SubresourceRange.LevelCount = 1;
+                        barrier.SubresourceRange.BaseArrayLayer = 0;
+                        barrier.SubresourceRange.LayerCount = 1;
+
+                        VkEngine.vk.CmdPipelineBarrier(new CommandBuffer(VkEngine.commandBuffer.handle), srcStageMask, dstStageMask, DependencyFlags.None, 0, null, 0, null, 1, &barrier);
+
+                        texture.imageLayout = ImageLayout.ShaderReadOnlyOptimal;
+                    }
                     break;
 #endif
                 default:
                     break;
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AwaitGraphicsIdle()
         {
             switch (application.runningBackend)
@@ -181,6 +151,7 @@ namespace Somnium.Framework
                     break;
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetRenderbuffer(RenderBuffer renderBuffer)
         {
             switch (application.runningBackend)
@@ -207,11 +178,13 @@ namespace Somnium.Framework
         /// </summary>
         /// <param name="pipelineState"></param>
         /// <param name="autoUpdateUniforms">If true, updates the shaders uniform state as well</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetPipeline(PipelineState pipelineState, Rectangle areaToDrawTo = default, Color? clearColor = null)
         {
             pipelineState.Begin(RenderStage.Graphics, areaToDrawTo, clearColor);
             currentPipeline = pipelineState;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndPipeline()
         {
             if (currentPipeline == null || !currentPipeline.begun)
@@ -224,6 +197,7 @@ namespace Somnium.Framework
         /// <summary>
         /// Syncs the local state of the uniform buffers with the shader
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SendUpdatedUniforms()
         {
             bool updateUniforms = false;
@@ -238,6 +212,7 @@ namespace Somnium.Framework
             //at least one uniform has been updated, so we need to update our descriptors
             if (updateUniforms) currentPipeline.ForceUpdateUniforms(RenderStage.Graphics);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetInstanceBuffer(InstanceBuffer buffer, uint bindingPoint)
         {
             unsafe
@@ -258,6 +233,7 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetVertexBuffer(VertexBuffer buffer, uint bindingPoint = 0)
         {
             unsafe
@@ -278,6 +254,7 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetIndexBuffer(IndexBuffer buffer)
         {
             unsafe
@@ -298,6 +275,7 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawPrimitives(uint vertexCount, uint instanceCount, uint firstVertex = 0, uint firstInstance = 0)
         {
             unsafe
@@ -315,6 +293,7 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawIndexedPrimitives(uint indexCount, uint instanceCount, uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0)
         {
             unsafe
@@ -332,6 +311,7 @@ namespace Somnium.Framework
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetPipelineShaders()
         {
             SendUpdatedUniforms();

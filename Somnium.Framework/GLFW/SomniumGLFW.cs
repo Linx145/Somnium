@@ -1,4 +1,5 @@
-﻿using Silk.NET.GLFW;
+﻿#if GLFW
+using Silk.NET.GLFW;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,3 +38,4 @@ namespace Somnium.Framework.GLFW
         }
     }
 }
+#endif

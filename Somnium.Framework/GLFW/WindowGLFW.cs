@@ -1,17 +1,18 @@
-﻿using Silk.NET.Core.Contexts;
-using Silk.NET.Core.Native;
-using Silk.NET.GLFW;
+﻿#if VULKAN
 using Silk.NET.Vulkan;
-#if VULKAN
 using Somnium.Framework.Vulkan;
 #endif
+
+#if GLFW
+using Silk.NET.Core.Contexts;
+using Silk.NET.Core.Native;
+using Silk.NET.GLFW;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework.GLFW
 {
-    public unsafe class WindowGLFW : Window
+    public unsafe sealed class WindowGLFW : Window
     {
         public static int activeWindows { get; private set; }
         public static Glfw Glfw
@@ -80,9 +81,30 @@ namespace Somnium.Framework.GLFW
                 Glfw.SetWindowShouldClose(handle, value);
             }
         }
+        public override bool IsMaximized()
+        {
+            return Glfw.GetWindowAttrib(handle, WindowAttributeGetter.Maximized);
+        }
         public override void Maximize()
         {
             Glfw.MaximizeWindow(handle);
+        }
+        public override bool IsFullscreen()
+        {
+            return Glfw.GetWindowMonitor(handle) != null;
+        }
+        public override void Fullscreen(bool fullscreen)
+        {
+            Monitor* monitor = Glfw.GetPrimaryMonitor();
+            if (fullscreen)
+            {
+                Glfw.GetMonitorWorkarea(monitor, out int x, out int y, out int w, out int h);
+                Glfw.SetWindowMonitor(handle, monitor, x, y, w, h, Glfw.DontCare);
+            }
+            else
+            {
+                Glfw.SetWindowMonitor(handle, null, internalPosition.X, internalPosition.Y, internalSize.X, internalSize.Y, Glfw.DontCare);
+            }
         }
         public override bool IsMinimized
         {
@@ -137,18 +159,6 @@ namespace Somnium.Framework.GLFW
             }
         }*/
         private bool internalIsMinimized = false;
-        public override bool VSync
-        {
-            get
-            {
-                return internalVSync;
-            }
-            set
-            {
-                VSyncChanged = true;
-                internalVSync = value;
-            }
-        }
 #if VULKAN
         public override byte** GetRequiredExtensions(out uint count)
         {
@@ -474,3 +484,4 @@ namespace Somnium.Framework.GLFW
         }
     }
 }
+#endif

@@ -142,7 +142,12 @@ namespace Somnium.Framework
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ModWrapped(int a, int b)
         {
-            return a - b * (int)Floor(a / (float)b);
+            return a - b * Floor(a / (float)b);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ModWrapped(float a, float b)
+        {
+            return a - Floor(a / b) * b;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -450,6 +455,11 @@ namespace Somnium.Framework
                 }
             }
             else return current;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float AngleDifference(float sourceAngle, float targetAngle)
+        {
+            return ModWrapped(targetAngle - sourceAngle + 180f * Mathf.DegreeRadian, 360f * Mathf.DegreeRadian) - 180f * Mathf.DegreeRadian;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
