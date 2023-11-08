@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Somnium.Framework.Audio
 {
@@ -26,6 +27,7 @@ namespace Somnium.Framework.Audio
             //callback = new SYSTEM_CALLBACK(LogCallback);
             //result = API.setCallback(callback, SYSTEM_CALLBACK_TYPE.ERROR);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Update()
         {
             if (API.update() != RESULT.OK)
@@ -51,6 +53,7 @@ namespace Somnium.Framework.Audio
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VECTOR ToVECTOR(this Vector3 vector)
         {
             VECTOR results = new VECTOR();

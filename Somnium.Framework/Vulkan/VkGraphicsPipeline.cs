@@ -226,8 +226,15 @@ namespace Somnium.Framework.Vulkan
             {
                 throw new NotImplementedException();
             }
-            //todo: Account for shaders without descriptor sets
-            uint descriptorSetLayoutCount = (uint)(shaders.Length);
+
+            uint descriptorSetLayoutCount = 0;
+            for (int i = 0; i < shaders.Length; i++)
+            {
+                if (shaders[i].descriptorSetLayout.Handle != 0)
+                {
+                    descriptorSetLayoutCount++;
+                }
+            }
 
             PipelineLayoutCreateInfo createInfo = new PipelineLayoutCreateInfo();
             createInfo.SType = StructureType.PipelineLayoutCreateInfo;
