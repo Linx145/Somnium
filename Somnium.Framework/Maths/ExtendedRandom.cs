@@ -18,6 +18,42 @@ namespace Somnium.Framework
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Shuffle<T>(T[] array)
+        {
+            Shuffle(new Span<T>(array));
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Shuffle<T>(Span<T> values)
+        {
+            int n = values.Length;
+
+            for (int i = 0; i < n - 1; i++)
+            {
+                int j = random.Next(i, n);
+
+                if (j != i)
+                {
+                    T temp = values[i];
+                    values[i] = values[j];
+                    values[j] = temp;
+                }
+            }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T[] PickRandomNonRepeating<T>(ReadOnlySpan<T> values, int amount)
+        {
+            if (amount >= values.Length)
+            {
+                throw new IndexOutOfRangeException("Attempting to pick more non-repeating values than is provided");
+            }
+            T[] copy = new T[values.Length];
+            values.CopyTo(copy.AsSpan());
+            Shuffle(new Span<T>(copy));
+            T[] result = new T[amount];
+            Array.Copy(copy, result, amount);
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next()
         {
             return random.Next();
